@@ -21,41 +21,33 @@ export default function CalendarView({
 }: CalendarViewProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [calendarDays, setCalendarDays] = useState<Date[]>([]);
-  
+  const [view, setView] = useState<'day' | 'week' | 'month'>('month');
+
   // Generate calendar days array
   useEffect(() => {
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
     const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
-    
-    // Include days from previous and next month to fill the calendar grid
-    const dayOfWeek = monthStart.getDay() || 7; // Convert Sunday (0) to 7 for European calendar
+
+    const dayOfWeek = monthStart.getDay() || 7;
     const prevMonthDays = Array.from({ length: dayOfWeek - 1 }, (_, i) => {
       return new Date(monthStart.getFullYear(), monthStart.getMonth(), -i);
     }).reverse();
-    
+
     const nextMonthDays = [];
-    const totalDaysNeeded = 42; // 6 rows of 7 days
+    const totalDaysNeeded = 42;
     const daysToAdd = totalDaysNeeded - (prevMonthDays.length + daysInMonth.length);
     for (let i = 1; i <= daysToAdd; i++) {
       nextMonthDays.push(new Date(monthEnd.getFullYear(), monthEnd.getMonth(), monthEnd.getDate() + i));
     }
-    
+
     setCalendarDays([...prevMonthDays, ...daysInMonth, ...nextMonthDays]);
   }, [currentMonth]);
-  
-  const handlePreviousMonth = () => {
-    setCurrentMonth(subMonths(currentMonth, 1));
-  };
-  
-  const handleNextMonth = () => {
-    setCurrentMonth(addMonths(currentMonth, 1));
-  };
-  
-  const handleToday = () => {
-    setCurrentMonth(new Date());
-  };
-  
+
+  const handlePreviousMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
+  const handleNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
+  const handleToday = () => setCurrentMonth(new Date());
+
   // Group appointments by date
   const appointmentsByDate = appointments.reduce((acc, appointment) => {
     const date = appointment.date;
@@ -65,7 +57,7 @@ export default function CalendarView({
     acc[date].push(appointment);
     return acc;
   }, {} as Record<string, Appointment[]>);
-  
+
   if (isLoading) {
     return (
       <div className="bg-card rounded-lg shadow-md overflow-hidden border border-border">
@@ -76,7 +68,7 @@ export default function CalendarView({
       </div>
     );
   }
-  
+
   return (
     <div className="bg-card rounded-lg shadow-md overflow-hidden border border-border">
       <div className="p-4 border-b border-border flex justify-between items-center">
@@ -91,37 +83,40 @@ export default function CalendarView({
             <ChevronRight className="h-5 w-5" />
           </Button>
         </div>
-        
+
         <div className="flex space-x-2">
           <Button variant="outline" size="sm" onClick={handleToday}>
             Oggi
           </Button>
           <div className="flex border border-border rounded-md overflow-hidden">
             <Button 
-              variant="outline"
+              variant={view === 'day' ? 'default' : 'outline'}
               size="sm"
               className="rounded-none"
+              onClick={() => setView('day')}
             >
               Giorno
             </Button>
             <Button 
-              variant="outline"
+              variant={view === 'week' ? 'default' : 'outline'}
               size="sm"
               className="rounded-none"
+              onClick={() => setView('week')}
             >
               Settimana
             </Button>
             <Button 
-              variant="default"
+              variant={view === 'month' ? 'default' : 'outline'}
               size="sm"
               className="rounded-none"
+              onClick={() => setView('month')}
             >
               Mese
             </Button>
           </div>
         </div>
       </div>
-      
+
       <div className="grid grid-cols-7 text-center p-2 border-b border-border bg-accent/50">
         <div className="p-2 text-xs font-medium text-muted-foreground">Lun</div>
         <div className="p-2 text-xs font-medium text-muted-foreground">Mar</div>
@@ -131,17 +126,14 @@ export default function CalendarView({
         <div className="p-2 text-xs font-medium text-muted-foreground">Sab</div>
         <div className="p-2 text-xs font-medium text-muted-foreground">Dom</div>
       </div>
-      
+
       <div className="grid grid-cols-7 auto-rows-fr">
         {calendarDays.map((day, index) => {
           const formattedDate = format(day, 'yyyy-MM-dd');
           const dayAppointments = appointmentsByDate[formattedDate] || [];
           const isCurrentMonth = isSameMonth(day, currentMonth);
           const isTodayDate = isToday(day);
-          
-          // Generate hourly slots from 8:00 to 20:00
-          const hours = Array.from({ length: 13 }, (_, i) => `${i + 8}:00`);
-          
+
           return (
             <div 
               key={index}
@@ -157,35 +149,22 @@ export default function CalendarView({
               }`}>
                 {format(day, 'd')}
               </div>
-              
-              <div className="space-y-1 text-xs">
-                {hours.map((hour) => {
-                  const hourAppointments = dayAppointments.filter(
-                    app => app.time.startsWith(hour)
-                  );
-                  
-                  return (
-                    <div key={hour} className="flex items-center py-1 border-t border-border">
-                      <span className="w-10 text-muted-foreground">{hour}</span>
-                      <div className="flex-1">
-                        {hourAppointments.map((appointment) => (
-                          <div 
-                            key={appointment.id}
-                            className="p-1 rounded-sm border-l-2 border-primary bg-primary/15 truncate cursor-pointer"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onSelectAppointment(appointment);
-                            }}
-                          >
-                            <div className="font-medium truncate">
-                              {appointment.clientName}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+
+              <div className="space-y-1">
+                {dayAppointments.map((appointment) => (
+                  <div 
+                    key={appointment.id}
+                    className="text-xs p-1 rounded-sm border-l-2 border-primary bg-primary/15 truncate"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelectAppointment(appointment);
+                    }}
+                  >
+                    <div className="font-medium truncate">
+                      {appointment.time} - {appointment.clientName}
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
             </div>
           );
