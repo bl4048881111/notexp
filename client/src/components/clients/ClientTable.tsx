@@ -1,0 +1,192 @@
+import { useState } from "react";
+import { format } from "date-fns";
+import { Edit, Trash, Calendar } from "lucide-react";
+import { useLocation } from "wouter";
+import { Client } from "@shared/types";
+import { deleteClient } from "@shared/firebase";
+import { useToast } from "@/hooks/use-toast";
+
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+
+interface ClientTableProps {
+  clients: Client[];
+  isLoading: boolean;
+  onEdit: (client: Client) => void;
+  onDeleteSuccess: () => void;
+}
+
+export default function ClientTable({ clients, isLoading, onEdit, onDeleteSuccess }: ClientTableProps) {
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  
+  const handleDeleteClick = (client: Client) => {
+    setClientToDelete(client);
+    setDeleteDialogOpen(true);
+  };
+  
+  const handleConfirmDelete = async () => {
+    if (!clientToDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      await deleteClient(clientToDelete.id);
+      toast({
+        title: "Cliente eliminato",
+        description: "Il cliente è stato eliminato con successo",
+      });
+      onDeleteSuccess();
+    } catch (error) {
+      toast({
+        title: "Errore di eliminazione",
+        description: "Si è verificato un errore durante l'eliminazione del cliente",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+      setClientToDelete(null);
+    }
+  };
+  
+  const handleCreateAppointment = (client: Client) => {
+    // Navigate to appointments page with client data
+    setLocation(`/appointments?clientId=${client.id}`);
+  };
+  
+  if (isLoading) {
+    return (
+      <div className="p-4">
+        <Skeleton className="h-10 w-full mb-4" />
+        <Skeleton className="h-10 w-full mb-4" />
+        <Skeleton className="h-10 w-full mb-4" />
+      </div>
+    );
+  }
+  
+  return (
+    <>
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Codice</TableHead>
+              <TableHead>Cliente</TableHead>
+              <TableHead>Contatti</TableHead>
+              <TableHead>Veicolo</TableHead>
+              <TableHead>Data Aggiunta</TableHead>
+              <TableHead>Azioni</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {clients.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center p-4 text-muted-foreground">
+                  Nessun cliente trovato
+                </TableCell>
+              </TableRow>
+            ) : (
+              clients.map((client) => (
+                <TableRow key={client.id} className="hover:bg-accent/50">
+                  <TableCell className="font-medium text-primary">{client.id}</TableCell>
+                  <TableCell>
+                    <div className="font-medium">{client.name} {client.surname}</div>
+                  </TableCell>
+                  <TableCell>
+                    <div>{client.phone}</div>
+                    <div className="text-xs text-muted-foreground">{client.email}</div>
+                  </TableCell>
+                  <TableCell>
+                    <div>{client.model}</div>
+                    <div className="text-xs text-muted-foreground">{client.plate}</div>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {format(new Date(client.createdAt), 'dd/MM/yyyy')}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex space-x-2">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => onEdit(client)}
+                        title="Modifica"
+                      >
+                        <Edit className="h-4 w-4 text-primary" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => handleDeleteClick(client)}
+                        title="Elimina"
+                      >
+                        <Trash className="h-4 w-4 text-primary" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => handleCreateAppointment(client)}
+                        title="Crea appuntamento"
+                      >
+                        <Calendar className="h-4 w-4 text-primary" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
+      
+      <div className="px-6 py-3 flex items-center justify-between border-t border-border">
+        <div className="text-sm text-muted-foreground">
+          Mostrando <span className="font-medium">1-{Math.min(clients.length, 10)}</span> di <span className="font-medium">{clients.length}</span> clienti
+        </div>
+        
+        {/* Pagination would go here */}
+      </div>
+      
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sei sicuro di voler eliminare questo cliente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Questa azione non può essere annullata. Verranno eliminati tutti i dati del cliente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Annulla</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmDelete} 
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground"
+            >
+              {isDeleting ? "Eliminazione in corso..." : "Elimina"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
