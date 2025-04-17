@@ -31,14 +31,10 @@ const ProtectedRoute = ({ component: Component, ...rest }: { component: React.Co
 function Router() {
   const { isAuthenticated } = useAuth();
   
-  // Redirect to dashboard if authenticated, login if not
+  // Handled by the Route component now
   useEffect(() => {
-    if (window.location.pathname === '/' && isAuthenticated) {
-      window.location.href = '/dashboard';
-    } else if (window.location.pathname === '/' && !isAuthenticated) {
-      window.location.href = '/login';
-    }
-  }, [isAuthenticated]);
+    // Empty effect - using Redirect component is more reliable
+  }, []);
 
   return (
     <Switch>
@@ -52,7 +48,14 @@ function Router() {
       <Route path="/appointments">
         {() => <ProtectedRoute component={AppointmentsPage} path="/appointments" />}
       </Route>
-      <Route path="/" component={() => <Redirect to="/dashboard" />} />
+      <Route path="/">
+        {() => {
+          const { isAuthenticated } = useAuth();
+          return isAuthenticated 
+            ? <Redirect to="/dashboard" /> 
+            : <Redirect to="/login" />;
+        }}
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );

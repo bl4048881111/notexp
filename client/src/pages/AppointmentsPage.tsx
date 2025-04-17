@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 
 import { getAllAppointments } from "@shared/firebase";
@@ -13,7 +14,7 @@ import { Appointment } from "@shared/schema";
 import AppointmentForm from "../components/appointments/AppointmentForm";
 import CalendarView from "../components/appointments/CalendarView";
 import TableView from "../components/appointments/TableView";
-import { exportAppointmentsToExcel } from "../services/exportService";
+import { exportAppointmentsToExcel, exportAppointmentsToPDF } from "../services/exportService";
 
 export default function AppointmentsPage() {
   const [view, setView] = useState<"calendar" | "table">("calendar");
@@ -122,10 +123,38 @@ export default function AppointmentsPage() {
             </Button>
           </div>
           
-          <Button variant="outline" onClick={handleExportAppointments}>
-            <Download className="mr-2 h-4 w-4" />
-            Esporta
-          </Button>
+          <div className="relative">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <Download className="mr-2 h-4 w-4" />
+                  Esporta
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleExportAppointments}>
+                  Esporta in Excel
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => {
+                  try {
+                    exportAppointmentsToPDF(filteredAppointments);
+                    toast({
+                      title: "Esportazione completata",
+                      description: "Gli appuntamenti sono stati esportati in PDF con successo",
+                    });
+                  } catch (error) {
+                    toast({
+                      title: "Errore di esportazione",
+                      description: "Si è verificato un errore durante l'esportazione in PDF",
+                      variant: "destructive",
+                    });
+                  }
+                }}>
+                  Esporta in PDF
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </div>
       
