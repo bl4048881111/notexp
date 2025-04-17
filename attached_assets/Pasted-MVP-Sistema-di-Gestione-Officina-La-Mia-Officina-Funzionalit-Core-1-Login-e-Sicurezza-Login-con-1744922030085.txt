@@ -1,0 +1,155 @@
+MVP Sistema di Gestione Officina "La Mia Officina"
+Funzionalità Core
+1. Login e Sicurezza
+
+Login con credenziali predefinite (username/password)
+Credenziali memorizzate localmente nell'applicazione o in file di configurazione
+
+2. Dashboard
+
+Tre contenitori principali:
+
+Appuntamenti di oggi (numero e lista rapida)
+Clienti nuovi (ultimi 5 aggiunti)
+Clienti attivi (numero totale)
+
+
+Accesso rapido alle funzioni principali
+Design con sfondo nero e testo/elementi arancioni
+
+3. Gestione Clienti
+
+Dati cliente:
+
+Nome e cognome
+Numero di telefono
+Email
+Targa
+Modello veicolo
+
+
+Generazione automatica di codice cliente progressivo
+Elenco clienti con ricerca, filtri e ordinamento
+Modifica e cancellazione cliente
+Esportazione elenco clienti
+
+4. Gestione Appuntamenti
+
+Vista principale: Calendario
+
+Visualizzazione mensile/settimanale/giornaliera
+Indicazione visiva degli slot occupati
+Click su data per aggiungere nuovo appuntamento
+Click su appuntamento esistente per modificare/vedere dettagli
+
+
+Vista secondaria: Tabella
+
+Elenco completo appuntamenti
+Filtri e ricerca
+Funzioni di modifica, cancellazione e aggiunta
+Esportazione elenco
+
+
+Creazione appuntamento:
+
+Ricerca cliente con autocompletamento
+Compilazione automatica dei dati del veicolo
+Selezione servizi da effettuare
+Note aggiuntive
+Opzione per aggiungere cliente nuovo se non presente
+
+
+
+Firebase come Container Dati
+Firebase Realtime Database viene utilizzato esclusivamente come container per i dati dell'applicazione, con questa struttura:
+json{
+  "clients": {
+    "CL001": {
+      "id": "CL001",
+      "name": "Mario",
+      "surname": "Rossi", 
+      "phone": "3451234567",
+      "email": "mario@esempio.com",
+      "plate": "AB123CD",
+      "model": "Fiat Panda",
+      "createdAt": 1713433325
+    }
+  },
+  "appointments": {
+    "AP001": {
+      "id": "AP001",
+      "clientId": "CL001",
+      "clientName": "Mario Rossi",
+      "phone": "3451234567",
+      "plate": "AB123CD",
+      "model": "Fiat Panda",
+      "date": "2025-04-18",
+      "time": "10:00",
+      "duration": 60,
+      "services": ["Cambio olio", "Controllo freni"],
+      "notes": "Cliente richiede controllo anche della batteria",
+      "status": "programmato"
+    }
+  },
+  "counters": {
+    "clientId": 42,
+    "appointmentId": 76
+  }
+}
+Flussi Principali
+Login
+
+L'utente accede alla pagina iniziale
+Inserisce username e password predefiniti (memorizzati nell'applicazione)
+Se corrette, accesso alla dashboard
+
+Creazione Cliente
+
+L'utente accede alla sezione Clienti
+Clicca su "Nuovo Cliente"
+Compila i campi richiesti
+Il sistema genera automaticamente un ID cliente progressivo
+Salvataggio in Firebase
+
+Creazione Appuntamento
+
+L'utente accede alla sezione Appuntamenti (vista calendario)
+Clicca sulla data desiderata
+Si apre il form di creazione appuntamento
+Cerca e seleziona un cliente esistente (i dati si autocompilano)
+Se il cliente non esiste, pulsante "Aggiungi Nuovo" crea un cliente al volo
+Compila servizi, orario e note
+Salva l'appuntamento in Firebase che appare immediatamente nel calendario
+
+Gestione Appuntamenti
+
+L'utente può passare dalla vista calendario alla vista tabellare
+Nella vista tabellare può cercare, filtrare, modificare, eliminare ed esportare
+Cliccando su un appuntamento esistente può:
+
+Modificare qualsiasi dato
+Eliminare l'appuntamento
+Contrassegnarlo come completato
+
+
+
+Statistiche Dashboard
+
+All'accesso, la dashboard carica i dati da Firebase e mostra:
+
+Gli appuntamenti del giorno corrente
+I clienti aggiunti più recentemente
+Il totale di clienti attivi
+
+
+Pulsanti di accesso rapido alle funzioni principali
+
+Tecnologie Consigliate
+
+Frontend: React.js con Material UI (tema nero/arancione)
+Database: Firebase Realtime Database (solo come container dati)
+Calendario: FullCalendar.js
+Esportazione: jsPDF e SheetJS
+
+Questo MVP è progettato per utilizzare Firebase esclusivamente come container per i dati dei clienti e degli appuntamenti, mentre la logica dell'applicazione e l'autenticazione vengono gestite localmente nell'applicazione.
