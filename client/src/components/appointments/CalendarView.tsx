@@ -139,6 +139,9 @@ export default function CalendarView({
           const isCurrentMonth = isSameMonth(day, currentMonth);
           const isTodayDate = isToday(day);
           
+          // Generate hourly slots from 8:00 to 20:00
+          const hours = Array.from({ length: 13 }, (_, i) => `${i + 8}:00`);
+          
           return (
             <div 
               key={index}
@@ -155,21 +158,34 @@ export default function CalendarView({
                 {format(day, 'd')}
               </div>
               
-              <div className="space-y-1">
-                {dayAppointments.map((appointment) => (
-                  <div 
-                    key={appointment.id}
-                    className="text-xs p-1 rounded-sm border-l-2 border-primary bg-primary/15 truncate"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onSelectAppointment(appointment);
-                    }}
-                  >
-                    <div className="font-medium truncate">
-                      {appointment.time} - {appointment.clientName}
+              <div className="space-y-1 text-xs">
+                {hours.map((hour) => {
+                  const hourAppointments = dayAppointments.filter(
+                    app => app.time.startsWith(hour)
+                  );
+                  
+                  return (
+                    <div key={hour} className="flex items-center py-1 border-t border-border">
+                      <span className="w-10 text-muted-foreground">{hour}</span>
+                      <div className="flex-1">
+                        {hourAppointments.map((appointment) => (
+                          <div 
+                            key={appointment.id}
+                            className="p-1 rounded-sm border-l-2 border-primary bg-primary/15 truncate cursor-pointer"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSelectAppointment(appointment);
+                            }}
+                          >
+                            <div className="font-medium truncate">
+                              {appointment.clientName}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           );

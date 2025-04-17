@@ -39,7 +39,9 @@ export default function DashboardPage() {
     isLoading: isLoadingClients 
   } = useQuery({ 
     queryKey: ['/api/clients/recent'],
-    queryFn: () => getRecentClients(5)
+    queryFn: () => getRecentClients(5),
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+    refetchOnWindowFocus: false
   });
 
   // Fetch statistics
