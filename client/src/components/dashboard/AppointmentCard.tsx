@@ -19,7 +19,7 @@ export default function AppointmentCard({ appointment }: AppointmentCardProps) {
         </div>
       </div>
       <div className="mt-2 text-sm flex flex-wrap gap-1">
-        {appointment.services.map((service, index) => (
+        {appointment.services && appointment.services.map((service, index) => (
           <Badge key={index} variant="outline" className="bg-accent/50 text-foreground text-xs">
             {service}
           </Badge>

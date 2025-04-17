@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "../hooks/useAuth";
+import autoExpressLogo from "../assets/autoexpress-logo.png";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");

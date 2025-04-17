@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { LogOut, LayoutDashboard, Users, Calendar } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
+import autoExpressLogo from "../../assets/autoexpress-logo.png";
 
 export default function Sidebar() {
   const [location] = useLocation();
@@ -16,7 +17,10 @@ export default function Sidebar() {
   return (
     <aside className="w-64 bg-card border-r border-border flex flex-col">
       <div className="p-4 border-b border-border">
-        <h1 className="text-primary text-2xl font-bold">La Mia Officina</h1>
+        <div className="flex items-center">
+          <img src={autoExpressLogo} alt="AutoExpress Logo" className="h-12 w-auto" />
+          <h1 className="text-[#333333] ml-2 text-xl font-bold">AUTOEXPRESS</h1>
+        </div>
       </div>
       
       <nav className="flex-1 overflow-y-auto py-4">
