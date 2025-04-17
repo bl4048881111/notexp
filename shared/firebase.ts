@@ -6,7 +6,7 @@ import { Client, Appointment } from './schema';
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyBpnaDC7D95qeXHp2xh4z-8RRc8Tz4LpFM",
   authDomain: "autoexpress-142e1.firebaseapp.com",
-  databaseURL: "https://autoexpress-142e1-default-rtdb.firebaseio.com",
+  databaseURL: "https://autoexpress-142e1-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "autoexpress-142e1",
   storageBucket: "autoexpress-142e1.appspot.com",
   messagingSenderId: "1086934965058",
