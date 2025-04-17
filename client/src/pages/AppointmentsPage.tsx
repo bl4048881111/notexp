@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 
 import { getAllAppointments } from "@shared/firebase";
-import { Appointment } from "@shared/types";
+import { Appointment } from "@shared/schema";
 
 import AppointmentForm from "../components/appointments/AppointmentForm";
 import CalendarView from "../components/appointments/CalendarView";

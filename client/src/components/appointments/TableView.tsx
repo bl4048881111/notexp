@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { Edit, Trash, CheckCircle } from "lucide-react";
-import { Appointment } from "@shared/types";
+import { Appointment } from "@shared/schema";
 import { deleteAppointment, updateAppointment } from "@shared/firebase";
 import { useToast } from "@/hooks/use-toast";
 

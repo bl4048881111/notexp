@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Appointment } from "@shared/types";
+import { Appointment } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 

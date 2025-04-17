@@ -103,11 +103,18 @@ export default function AppointmentForm({
       form.reset(appointmentData);
       setServices(appointmentData.services || []);
       setSpareParts(appointmentData.spareParts || []);
+      setSearchQuery(appointmentData.clientName || "");
       
       // Fetch client data for the appointment
       getClientById(appointmentData.clientId).then(client => {
         if (client) {
           setSelectedClient(client);
+          // Update form with client data to ensure it's complete
+          form.setValue("clientId", client.id);
+          form.setValue("clientName", `${client.name} ${client.surname}`);
+          form.setValue("phone", client.phone);
+          form.setValue("plate", client.plate);
+          form.setValue("model", client.model);
         }
       });
     } else if (selectedDate) {
