@@ -4,8 +4,8 @@ export interface ClientStatistics {
   totalAppointments: number;
 }
 
-// Import first to avoid the circular reference errors
-import type { Client, Appointment } from './schema';
+// Import from types-helpers to avoid circular reference errors
+import type { Client, Appointment } from './types-helpers';
 
 export interface DashboardData {
   todayAppointments: Appointment[];

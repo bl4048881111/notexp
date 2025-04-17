@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { X, Plus } from "lucide-react";
-import { SparePart, CreateSparePartInput } from "@shared/types";
+import { SparePart, CreateSparePartInput } from "@shared/schema";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -89,7 +89,7 @@ export default function SparePartForm({ parts, onChange }: SparePartFormProps) {
     <div className="space-y-4">
       <Label>Pezzi di Ricambio</Label>
       
-      <div className="grid grid-cols-6 gap-2">
+      <div className="grid grid-cols-12 gap-2">
         <div className="col-span-2">
           <Input
             placeholder="Codice articolo"
@@ -97,7 +97,14 @@ export default function SparePartForm({ parts, onChange }: SparePartFormProps) {
             onChange={(e) => setNewPart({ ...newPart, code: e.target.value })}
           />
         </div>
-        <div className="col-span-1">
+        <div className="col-span-3">
+          <Input
+            placeholder="Descrizione"
+            value={newPart.description || ""}
+            onChange={(e) => setNewPart({ ...newPart, description: e.target.value })}
+          />
+        </div>
+        <div className="col-span-2">
           <Input
             type="number"
             min="0"
@@ -107,7 +114,7 @@ export default function SparePartForm({ parts, onChange }: SparePartFormProps) {
             onChange={(e) => handleNetPriceChange(e.target.value)}
           />
         </div>
-        <div className="col-span-1">
+        <div className="col-span-2">
           <Input
             type="number"
             min="0"
@@ -117,7 +124,7 @@ export default function SparePartForm({ parts, onChange }: SparePartFormProps) {
             onChange={(e) => handleMarkupChange(e.target.value)}
           />
         </div>
-        <div className="col-span-1">
+        <div className="col-span-2">
           <Input
             type="number"
             readOnly
@@ -126,7 +133,7 @@ export default function SparePartForm({ parts, onChange }: SparePartFormProps) {
           />
         </div>
         <div className="col-span-1 flex justify-end">
-          <Button type="button" onClick={handleAddPart} size="icon">
+          <Button type="button" onClick={handleAddPart} size="icon" className="ml-auto">
             <Plus className="h-4 w-4" />
           </Button>
         </div>
