@@ -96,7 +96,29 @@ export default function CalendarView({
           <Button variant="outline" size="sm" onClick={handleToday}>
             Oggi
           </Button>
-          {/* View toggle buttons would go here */}
+          <div className="flex border border-border rounded-md overflow-hidden">
+            <Button 
+              variant="outline"
+              size="sm"
+              className="rounded-none"
+            >
+              Giorno
+            </Button>
+            <Button 
+              variant="outline"
+              size="sm"
+              className="rounded-none"
+            >
+              Settimana
+            </Button>
+            <Button 
+              variant="default"
+              size="sm"
+              className="rounded-none"
+            >
+              Mese
+            </Button>
+          </div>
         </div>
       </div>
       

@@ -94,7 +94,7 @@ export default function AppointmentsPage() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Gestione Appuntamenti</h2>
+        <h2 className="text-2xl font-bold">Appuntamenti</h2>
         
         <div className="flex space-x-3">
           <Button onClick={() => handleAddAppointment()}>

@@ -1,9 +1,9 @@
-import { Client, Appointment } from "@shared/types";
+import { Client, Appointment } from "@shared/schema";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
-import * as XLSX from 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm';
-import { jsPDF } from 'https://cdn.jsdelivr.net/npm/jspdf@2.5.1/+esm';
-import 'https://cdn.jsdelivr.net/npm/jspdf-autotable@3.7.0/+esm';
+import * as XLSX from 'xlsx';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
 
 // Export clients to Excel
 export const exportClientsToExcel = async (clients: Client[]): Promise<void> => {

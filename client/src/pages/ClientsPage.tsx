@@ -95,7 +95,7 @@ export default function ClientsPage() {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Gestione Clienti</h2>
+        <h2 className="text-2xl font-bold">Clienti</h2>
         
         <div className="flex space-x-3">
           <Button onClick={() => setIsFormOpen(true)}>
