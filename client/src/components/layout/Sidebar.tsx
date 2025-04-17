@@ -18,7 +18,7 @@ export default function Sidebar() {
     <aside className="w-64 bg-card border-r border-border flex flex-col">
       <div className="p-4 border-b border-border">
         <div className="flex items-center">
-          <img src={autoExpressLogo} alt="AutoExpress Logo" className="h-12 w-auto" />
+          <div className="flex justify-center items-center w-12 h-12 text-4xl font-bold text-primary">X</div>
           <h1 className="ml-2 text-xl font-bold">
             <span className="text-[#666666]">AUTO</span>
             <span className="text-primary">X</span>

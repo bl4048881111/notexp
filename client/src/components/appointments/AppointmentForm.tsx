@@ -2,12 +2,13 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
-import { Appointment, CreateAppointmentInput, Client } from "@shared/types";
+import { Appointment, CreateAppointmentInput, Client, SparePart } from "@shared/types";
 import { createAppointmentSchema } from "@shared/schema";
 import { createAppointment, updateAppointment, getAllClients, getClientById } from "@shared/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { X } from "lucide-react";
+import SparePartForm from "./SparePartForm";
 
 import {
   Dialog,

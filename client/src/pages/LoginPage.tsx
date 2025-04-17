@@ -49,7 +49,7 @@ export default function LoginPage() {
         <CardContent className="pt-6">
           <div className="text-center mb-8">
             <div className="flex justify-center mb-4">
-              <img src={autoExpressLogo} alt="AutoExpress Logo" className="h-24 w-auto" />
+              <div className="flex justify-center items-center w-24 h-24 text-6xl font-extrabold text-primary rounded-lg">X</div>
             </div>
             <h1 className="font-bold text-3xl mb-2">
               <span className="text-[#666666]">AUTO</span>
