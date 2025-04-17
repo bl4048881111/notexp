@@ -48,8 +48,15 @@ export default function LoginPage() {
       <Card className="w-full max-w-md">
         <CardContent className="pt-6">
           <div className="text-center mb-8">
-            <h1 className="text-primary font-bold text-3xl mb-2">La Mia Officina</h1>
-            <p className="text-muted-foreground">Sistema di Gestione</p>
+            <div className="flex justify-center mb-4">
+              <img src={autoExpressLogo} alt="AutoExpress Logo" className="h-24 w-auto" />
+            </div>
+            <h1 className="font-bold text-3xl mb-2">
+              <span className="text-[#666666]">AUTO</span>
+              <span className="text-primary">X</span>
+              <span className="text-[#666666]">PRESS</span>
+            </h1>
+            <p className="text-muted-foreground">Sistema di Gestione Officina</p>
           </div>
           
           <form onSubmit={handleSubmit} className="space-y-6">

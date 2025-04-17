@@ -19,40 +19,38 @@ export default function Sidebar() {
       <div className="p-4 border-b border-border">
         <div className="flex items-center">
           <img src={autoExpressLogo} alt="AutoExpress Logo" className="h-12 w-auto" />
-          <h1 className="text-[#333333] ml-2 text-xl font-bold">AUTOEXPRESS</h1>
+          <h1 className="ml-2 text-xl font-bold">
+            <span className="text-[#666666]">AUTO</span>
+            <span className="text-primary">X</span>
+            <span className="text-[#666666]">PRESS</span>
+          </h1>
         </div>
       </div>
       
       <nav className="flex-1 overflow-y-auto py-4">
         <ul>
           <li>
-            <Link href="/dashboard">
-              <a className={`flex items-center px-4 py-3 text-foreground hover:bg-accent/50 ${
+            <Link href="/dashboard" className={`flex items-center px-4 py-3 text-foreground hover:bg-accent/50 ${
                 isActive("/dashboard") ? "border-l-2 border-primary bg-accent/50" : ""
               }`}>
                 <LayoutDashboard className="mr-3 h-5 w-5" />
                 Dashboard
-              </a>
             </Link>
           </li>
           <li>
-            <Link href="/clients">
-              <a className={`flex items-center px-4 py-3 text-foreground hover:bg-accent/50 ${
+            <Link href="/clients" className={`flex items-center px-4 py-3 text-foreground hover:bg-accent/50 ${
                 isActive("/clients") ? "border-l-2 border-primary bg-accent/50" : ""
               }`}>
                 <Users className="mr-3 h-5 w-5" />
                 Clienti
-              </a>
             </Link>
           </li>
           <li>
-            <Link href="/appointments">
-              <a className={`flex items-center px-4 py-3 text-foreground hover:bg-accent/50 ${
+            <Link href="/appointments" className={`flex items-center px-4 py-3 text-foreground hover:bg-accent/50 ${
                 isActive("/appointments") ? "border-l-2 border-primary bg-accent/50" : ""
               }`}>
                 <Calendar className="mr-3 h-5 w-5" />
                 Appuntamenti
-              </a>
             </Link>
           </li>
         </ul>
