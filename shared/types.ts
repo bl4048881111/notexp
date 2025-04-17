@@ -4,6 +4,9 @@ export interface ClientStatistics {
   totalAppointments: number;
 }
 
+// Import first to avoid the circular reference errors
+import type { Client, Appointment } from './schema';
+
 export interface DashboardData {
   todayAppointments: Appointment[];
   recentClients: Client[];
@@ -26,5 +29,4 @@ export const DEFAULT_CREDENTIALS = {
 };
 
 // Re-export from schema
-import { Client, Appointment, CreateClientInput, CreateAppointmentInput } from './schema';
-export type { Client, Appointment, CreateClientInput, CreateAppointmentInput };
+export * from './types-export';

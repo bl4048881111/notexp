@@ -63,6 +63,7 @@ export default function AppointmentForm({
   const [searchQuery, setSearchQuery] = useState("");
   const [newService, setNewService] = useState("");
   const [services, setServices] = useState<string[]>([]);
+  const [spareParts, setSpareParts] = useState<SparePart[]>([]);
   const [isClientFormOpen, setIsClientFormOpen] = useState(false);
   const { toast } = useToast();
   
@@ -101,6 +102,7 @@ export default function AppointmentForm({
       const { id, ...appointmentData } = appointment;
       form.reset(appointmentData);
       setServices(appointmentData.services || []);
+      setSpareParts(appointmentData.spareParts || []);
       
       // Fetch client data for the appointment
       getClientById(appointmentData.clientId).then(client => {
@@ -117,6 +119,14 @@ export default function AppointmentForm({
   useEffect(() => {
     form.setValue("services", services);
   }, [services, form]);
+  
+  // Update spareParts field when spareParts array changes
+  useEffect(() => {
+    form.setValue("spareParts", spareParts);
+    // Calculate and set the total price
+    const totalPrice = spareParts.reduce((sum, part) => sum + part.finalPrice, 0);
+    form.setValue("totalPartsPrice", totalPrice);
+  }, [spareParts, form]);
   
   const handleSelectClient = (client: Client) => {
     setSelectedClient(client);
@@ -191,7 +201,7 @@ export default function AppointmentForm({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{appointment ? "Modifica Appuntamento" : "Nuovo Appuntamento"}</DialogTitle>
           </DialogHeader>
@@ -400,6 +410,14 @@ export default function AppointmentForm({
                   </div>
                 </div>
               </FormItem>
+              
+              {/* Spare Parts Form */}
+              <div className="mt-4">
+                <SparePartForm 
+                  parts={spareParts} 
+                  onChange={setSpareParts} 
+                />
+              </div>
               
               <FormField
                 control={form.control}
