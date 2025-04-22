@@ -254,7 +254,7 @@ export default function StaticSparePartsForm({
               Annulla
             </Button>
             <Button type="submit" onClick={handleSavePart} disabled={!partCode}>
-              Aggiungi
+              {editingPartId ? "Salva Modifiche" : "Aggiungi"}
             </Button>
           </DialogFooter>
         </DialogContent>
