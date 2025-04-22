@@ -59,7 +59,8 @@ import { it } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { ComboboxDemo } from "@/components/ui/ComboboxDemo";
 import ServiceSelectionForm from "./ServiceSelectionForm";
-import SparePartsEntryForm from "./SparePartsEntryForm";
+// Utilizziamo la versione semplificata
+import SimpleSparePartsForm from "./SimpleSparePartsForm";
 
 interface QuoteFormProps {
   isOpen: boolean;
@@ -630,11 +631,9 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                   <div className="text-sm text-muted-foreground">Passo 3 di 4</div>
                 </div>
                 
-                <SparePartsEntryForm
+                <SimpleSparePartsForm
                   items={items}
                   onChange={handleItemsChange}
-                  initialActiveTab={activeTab}
-                  onActiveTabChange={undefined} /* Disabilitato per prevenire il ciclo */
                 />
                 
                 <div className="flex justify-between space-x-2 pt-4">
