@@ -2,14 +2,13 @@ import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
-import { Appointment, CreateAppointmentInput, Client, SparePart, Quote } from "@shared/schema";
+import { Appointment, CreateAppointmentInput, Client, Quote } from "@shared/schema";
 import { createAppointmentSchema } from "@shared/schema";
 import { createAppointment, updateAppointment, getAllClients, getClientById, getQuotesByClientId } from "@shared/firebase";
 import { useToast } from "@/hooks/use-toast";
-import { format, parse } from "date-fns";
+import { format } from "date-fns";
 import { it } from "date-fns/locale";
-import { X, User, Calendar, FileText, Search, Plus, Car, Check } from "lucide-react";
-import SparePartForm from "./SparePartForm";
+import { XCircle, FileText, Calendar, Check, ArrowRight, Plus } from "lucide-react";
 
 import {
   Dialog,
@@ -30,6 +29,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -37,17 +37,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
-import ClientForm from "../clients/ClientForm";
+import { Badge } from "@/components/ui/badge";
 
 interface AppointmentFormProps {
   isOpen: boolean;
@@ -56,6 +49,7 @@ interface AppointmentFormProps {
   appointment?: Appointment | null;
   selectedDate?: string | null;
   onEditQuote?: (quote: Quote) => void;
+  onCreateQuote?: (clientId: string) => void;
 }
 
 export default function AppointmentForm({ 
@@ -64,16 +58,14 @@ export default function AppointmentForm({
   onSuccess, 
   appointment, 
   selectedDate,
-  onEditQuote 
+  onEditQuote,
+  onCreateQuote
 }: AppointmentFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [newService, setNewService] = useState("");
-  const [services, setServices] = useState<string[]>([]);
-  const [spareParts, setSpareParts] = useState<SparePart[]>([]);
-  const [isClientFormOpen, setIsClientFormOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<string>("cliente");
+  const [isSearching, setIsSearching] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
   const { toast } = useToast();
   
@@ -97,7 +89,10 @@ export default function AppointmentForm({
     return clients.filter(client => {
       const fullName = `${client.name} ${client.surname}`;
       // Case sensitive search
-      return fullName.includes(searchQuery) || client.phone.includes(searchQuery);
+      return fullName.includes(searchQuery) || 
+        client.phone.includes(searchQuery) || 
+        client.plate.includes(searchQuery) ||
+        client.model.includes(searchQuery);
     }).slice(0, 5); // Limitiamo i risultati a 5 per una migliore usabilità
   }, [clients, searchQuery]);
   
@@ -123,20 +118,11 @@ export default function AppointmentForm({
     if (appointment) {
       const { id, ...appointmentData } = appointment;
       form.reset(appointmentData);
-      setServices(appointmentData.services || []);
-      setSpareParts(appointmentData.spareParts || []);
-      setSearchQuery(appointmentData.clientName || "");
       
       // Fetch client data for the appointment
       getClientById(appointmentData.clientId).then(client => {
         if (client) {
           setSelectedClient(client);
-          // Update form with client data to ensure it's complete
-          form.setValue("clientId", client.id);
-          form.setValue("clientName", `${client.name} ${client.surname}`);
-          form.setValue("phone", client.phone);
-          form.setValue("plate", client.plate);
-          form.setValue("model", client.model);
         }
       });
     } else if (selectedDate) {
@@ -152,29 +138,16 @@ export default function AppointmentForm({
     }
   }, [appointment, form, selectedDate]);
   
-  // Update services field when services array changes
-  useEffect(() => {
-    form.setValue("services", services);
-  }, [services, form]);
-  
-  // Update spareParts field when spareParts array changes
-  useEffect(() => {
-    form.setValue("spareParts", spareParts);
-    // Calculate and set the total price
-    const totalPrice = spareParts.reduce((sum, part) => sum + part.finalPrice, 0);
-    form.setValue("totalPartsPrice", totalPrice);
-  }, [spareParts, form]);
-  
-  // Quando viene selezionato un preventivo, aggiorniamo i servizi
+  // Quando viene selezionato un preventivo, prendiamo i servizi
   useEffect(() => {
     if (selectedQuote) {
       // Estraiamo i servizi dal preventivo
       const quoteServices = selectedQuote.items.map(item => item.serviceType.name);
-      // Utilizziamo un array con valori unici
-      const uniqueServices = Array.from(new Set([...services, ...quoteServices]));
-      setServices(uniqueServices);
+      form.setValue("services", quoteServices);
+    } else {
+      form.setValue("services", []);
     }
-  }, [selectedQuote]);
+  }, [selectedQuote, form]);
   
   const handleSelectClient = (client: Client) => {
     setSelectedClient(client);
@@ -184,21 +157,30 @@ export default function AppointmentForm({
     form.setValue("plate", client.plate);
     form.setValue("model", client.model);
     setSearchQuery(`${client.name} ${client.surname}`);
-    
-    // Passiamo automaticamente al passo successivo
-    setActiveTab("preventivo");
+    setIsSearching(false);
+  };
+  
+  const handleClearSelectedClient = () => {
+    setSelectedClient(null);
+    setSelectedQuote(null);
+    form.setValue("clientId", "");
+    form.setValue("clientName", "");
+    form.setValue("phone", "");
+    form.setValue("plate", "");
+    form.setValue("model", "");
+    form.setValue("services", []);
+    setSearchQuery("");
   };
   
   const handleSelectQuote = (quote: Quote) => {
     setSelectedQuote(quote);
-    // Aggiungiamo i servizi del preventivo
-    const quoteServices = quote.items.map(item => item.serviceType.name);
-    // Utilizziamo un array con valori unici
-    const uniqueServices = Array.from(new Set([...services, ...quoteServices]));
-    setServices(uniqueServices);
-    
-    // Passiamo al passo successivo
-    setActiveTab("appuntamento");
+  };
+  
+  const handleCreateNewQuote = () => {
+    if (selectedClient && onCreateQuote) {
+      onCreateQuote(selectedClient.id);
+      onClose();
+    }
   };
   
   const handleEditQuote = (quote: Quote) => {
@@ -208,35 +190,16 @@ export default function AppointmentForm({
     }
   };
   
-  const handleAddService = () => {
-    if (newService.trim() && !services.includes(newService.trim())) {
-      setServices([...services, newService.trim()]);
-      setNewService("");
-    }
-  };
-  
-  const handleRemoveService = (serviceToRemove: string) => {
-    setServices(services.filter(service => service !== serviceToRemove));
-  };
-  
-  const handleAddNewClient = () => {
-    setIsClientFormOpen(true);
-  };
-  
-  const handleClientFormSuccess = () => {
-    setIsClientFormOpen(false);
-    // Refetch clients
-    setTimeout(() => {
-      getAllClients().then(updatedClients => {
-        const newClient = updatedClients[updatedClients.length - 1];
-        if (newClient) {
-          handleSelectClient(newClient);
-        }
-      });
-    }, 1000);
-  };
-  
   const onSubmit = async (data: CreateAppointmentInput) => {
+    if (!selectedClient) {
+      toast({
+        title: "Errore",
+        description: "Seleziona un cliente per continuare",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setIsSubmitting(true);
     
     try {
@@ -271,88 +234,230 @@ export default function AppointmentForm({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{appointment ? "Modifica Appuntamento" : "Nuovo Appuntamento"}</DialogTitle>
-            {!appointment && (
-              <DialogDescription>
-                Compila i dati per creare un nuovo appuntamento
-              </DialogDescription>
-            )}
+            <DialogDescription>
+              {appointment 
+                ? "Modifica i dettagli dell'appuntamento"
+                : "Seleziona cliente, preventivo e data dell'appuntamento"
+              }
+            </DialogDescription>
           </DialogHeader>
           
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              {appointment ? (
-                // Versione semplificata per modifica appuntamento
-                <>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              {/* Sezione Cliente */}
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-lg font-semibold">Cliente</h2>
+                </div>
+                
+                {selectedClient ? (
+                  <div className="flex justify-between items-center border p-4 rounded-md bg-muted/40">
+                    <div>
+                      <h3 className="font-medium">{selectedClient.name} {selectedClient.surname}</h3>
+                      <div className="text-sm text-muted-foreground mt-1 space-y-1">
+                        <p>Tel: {selectedClient.phone}</p>
+                        <p>Veicolo: {selectedClient.model} ({selectedClient.plate})</p>
+                      </div>
+                    </div>
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={handleClearSelectedClient}
+                    >
+                      <XCircle className="h-4 w-4 mr-1" />
+                      <span>Cambia</span>
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="mb-2 block">Cerca cliente</Label>
+                      <div className="relative">
+                        <Input
+                          placeholder="Cerca per nome, targa o telefono (ricerca case-sensitive)"
+                          value={searchQuery}
+                          onChange={(e) => {
+                            setSearchQuery(e.target.value);
+                            setIsSearching(e.target.value.length > 0);
+                            setSelectedIndex(-1); // Reset selected index when typing
+                          }}
+                          onKeyDown={(e) => {
+                            if (isSearching && filteredClients.length > 0) {
+                              // Freccia giù
+                              if (e.key === 'ArrowDown') {
+                                e.preventDefault();
+                                setSelectedIndex(prev => 
+                                  prev < filteredClients.length - 1 ? prev + 1 : prev
+                                );
+                              }
+                              // Freccia su
+                              else if (e.key === 'ArrowUp') {
+                                e.preventDefault();
+                                setSelectedIndex(prev => prev > 0 ? prev - 1 : 0);
+                              }
+                              // Invio per selezionare
+                              else if (e.key === 'Enter' && selectedIndex >= 0) {
+                                e.preventDefault();
+                                handleSelectClient(filteredClients[selectedIndex]);
+                              }
+                              // Esc per chiudere
+                              else if (e.key === 'Escape') {
+                                e.preventDefault();
+                                setIsSearching(false);
+                              }
+                            }
+                          }}
+                          className="w-full"
+                        />
+                        {isSearching && (
+                          <div className="absolute top-full mt-1 left-0 right-0 border rounded-md bg-background shadow-md z-10 max-h-52 overflow-y-auto">
+                            {filteredClients.length === 0 ? (
+                              <div className="p-2 text-center text-sm text-muted-foreground">
+                                Nessun cliente trovato
+                              </div>
+                            ) : (
+                              <div>
+                                {filteredClients.map((client, index) => (
+                                  <div
+                                    key={client.id}
+                                    className={`p-2 cursor-pointer hover:bg-accent ${
+                                      index === selectedIndex ? "bg-accent" : ""
+                                    } ${index !== filteredClients.length - 1 ? "border-b" : ""}`}
+                                    onClick={() => handleSelectClient(client)}
+                                  >
+                                    <div className="font-medium">{client.name} {client.surname}</div>
+                                    <div className="text-xs text-muted-foreground flex justify-between">
+                                      <span>{client.phone}</span>
+                                      <span>{client.plate} - {client.model}</span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              {/* Sezione Preventivo (solo se un cliente è selezionato) */}
+              {selectedClient && (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-lg font-semibold">Preventivo</h2>
+                  </div>
+                  
+                  {isLoadingQuotes ? (
+                    <div className="space-y-2">
+                      <Skeleton className="h-20 w-full" />
+                      <Skeleton className="h-20 w-full" />
+                    </div>
+                  ) : clientQuotes.length > 0 ? (
+                    <div className="space-y-2">
+                      <div className="grid gap-2">
+                        {clientQuotes.map(quote => (
+                          <div 
+                            key={quote.id} 
+                            className={`p-3 border rounded-md cursor-pointer transition-colors ${
+                              selectedQuote?.id === quote.id 
+                                ? 'bg-primary/10 border-primary' 
+                                : 'hover:bg-accent'
+                            }`}
+                            onClick={() => handleSelectQuote(quote)}
+                          >
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <div className="font-medium flex items-center gap-2">
+                                  Preventivo {quote.id}
+                                  {selectedQuote?.id === quote.id && (
+                                    <Check className="h-4 w-4 text-primary" />
+                                  )}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  {format(new Date(quote.createdAt), 'dd/MM/yyyy')} - 
+                                  {quote.status === "bozza" ? " Bozza" : 
+                                    quote.status === "inviato" ? " Inviato" : 
+                                    quote.status === "accettato" ? " Accettato" : 
+                                    quote.status === "rifiutato" ? " Rifiutato" : 
+                                    quote.status === "scaduto" ? " Scaduto" : " Sconosciuto"}
+                                </div>
+                                <div className="mt-1 flex flex-wrap gap-1">
+                                  {quote.items.slice(0, 3).map((item, idx) => (
+                                    <Badge 
+                                      key={idx} 
+                                      variant="outline" 
+                                      className="bg-primary/5 text-xs"
+                                    >
+                                      {item.serviceType.name}
+                                    </Badge>
+                                  ))}
+                                  {quote.items.length > 3 && (
+                                    <Badge variant="outline" className="bg-muted text-xs">
+                                      +{quote.items.length - 3}
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="font-bold text-lg">{quote.total.toFixed(2)} €</div>
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost"
+                                  className="text-xs mt-1"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleEditQuote(quote);
+                                  }}
+                                >
+                                  Modifica
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        className="w-full"
+                        onClick={handleCreateNewQuote}
+                      >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Crea nuovo preventivo
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="text-center p-6 border rounded-md">
+                      <FileText className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                      <p className="text-muted-foreground">Nessun preventivo trovato per questo cliente</p>
+                      <Button 
+                        variant="outline" 
+                        className="mt-4"
+                        onClick={handleCreateNewQuote}
+                      >
+                        <Plus className="mr-2 h-4 w-4" />
+                        Crea nuovo preventivo
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+              
+              {/* Sezione Data/Ora e Note */}
+              {selectedClient && (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-lg font-semibold">Data e Note</h2>
+                  </div>
+                  
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="clientName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Cliente</FormLabel>
-                          <FormControl>
-                            <Input 
-                              {...field} 
-                              readOnly 
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="phone"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Telefono</FormLabel>
-                          <FormControl>
-                            <Input 
-                              {...field} 
-                              readOnly 
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="plate"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Targa</FormLabel>
-                          <FormControl>
-                            <Input 
-                              {...field} 
-                              readOnly={!!selectedClient}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="model"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Modello Veicolo</FormLabel>
-                          <FormControl>
-                            <Input 
-                              {...field} 
-                              readOnly={!!selectedClient}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
                     <FormField
                       control={form.control}
                       name="date"
@@ -380,108 +485,6 @@ export default function AppointmentForm({
                         </FormItem>
                       )}
                     />
-                    
-                    <FormField
-                      control={form.control}
-                      name="duration"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Durata (minuti)</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              min="15" 
-                              step="15" 
-                              {...field} 
-                              onChange={(e) => field.onChange(parseInt(e.target.value))}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="status"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Stato</FormLabel>
-                          <Select
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Seleziona stato" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="programmato">Programmato</SelectItem>
-                              <SelectItem value="completato">Completato</SelectItem>
-                              <SelectItem value="annullato">Annullato</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  
-                  <FormItem>
-                    <FormLabel>Servizi</FormLabel>
-                    <div className="flex flex-wrap p-2 bg-background border border-border rounded-md min-h-[80px]">
-                      {services.map((service, index) => (
-                        <Badge 
-                          key={index} 
-                          variant="outline" 
-                          className="group m-1 py-1 px-3 rounded-full bg-primary/15 border-primary"
-                        >
-                          <span className="mr-1">{service}</span>
-                          <Button 
-                            type="button" 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-4 w-4 p-0 text-muted-foreground hover:text-primary"
-                            onClick={() => handleRemoveService(service)}
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </Badge>
-                      ))}
-                      <div className="flex">
-                        <Input
-                          type="text"
-                          placeholder="Aggiungi servizio..."
-                          className="border-0 bg-transparent p-1 h-auto focus-visible:ring-0 focus-visible:ring-offset-0"
-                          value={newService}
-                          onChange={(e) => setNewService(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              handleAddService();
-                            }
-                          }}
-                        />
-                        <Button 
-                          type="button" 
-                          variant="ghost" 
-                          size="sm" 
-                          className="p-1 h-auto"
-                          onClick={handleAddService}
-                        >
-                          +
-                        </Button>
-                      </div>
-                    </div>
-                  </FormItem>
-                  
-                  {/* Spare Parts Form */}
-                  <div className="mt-4">
-                    <SparePartForm 
-                      parts={spareParts} 
-                      onChange={setSpareParts} 
-                    />
                   </div>
                   
                   <FormField
@@ -489,7 +492,7 @@ export default function AppointmentForm({
                     name="notes"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Note</FormLabel>
+                        <FormLabel>Note (opzionale)</FormLabel>
                         <FormControl>
                           <Textarea 
                             placeholder="Note aggiuntive..." 
@@ -501,423 +504,23 @@ export default function AppointmentForm({
                       </FormItem>
                     )}
                   />
-                </>
-              ) : (
-                // Wizard per creazione nuovo appuntamento
-                <Tabs
-                  value={activeTab}
-                  onValueChange={setActiveTab}
-                  className="w-full"
-                >
-                  <TabsList className="grid grid-cols-3 mb-6">
-                    <TabsTrigger value="cliente" className="flex items-center gap-2">
-                      <User className="h-4 w-4" />
-                      <span>Cliente</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="preventivo" className="flex items-center gap-2" disabled={!selectedClient}>
-                      <FileText className="h-4 w-4" />
-                      <span>Preventivo</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="appuntamento" className="flex items-center gap-2" disabled={!selectedClient}>
-                      <Calendar className="h-4 w-4" />
-                      <span>Appuntamento</span>
-                    </TabsTrigger>
-                  </TabsList>
-                  
-                  {/* Tab Cliente */}
-                  <TabsContent value="cliente" className="mt-0 space-y-4">
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-base">Seleziona un cliente</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="relative">
-                          <div className="flex items-center border rounded-md pl-3">
-                            <Search className="h-4 w-4 text-muted-foreground mr-2" />
-                            <Input 
-                              placeholder="Cerca cliente per nome o telefono... (case sensitive)" 
-                              value={searchQuery}
-                              onChange={(e) => setSearchQuery(e.target.value)}
-                              className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-                            />
-                          </div>
-                          
-                          {filteredClients.length > 0 && (
-                            <Card className="absolute w-full z-10 mt-1 overflow-hidden p-0">
-                              <ScrollArea className="max-h-60">
-                                {filteredClients.map((client) => (
-                                  <div 
-                                    key={client.id}
-                                    className="p-3 cursor-pointer hover:bg-accent border-b last:border-0"
-                                    onClick={() => handleSelectClient(client)}
-                                  >
-                                    <div className="font-medium">{client.name} {client.surname}</div>
-                                    <div className="text-xs text-muted-foreground flex justify-between">
-                                      <span>{client.phone}</span>
-                                      <span>{client.plate} - {client.model}</span>
-                                    </div>
-                                  </div>
-                                ))}
-                              </ScrollArea>
-                            </Card>
-                          )}
-                        </div>
-                        
-                        <div className="flex justify-between">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={handleAddNewClient}
-                            className="flex items-center gap-2"
-                          >
-                            <Plus className="h-4 w-4" />
-                            <span>Nuovo Cliente</span>
-                          </Button>
-                          
-                          {selectedClient && (
-                            <Button
-                              type="button"
-                              onClick={() => setActiveTab("preventivo")}
-                              className="flex items-center gap-2"
-                            >
-                              <span>Continua</span>
-                              <FileText className="h-4 w-4" />
-                            </Button>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                    
-                    {selectedClient && (
-                      <Card>
-                        <CardHeader className="pb-2">
-                          <CardTitle className="text-base">Cliente selezionato</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="flex flex-col md:flex-row gap-4">
-                            <div className="flex-1">
-                              <h4 className="text-sm font-medium">Dati Cliente</h4>
-                              <p className="text-lg font-semibold">{selectedClient.name} {selectedClient.surname}</p>
-                              <p className="text-sm text-muted-foreground">{selectedClient.phone}</p>
-                              {selectedClient.email && (
-                                <p className="text-sm text-muted-foreground">{selectedClient.email}</p>
-                              )}
-                            </div>
-                            <div className="flex-1">
-                              <h4 className="text-sm font-medium">Veicolo</h4>
-                              <div className="flex items-center gap-2">
-                                <Car className="h-4 w-4 text-muted-foreground" />
-                                <p className="text-lg font-semibold">{selectedClient.model}</p>
-                              </div>
-                              <p className="text-sm text-muted-foreground">Targa: {selectedClient.plate}</p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )}
-                  </TabsContent>
-                  
-                  {/* Tab Preventivo */}
-                  <TabsContent value="preventivo" className="mt-0 space-y-4">
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-base">Preventivi del cliente</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        {isLoadingQuotes ? (
-                          <div className="space-y-2">
-                            <Skeleton className="h-20 w-full" />
-                            <Skeleton className="h-20 w-full" />
-                          </div>
-                        ) : clientQuotes.length > 0 ? (
-                          <ScrollArea className="h-[300px]">
-                            <div className="space-y-2">
-                              {clientQuotes.map(quote => (
-                                <div 
-                                  key={quote.id} 
-                                  className={`p-4 border rounded-md cursor-pointer transition-colors ${
-                                    selectedQuote?.id === quote.id 
-                                      ? 'bg-primary/10 border-primary' 
-                                      : 'hover:bg-accent'
-                                  }`}
-                                  onClick={() => handleSelectQuote(quote)}
-                                >
-                                  <div className="flex justify-between items-start">
-                                    <div>
-                                      <div className="font-medium flex items-center gap-2">
-                                        Preventivo {quote.id}
-                                        {selectedQuote?.id === quote.id && (
-                                          <Check className="h-4 w-4 text-primary" />
-                                        )}
-                                      </div>
-                                      <div className="text-sm text-muted-foreground">
-                                        {format(new Date(quote.createdAt), 'dd/MM/yyyy')} - 
-                                        {quote.status === "bozza" ? " Bozza" : 
-                                          quote.status === "inviato" ? " Inviato" : 
-                                          quote.status === "accettato" ? " Accettato" : 
-                                          quote.status === "rifiutato" ? " Rifiutato" : 
-                                          quote.status === "scaduto" ? " Scaduto" : " Sconosciuto"}
-                                      </div>
-                                      <div className="mt-1">
-                                        {quote.items.map((item, idx) => (
-                                          <Badge 
-                                            key={idx} 
-                                            variant="outline" 
-                                            className="mr-1 mb-1 bg-primary/5 text-xs"
-                                          >
-                                            {item.serviceType.name}
-                                          </Badge>
-                                        ))}
-                                      </div>
-                                    </div>
-                                    <div className="text-right">
-                                      <div className="font-bold">{quote.total.toFixed(2)} €</div>
-                                      <Button 
-                                        size="sm" 
-                                        variant="ghost"
-                                        className="text-xs"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleEditQuote(quote);
-                                        }}
-                                      >
-                                        Modifica
-                                      </Button>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </ScrollArea>
-                        ) : (
-                          <div className="text-center p-6 text-muted-foreground">
-                            <FileText className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                            <p>Nessun preventivo trovato per questo cliente</p>
-                            <Button 
-                              variant="outline" 
-                              className="mt-2"
-                              onClick={() => setActiveTab("appuntamento")}
-                            >
-                              Continua senza preventivo
-                            </Button>
-                          </div>
-                        )}
-                        
-                        <div className="flex justify-between pt-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setActiveTab("cliente")}
-                          >
-                            Indietro
-                          </Button>
-                          
-                          <Button
-                            type="button"
-                            onClick={() => setActiveTab("appuntamento")}
-                          >
-                            {selectedQuote ? 'Continua con preventivo selezionato' : 'Continua senza preventivo'}
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-                  
-                  {/* Tab Appuntamento */}
-                  <TabsContent value="appuntamento" className="mt-0 space-y-4">
-                    <Card>
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-base">Dettagli appuntamento</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <FormField
-                            control={form.control}
-                            name="date"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Data</FormLabel>
-                                <FormControl>
-                                  <Input type="date" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          
-                          <FormField
-                            control={form.control}
-                            name="time"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Ora</FormLabel>
-                                <FormControl>
-                                  <Input type="time" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          
-                          <FormField
-                            control={form.control}
-                            name="duration"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Durata (minuti)</FormLabel>
-                                <FormControl>
-                                  <Input 
-                                    type="number" 
-                                    min="15" 
-                                    step="15" 
-                                    {...field} 
-                                    onChange={(e) => field.onChange(parseInt(e.target.value))}
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          
-                          <FormField
-                            control={form.control}
-                            name="status"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Stato</FormLabel>
-                                <Select
-                                  onValueChange={field.onChange}
-                                  defaultValue={field.value}
-                                >
-                                  <FormControl>
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Seleziona stato" />
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    <SelectItem value="programmato">Programmato</SelectItem>
-                                    <SelectItem value="completato">Completato</SelectItem>
-                                    <SelectItem value="annullato">Annullato</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        
-                        <FormItem>
-                          <FormLabel>Servizi</FormLabel>
-                          <div className="flex flex-wrap p-2 bg-background border border-border rounded-md min-h-[80px]">
-                            {services.map((service, index) => (
-                              <Badge 
-                                key={index} 
-                                variant="outline" 
-                                className="group m-1 py-1 px-3 rounded-full bg-primary/15 border-primary"
-                              >
-                                <span className="mr-1">{service}</span>
-                                <Button 
-                                  type="button" 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  className="h-4 w-4 p-0 text-muted-foreground hover:text-primary"
-                                  onClick={() => handleRemoveService(service)}
-                                >
-                                  <X className="h-3 w-3" />
-                                </Button>
-                              </Badge>
-                            ))}
-                            <div className="flex">
-                              <Input
-                                type="text"
-                                placeholder="Aggiungi servizio..."
-                                className="border-0 bg-transparent p-1 h-auto focus-visible:ring-0 focus-visible:ring-offset-0"
-                                value={newService}
-                                onChange={(e) => setNewService(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    handleAddService();
-                                  }
-                                }}
-                              />
-                              <Button 
-                                type="button" 
-                                variant="ghost" 
-                                size="sm" 
-                                className="p-1 h-auto"
-                                onClick={handleAddService}
-                              >
-                                +
-                              </Button>
-                            </div>
-                          </div>
-                        </FormItem>
-                        
-                        <FormField
-                          control={form.control}
-                          name="notes"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Note</FormLabel>
-                              <FormControl>
-                                <Textarea 
-                                  placeholder="Note aggiuntive..." 
-                                  className="resize-none" 
-                                  {...field} 
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        <div className="flex justify-between pt-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setActiveTab("preventivo")}
-                          >
-                            Indietro
-                          </Button>
-                          
-                          <Button
-                            type="submit"
-                            disabled={isSubmitting}
-                          >
-                            {isSubmitting ? "Salvataggio in corso..." : "Salva Appuntamento"}
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-                </Tabs>
+                </div>
               )}
               
-              {appointment && (
-                <DialogFooter className="pt-4">
-                  <Button type="button" variant="outline" onClick={onClose}>
-                    Annulla
-                  </Button>
-                  <Button type="submit" disabled={isSubmitting || !selectedClient}>
-                    {isSubmitting 
-                      ? "Salvataggio in corso..." 
-                      : "Aggiorna Appuntamento"}
-                  </Button>
-                </DialogFooter>
-              )}
+              <DialogFooter className="pt-4">
+                <Button type="button" variant="outline" onClick={onClose}>
+                  Annulla
+                </Button>
+                <Button type="submit" disabled={isSubmitting || !selectedClient}>
+                  {isSubmitting 
+                    ? "Salvataggio in corso..." 
+                    : appointment ? "Aggiorna Appuntamento" : "Salva Appuntamento"}
+                </Button>
+              </DialogFooter>
             </form>
           </Form>
         </DialogContent>
       </Dialog>
-      
-      {isClientFormOpen && (
-        <ClientForm
-          isOpen={isClientFormOpen}
-          onClose={() => setIsClientFormOpen(false)}
-          onSuccess={handleClientFormSuccess}
-        />
-      )}
     </>
   );
 }

@@ -9,11 +9,12 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useToast } from "@/hooks/use-toast";
 
 import { getAllAppointments } from "@shared/firebase";
-import { Appointment } from "@shared/schema";
+import { Appointment, Quote } from "@shared/schema";
 
 import AppointmentForm from "../components/appointments/AppointmentForm";
 import CalendarView from "../components/appointments/CalendarView";
 import TableView from "../components/appointments/TableView";
+import QuoteForm from "../components/quotes/QuoteForm";
 import { exportAppointmentsToExcel, exportAppointmentsToPDF } from "../services/exportService";
 
 export default function AppointmentsPage() {
@@ -22,8 +23,11 @@ export default function AppointmentsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isQuoteFormOpen, setIsQuoteFormOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+  const [editingQuote, setEditingQuote] = useState<Quote | null>(null);
+  const [clientIdForQuote, setClientIdForQuote] = useState<string | null>(null);
   
   const { toast } = useToast();
   
@@ -90,6 +94,31 @@ export default function AppointmentsPage() {
     setIsFormOpen(false);
     setEditingAppointment(null);
     setSelectedDate(null);
+  };
+
+  const handleEditQuote = (quote: Quote) => {
+    setEditingQuote(quote);
+    setIsQuoteFormOpen(true);
+  };
+
+  const handleCreateNewQuote = (clientId: string) => {
+    setClientIdForQuote(clientId);
+    setEditingQuote(null);
+    setIsQuoteFormOpen(true);
+  };
+
+  const handleQuoteFormClose = () => {
+    setIsQuoteFormOpen(false);
+    setEditingQuote(null);
+    setClientIdForQuote(null);
+  };
+
+  const handleQuoteFormSubmit = async () => {
+    setIsQuoteFormOpen(false);
+    setEditingQuote(null);
+    setClientIdForQuote(null);
+    // Riapriamo il form appuntamento dopo aver creato il preventivo
+    setIsFormOpen(true);
   };
 
   return (
@@ -228,6 +257,18 @@ export default function AppointmentsPage() {
           onSuccess={handleFormSubmit}
           appointment={editingAppointment}
           selectedDate={selectedDate}
+          onEditQuote={handleEditQuote}
+          onCreateQuote={handleCreateNewQuote}
+        />
+      )}
+      
+      {isQuoteFormOpen && (
+        <QuoteForm 
+          isOpen={isQuoteFormOpen}
+          onClose={handleQuoteFormClose}
+          onSuccess={handleQuoteFormSubmit}
+          quote={editingQuote}
+          defaultClientId={clientIdForQuote}
         />
       )}
     </div>

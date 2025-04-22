@@ -66,9 +66,10 @@ interface QuoteFormProps {
   onClose: () => void;
   onSuccess: () => void;
   quote?: Quote | null;
+  defaultClientId?: string | null;
 }
 
-export default function QuoteForm({ isOpen, onClose, onSuccess, quote }: QuoteFormProps) {
+export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultClientId }: QuoteFormProps) {
   const [clients, setClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [items, setItems] = useState<QuoteItem[]>(quote?.items || []);
