@@ -60,12 +60,26 @@ export default function ServiceSelectionForm({
   
   // Gestisce il click su un servizio
   const handleServiceClick = (categoryId: ServiceCategory, service: { id: string, name: string }) => {
+    // Creiamo un nuovo oggetto per evitare problemi di riferimento
+    const currentSelectedServices = {...selectedServices};
+    
     // Se il servizio è già selezionato, rimuovilo
-    if (selectedServices[service.id]) {
+    if (currentSelectedServices[service.id]) {
       const itemId = items.find(
         item => item.serviceType.id === service.id
       )?.id;
-      if (itemId) handleRemoveItem(itemId);
+      if (itemId) {
+        // Rimuovi l'elemento dalla lista
+        const newItems = items.filter(item => item.id !== itemId);
+        
+        // Rimuovi il flag di selezione
+        const newSelectedServices = {...currentSelectedServices};
+        delete newSelectedServices[service.id];
+        
+        // Aggiorna lo stato
+        setSelectedServices(newSelectedServices);
+        onChange(newItems);
+      }
       return;
     }
     
@@ -94,28 +108,34 @@ export default function ServiceSelectionForm({
       totalPrice: 45  // Solo manodopera temporanea
     };
     
-    // Aggiungi l'elemento
-    onChange([...items, newItem]);
+    // Crea una copia dell'array per evitare modifiche dirette
+    const newItems = [...items, newItem];
     
-    // Marca il servizio come selezionato
-    setSelectedServices({
-      ...selectedServices,
-      [service.id]: true
-    });
+    // Aggiorna lo stato del servizio selezionato come nuova referenza
+    const newSelectedServices = {...currentSelectedServices, [service.id]: true};
+    setSelectedServices(newSelectedServices);
+    
+    // Aggiorna gli items
+    onChange(newItems);
   };
   
   // Gestisce la rimozione di un elemento
   const handleRemoveItem = (id: string) => {
     const itemToRemove = items.find(item => item.id === id);
     if (itemToRemove) {
-      // Rimuovi il segno di spunta dal servizio
-      setSelectedServices({
-        ...selectedServices,
-        [itemToRemove.serviceType.id]: false
-      });
+      // Crea una nuova copia dell'array items senza l'elemento da rimuovere
+      const newItems = items.filter(item => item.id !== id);
+      
+      // Crea una nuova copia dell'oggetto selectedServices
+      const newSelectedServices = {...selectedServices};
+      delete newSelectedServices[itemToRemove.serviceType.id];
+      
+      // Aggiorna lo stato dei servizi selezionati
+      setSelectedServices(newSelectedServices);
+      
+      // Aggiorna gli items
+      onChange(newItems);
     }
-    
-    onChange(items.filter(item => item.id !== id));
   };
   
   const formatCurrency = (amount: number): string => {
