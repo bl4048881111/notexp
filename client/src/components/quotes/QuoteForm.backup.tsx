@@ -70,15 +70,9 @@ interface QuoteFormProps {
 }
 
 export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultClientId }: QuoteFormProps) {
-  // Versione totalmente ridotta - eliminiamo gli effetti collaterali e i cicli infiniti
   const [clients, setClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  // Assicuriamoci che i ricambi siano inizializzati come array
-  const initialItems = quote?.items?.map(item => ({
-    ...item,
-    parts: Array.isArray(item.parts) ? item.parts : [] 
-  })) || [];
-  const [items, setItems] = useState<QuoteItem[]>(initialItems);
+  const [items, setItems] = useState<QuoteItem[]>(quote?.items || []);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -98,7 +92,7 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
 
       date: quote?.date || format(new Date(), "yyyy-MM-dd"),
       status: quote?.status || "bozza",
-      items: initialItems, // Usa gli item già processati
+      items: quote?.items || [],
       subtotal: quote?.subtotal || 0,
       taxRate: quote?.taxRate || 22,
       taxAmount: quote?.taxAmount || 0,
@@ -109,37 +103,68 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
     }
   });
   
-  // Carica i clienti all'inizio - wrappato in useCallback
-  const loadClients = useCallback(async () => {
-    if (clients.length === 0) {
+  // Effetto per caricare i clienti dalla API
+  useEffect(() => {
+    const fetchClients = async () => {
       setIsLoading(true);
       try {
+        // Carica i clienti dalla API Firebase
         const data = await getAllClients();
+        console.log("Clienti caricati:", data);
         setClients(data);
-        
-        // Se c'è un defaultClientId, carica i dati del cliente
-        if (defaultClientId) {
-          fetchClientById(defaultClientId);
-        }
-        
-        // Controlla anche l'URL per clientId
-        const urlParams = new URLSearchParams(window.location.search);
-        const clientIdFromUrl = urlParams.get('clientId');
-        if (clientIdFromUrl) {
-          fetchClientById(clientIdFromUrl);
-        }
       } catch (error) {
         console.error("Errore nel caricamento dei clienti:", error);
       } finally {
         setIsLoading(false);
       }
+    };
+    
+    // Check URL for auto-populate
+    const urlParams = new URLSearchParams(window.location.search);
+    const clientId = urlParams.get('clientId');
+    if (clientId) {
+      fetchClientById(clientId);
     }
-  }, [clients.length, defaultClientId]);
+    
+    fetchClients();
+  }, []);
   
-  // Carica i clienti al montaggio del componente (solo una volta)
+  // Effetto per impostare gli elementi del preventivo
   useEffect(() => {
-    loadClients();
-  }, [loadClients]);
+    if (quote) {
+      console.log("Caricamento preventivo per modifica:", quote);
+      
+      // Assicurati che ogni servizio abbia l'array parts inizializzato
+      const itemsWithParts = quote.items.map(item => ({
+        ...item,
+        parts: item.parts || []
+      }));
+      
+      setItems(itemsWithParts);
+      
+      if (quote.clientId) {
+        fetchClientById(quote.clientId);
+      }
+      
+      // Inizializza i valori del form con quelli del preventivo
+      form.setValue("laborPrice", quote.laborPrice || 45);
+      form.setValue("laborHours", quote.laborHours || 0);
+      form.setValue("notes", quote.notes || "");
+      form.setValue("status", quote.status || "bozza");
+      
+      // Imposta come tab attivo il primo servizio (se presente)
+      if (quote.items.length > 0) {
+        setActiveTab(quote.items[0].id);
+      }
+    }
+  }, [quote, form]);
+  
+  // Effetto per caricare il cliente quando viene fornito un defaultClientId
+  useEffect(() => {
+    if (defaultClientId && !selectedClient) {
+      fetchClientById(defaultClientId);
+    }
+  }, [defaultClientId, selectedClient]);
   
   // Funzione per recuperare un client specifico
   const fetchClientById = async (id: string) => {
@@ -634,7 +659,12 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                   items={items}
                   onChange={handleItemsChange}
                   initialActiveTab={activeTab}
-                  onActiveTabChange={undefined} /* Disabilitato per prevenire il ciclo */
+                  onActiveTabChange={(tabId) => {
+                    // Previene cambiamenti di tab durante l'inizializzazione
+                    if (tabId !== activeTab) {
+                      setActiveTab(tabId);
+                    }
+                  }}
                 />
                 
                 <div className="flex justify-between space-x-2 pt-4">

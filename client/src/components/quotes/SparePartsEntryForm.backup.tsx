@@ -1,5 +1,4 @@
-// Versione completamente ricostruita e semplificata
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { QuoteItem, SparePart } from "@shared/schema";
 import { Button } from "@/components/ui/button";
@@ -19,12 +18,20 @@ export default function SparePartsEntryForm({
   initialActiveTab = null,
   onActiveTabChange
 }: SparePartsEntryFormProps) {
-  // Determina un tab attivo iniziale (non usiamo useEffect)
-  const firstTabId = items.length > 0 ? items[0].id : null;
-  // Usa initialActiveTab se presente, altrimenti il primo tab disponibile
-  const [activeTab, setActiveTab] = useState<string | null>(
-    initialActiveTab || firstTabId
-  );
+  // Stati locali
+  const [activeTab, setActiveTab] = useState<string | null>(initialActiveTab);
+  
+  // Aggiorna il tab attivo quando cambia initialActiveTab (versione semplificata per evitare loop)
+  useEffect(() => {
+    console.log("initialActiveTab:", initialActiveTab);
+    if (initialActiveTab) {
+      setActiveTab(initialActiveTab);
+    } else if (items.length > 0 && !activeTab) {
+      // Imposta il tab attivo solo se non è già impostato e ci sono items
+      setActiveTab(items[0].id);
+    }
+    // Nota: rimosso onActiveTabChange per evitare cicli di callback
+  }, [initialActiveTab, items.length]); // Dipendenze ridotte per evitare loop
   const [articleCode, setArticleCode] = useState<string>("");
   const [articleDescription, setArticleDescription] = useState<string>("");
   const [articleBrand, setArticleBrand] = useState<string>("");
@@ -220,7 +227,7 @@ export default function SparePartsEntryForm({
                   key={service.id}
                   onClick={() => {
                     setActiveTab(service.id);
-                    // Rimuoviamo la chiamata a onActiveTabChange
+                    if (onActiveTabChange) onActiveTabChange(service.id);
                     resetForm();
                   }}
                   className={`
