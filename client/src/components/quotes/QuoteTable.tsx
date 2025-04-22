@@ -3,7 +3,7 @@ import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { Quote } from "@shared/schema";
 import { deleteQuote, updateQuote } from "@shared/firebase";
-import { exportQuoteToPDF } from "../../services/exportService";
+import { exportQuoteToPDF } from "@/services/exportService";
 import { useToast } from "@/hooks/use-toast";
 import {
   Table,
