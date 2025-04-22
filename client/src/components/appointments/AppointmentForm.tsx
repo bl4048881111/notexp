@@ -446,28 +446,27 @@ export default function AppointmentForm({
                   </div>
                   
                   {selectedClient ? (
-                    <div className="flex justify-between items-center p-4 rounded-md bg-primary/5 border border-primary/20 shadow-sm">
-                      <div className="flex items-start gap-3">
-                        <div className="bg-primary/10 rounded-full p-2 text-primary">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <div className="flex justify-between items-center p-4 rounded-lg bg-primary/5 border-2 border-primary/30 shadow-sm">
+                      <div className="flex items-center gap-3">
+                        <div className="bg-primary/15 rounded-full p-2.5 text-primary">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
                         </div>
                         <div>
-                          <h3 className="font-medium text-base">{selectedClient.name} <span className="text-primary">|</span> {selectedClient.surname}</h3>
-                          <div className="text-sm text-muted-foreground mt-1 space-y-1">
-                            <p className="flex items-center">
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <h3 className="font-bold text-lg text-foreground">{selectedClient.name} {selectedClient.surname}</h3>
+                          <div className="flex items-center gap-4 mt-1.5">
+                            <span className="text-sm flex items-center text-muted-foreground">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1.5 text-primary/80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                               </svg>
                               {selectedClient.phone}
-                            </p>
-                            <p className="flex items-center">
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                              </svg>
-                              {selectedClient.model} ({selectedClient.plate})
-                            </p>
+                            </span>
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-primary/10 text-primary text-sm font-medium rounded-md">
+                              <span className="font-bold">{selectedClient.plate}</span>
+                              <span className="text-xs mx-1">|</span>
+                              <span>{selectedClient.model}</span>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -476,7 +475,7 @@ export default function AppointmentForm({
                         variant="outline" 
                         size="sm"
                         onClick={handleClearSelectedClient}
-                        className="border-primary/20 text-primary hover:bg-primary/10 hover:text-primary"
+                        className="border-primary/30 text-primary hover:bg-primary/10 hover:text-primary"
                       >
                         <XCircle className="h-4 w-4 mr-1" />
                         <span>Cambia</span>
@@ -486,10 +485,10 @@ export default function AppointmentForm({
                     <div className="space-y-4">
                       <div>
                         <div className="relative">
-                          <div className="relative rounded-md shadow-sm">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <div className="relative rounded-lg shadow-sm">
+                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                               </svg>
                             </div>
                             <Input
@@ -526,12 +525,12 @@ export default function AppointmentForm({
                                   }
                                 }
                               }}
-                              className="pl-10 border-primary/50 focus-visible:ring-primary/60 bg-primary/5 text-foreground font-medium"
+                              className="pl-11 py-6 text-lg border-2 border-primary/40 focus-visible:ring-primary/60 bg-primary/5 text-foreground font-medium rounded-lg"
                             />
                           </div>
                           
                           {isSearching && (
-                            <div className="absolute top-full mt-2 left-0 right-0 border-2 border-primary/60 rounded-md bg-background shadow-xl z-10 max-h-[400px]">
+                            <div className="absolute top-full mt-2 left-0 right-0 border-2 border-primary/60 rounded-md bg-background shadow-xl z-10 max-h-[450px] overflow-y-auto">
                               {filteredClients.length === 0 ? (
                                 <div className="p-4 text-center text-sm text-foreground">
                                   <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mx-auto mb-2 text-primary/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -542,36 +541,46 @@ export default function AppointmentForm({
                               ) : (
                                 <div className="p-3">
                                   {filteredClients.map((client, index) => (
-                                    <div
-                                      key={client.id}
-                                      className={`p-4 cursor-pointer transition-colors ${
-                                        index === selectedIndex ? "bg-primary/30 border border-primary/60" : "hover:bg-primary/10"
-                                      } rounded-md mb-3 shadow-sm border-b-2 border-primary/20`}
-                                      onClick={() => handleSelectClient(client)}
-                                    >
-                                      <div className="flex justify-between items-start">
-                                        <div>
-                                          <div className="font-semibold text-lg text-foreground">{client.name} <span className="text-primary">|</span> {client.surname}</div>
-                                          <div className="text-base text-foreground flex flex-col gap-1 mt-2">
-                                            <span className="flex items-center gap-2">
-                                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                    <>
+                                      <div
+                                        key={client.id}
+                                        className={`p-4 cursor-pointer transition-colors ${
+                                          index === selectedIndex ? "bg-primary/20 border-2 border-primary" : "hover:bg-primary/5 border border-primary/20"
+                                        } rounded-lg mb-2 shadow-sm`}
+                                        onClick={() => handleSelectClient(client)}
+                                      >
+                                        <div className="flex justify-between items-center">
+                                          <div className="flex items-center gap-3">
+                                            <div className="bg-primary/10 p-2 rounded-full">
+                                              <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                               </svg>
-                                              {client.phone}
-                                            </span>
+                                            </div>
+                                            <div>
+                                              <div className="font-bold text-lg text-foreground">{client.name} {client.surname}</div>
+                                              <div className="text-sm text-muted-foreground flex items-center mt-1">
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1.5 text-primary/80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                                </svg>
+                                                {client.phone}
+                                              </div>
+                                            </div>
+                                          </div>
+                                          <div className="flex flex-col items-end">
+                                            <div className="inline-flex items-center bg-primary/15 border border-primary/30 rounded-md px-3 py-1.5 text-primary font-bold">
+                                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                              </svg>
+                                              {client.plate}
+                                            </div>
+                                            <div className="mt-1.5 text-sm font-medium text-foreground">{client.model}</div>
                                           </div>
                                         </div>
-                                        <div className="text-base text-right">
-                                          <span className="inline-flex items-center bg-primary/20 border border-primary/40 rounded-lg px-3 py-2 text-primary font-medium">
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                                            </svg>
-                                            {client.plate}
-                                          </span>
-                                          <div className="mt-2 text-foreground font-medium">{client.model}</div>
-                                        </div>
                                       </div>
-                                    </div>
+                                      {index < filteredClients.length - 1 && (
+                                        <div className="border-t border-primary/10 my-2"></div>
+                                      )}
+                                    </>
                                   ))}
                                 </div>
                               )}
