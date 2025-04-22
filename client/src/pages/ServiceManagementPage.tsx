@@ -290,20 +290,32 @@ export default function ServiceManagementPage() {
         ) : (
           <Table>
             <TableHeader>
-              <TableRow className="bg-muted/50">
-                <TableHead className="w-[250px]">Nome</TableHead>
-                <TableHead>Categoria</TableHead>
-                <TableHead>Descrizione</TableHead>
-                <TableHead className="text-right">Tariffa (€/h)</TableHead>
-                <TableHead className="text-right w-[150px]">Azioni</TableHead>
+              <TableRow className="bg-gray-900">
+                <TableHead className="w-[250px] text-white font-semibold">Nome</TableHead>
+                <TableHead className="text-white font-semibold">Categoria</TableHead>
+                <TableHead className="text-white font-semibold">Descrizione</TableHead>
+                <TableHead className="text-right text-white font-semibold">Tariffa (€/h)</TableHead>
+                <TableHead className="text-right w-[150px] text-white font-semibold">Azioni</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredServices.map((service) => (
-                <TableRow key={service.id}>
+                <TableRow key={service.id} className={`${filteredServices.indexOf(service) % 2 === 0 ? 'bg-gray-50' : 'bg-white'}`}>
                   <TableCell className="font-medium">{service.name}</TableCell>
                   <TableCell>
-                    <span className="px-2 py-1 bg-primary/10 text-primary rounded-md text-xs font-medium">
+                    <span className={`px-2 py-1 rounded-md text-xs font-medium ${
+                      service.category === "Frenante" ? "bg-red-100 text-red-700" :
+                      service.category === "Sospensioni" ? "bg-blue-100 text-blue-700" :
+                      service.category === "Accessori" ? "bg-purple-100 text-purple-700" :
+                      service.category === "Manutenzione" ? "bg-green-100 text-green-700" :
+                      service.category === "Riparazione" ? "bg-yellow-100 text-yellow-700" :
+                      service.category === "Carrozzeria" ? "bg-pink-100 text-pink-700" :
+                      service.category === "Motore" ? "bg-orange-100 text-orange-700" :
+                      service.category === "Elettronica" ? "bg-indigo-100 text-indigo-700" :
+                      service.category === "Altro" ? "bg-gray-100 text-gray-700" :
+                      service.category === "Personalizzato" ? "bg-teal-100 text-teal-700" :
+                      "bg-primary/20 text-primary font-semibold"
+                    }`}>
                       {service.category}
                     </span>
                   </TableCell>
