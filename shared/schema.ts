@@ -72,6 +72,67 @@ export const createAppointmentSchema = appointmentSchema.omit({ id: true });
 export type Appointment = z.infer<typeof appointmentSchema>;
 export type CreateAppointmentInput = z.infer<typeof createAppointmentSchema>;
 
+// Service Category schema
+export const serviceCategories = [
+  "Tagliando",
+  "Frenante",
+  "Sospensioni",
+  "Accessori",
+  "Altro"
+] as const;
+
+export const serviceTypeSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1, "Nome servizio è obbligatorio"),
+  category: z.enum(serviceCategories),
+  description: z.string().optional(),
+  laborPrice: z.number().default(0)
+});
+
+export const createServiceTypeSchema = serviceTypeSchema.omit({ id: true });
+export type ServiceType = z.infer<typeof serviceTypeSchema>;
+export type CreateServiceTypeInput = z.infer<typeof createServiceTypeSchema>;
+
+// Quote Item schema (for components in a quote)
+export const quoteItemSchema = z.object({
+  id: z.string(),
+  serviceType: serviceTypeSchema,
+  description: z.string().optional(),
+  parts: z.array(sparePartSchema).default([]),
+  laborPrice: z.number().default(0),
+  laborHours: z.number().default(1),
+  notes: z.string().optional(),
+  totalPrice: z.number().default(0)
+});
+
+export const createQuoteItemSchema = quoteItemSchema.omit({ id: true });
+export type QuoteItem = z.infer<typeof quoteItemSchema>;
+export type CreateQuoteItemInput = z.infer<typeof createQuoteItemSchema>;
+
+// Quote schema
+export const quoteSchema = z.object({
+  id: z.string(),
+  clientId: z.string(),
+  clientName: z.string(),
+  phone: z.string(),
+  plate: z.string(),
+  model: z.string(),
+  date: z.string(),
+  items: z.array(quoteItemSchema).default([]),
+  subtotal: z.number().default(0),
+  taxRate: z.number().default(22), // IVA 22%
+  taxAmount: z.number().default(0),
+  total: z.number().default(0),
+  notes: z.string().optional(),
+  status: z.enum(["bozza", "inviato", "accettato", "rifiutato", "scaduto"]).default("bozza"),
+  validUntil: z.string().optional(), // Data di scadenza del preventivo
+  createdAt: z.number()
+});
+
+export const createQuoteSchema = quoteSchema.omit({ id: true });
+export type Quote = z.infer<typeof quoteSchema>;
+export type CreateQuoteInput = z.infer<typeof createQuoteSchema>;
+
 // Login schema
 export const loginSchema = z.object({
   username: z.string().min(1, "Username è obbligatorio"),
