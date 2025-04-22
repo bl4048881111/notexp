@@ -170,11 +170,8 @@ export default function SparePartsEntryForm({
       <h3 className="text-lg font-medium">Inserimento Ricambi</h3>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Lista dei servizi selezionati, raggruppati per categoria */}
-        <div className="border rounded-lg p-4">
-          <h4 className="font-medium mb-4">Servizi selezionati per categoria</h4>
-          
-          {/* Raggruppamento dei servizi per categoria */}
+        {/* Menu di servizi a filtro */}
+        <div>
           {Object.entries(
             items.reduce((acc, item) => {
               const category = item.serviceType.category;
@@ -184,21 +181,31 @@ export default function SparePartsEntryForm({
             }, {} as Record<string, QuoteItem[]>)
           ).map(([category, categoryItems]) => (
             <div key={category} className="mb-4">
-              <div className="font-medium text-primary mb-2 pb-1 border-b">{category}</div>
-              <div className="space-y-2">
+              <div className="bg-muted/60 font-medium p-2 rounded-t-lg">{category}</div>
+              <div className="border rounded-b-lg mb-4">
                 {categoryItems.map((item, itemIndex) => {
                   // Trova l'indice globale di questo item nel array items completo
                   const index = items.findIndex(i => i.id === item.id);
                   return (
                     <div 
                       key={item.id}
-                      className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                        currentServiceIndex === index ? 'border-primary bg-primary/5' : 'hover:border-primary/50'
+                      className={`p-3 cursor-pointer transition-all border-b last:border-b-0 ${
+                        currentServiceIndex === index ? 'bg-primary/5' : 'hover:bg-muted/40'
                       }`}
                       onClick={() => handleSelectService(index)}
                     >
                       <div className="flex justify-between items-center">
-                        <div className="font-medium">{item.serviceType.name}</div>
+                        <div className="font-medium flex items-center">
+                          {currentServiceIndex === index && (
+                            <span className="material-icons text-primary mr-1 text-sm">check</span>
+                          )}
+                          {item.serviceType.name}
+                          {item.parts.length > 0 && (
+                            <span className="ml-2 text-xs bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">
+                              {item.parts.length}
+                            </span>
+                          )}
+                        </div>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -221,16 +228,6 @@ export default function SparePartsEntryForm({
                         >
                           <span className="material-icons text-destructive text-xs">close</span>
                         </Button>
-                      </div>
-                      <div className="text-sm text-muted-foreground flex justify-between mt-1">
-                        <span>
-                          {item.parts.length > 0 
-                            ? `${item.parts.length} ricambi inseriti` 
-                            : 'Nessun ricambio'}
-                        </span>
-                        {currentServiceIndex === index && (
-                          <span className="text-primary font-medium">ATTIVO</span>
-                        )}
                       </div>
                     </div>
                   );
@@ -365,76 +362,7 @@ export default function SparePartsEntryForm({
         )}
       </div>
       
-      {/* Tabella dei ricambi per il servizio corrente */}
-      {currentServiceIndex !== null && (
-        <div className="mt-6">
-          <Separator className="mb-4" />
-          
-          <div className="flex justify-between items-center mb-3">
-            <h4 className="font-medium">
-              Ricambi per <span className="text-primary">{items[currentServiceIndex].serviceType.name}</span>
-            </h4>
-            <div className="bg-muted/50 px-3 py-1 rounded text-sm">
-              Categoria: <span className="font-medium">{items[currentServiceIndex].serviceType.category}</span>
-            </div>
-          </div>
-          
-          {items[currentServiceIndex].parts.length > 0 ? (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Codice</TableHead>
-                    <TableHead>Brand</TableHead>
-                    <TableHead>Descrizione</TableHead>
-                    <TableHead className="text-right">Prezzo</TableHead>
-                    <TableHead className="text-right">Quantità</TableHead>
-                    <TableHead className="text-right">Totale</TableHead>
-                    <TableHead className="w-[80px]"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {items[currentServiceIndex].parts.map((part) => (
-                    <TableRow key={part.id}>
-                      <TableCell className="font-medium">{part.code}</TableCell>
-                      <TableCell>{part.brand || '-'}</TableCell>
-                      <TableCell>{part.name}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(part.unitPrice)}</TableCell>
-                      <TableCell className="text-right">{part.quantity}</TableCell>
-                      <TableCell className="text-right font-medium">{formatCurrency(part.finalPrice)}</TableCell>
-                      <TableCell>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleRemoveSparePart(currentServiceIndex, part.id)}
-                          className="h-8 w-8"
-                        >
-                          <span className="material-icons text-destructive">delete</span>
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-right font-medium">
-                      Totale Ricambi:
-                    </TableCell>
-                    <TableCell className="text-right font-bold">
-                      {formatCurrency(items[currentServiceIndex].parts.reduce((sum, part) => sum + part.finalPrice, 0))}
-                    </TableCell>
-                    <TableCell></TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </div>
-          ) : (
-            <div className="border border-dashed rounded-lg p-6 text-center text-muted-foreground">
-              <p>Nessun ricambio inserito per questo servizio</p>
-              <p className="text-sm mt-1">Compila il form sopra per aggiungere ricambi a {items[currentServiceIndex].serviceType.name}</p>
-            </div>
-          )}
-        </div>
-      )}
+      {/* Sezione rimossa come richiesto */}
       
 
     </div>
