@@ -351,8 +351,8 @@ export default function AppointmentForm({
       
       {/* Dialog principale dell'appuntamento */}
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto scrollbar-hide">
-          <DialogHeader className="pb-4 border-b sticky top-0 bg-background z-10">
+        <DialogContent className="sm:max-w-[900px] max-h-[95vh] overflow-y-auto scrollbar-hide">
+          <DialogHeader className="pb-5 border-b sticky top-0 bg-background z-10 px-6 pt-5">
             <DialogTitle className="text-xl flex items-center gap-2">
               <Calendar className="h-5 w-5 text-primary" />
               {appointment ? "Modifica Appuntamento" : "Nuovo Appuntamento"}
@@ -434,7 +434,7 @@ export default function AppointmentForm({
           </DialogHeader>
           
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 px-6 pt-5">
               {/* Step 1: Cliente */}
               {currentStep === 1 && (
                 <div className="space-y-4">
@@ -793,7 +793,7 @@ export default function AppointmentForm({
               )}
               
               {/* Pulsanti di navigazione fissi */}
-              <DialogFooter className="py-3 border-t mt-6 sticky bottom-0 bg-background z-10">
+              <DialogFooter className="py-4 border-t mt-6 sticky bottom-0 bg-background z-10 px-6">
                 <div className="flex w-full justify-between">
                   <div className="flex gap-2">
                     <Button 
