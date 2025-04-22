@@ -58,66 +58,69 @@ export default function SparePartForm({ parts, onChange }: SparePartFormProps) {
   };
 
   return (
-    <div className="space-y-4 border rounded-md p-4">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div>
-          <Label htmlFor="part-code">Codice</Label>
+    <div className="space-y-4 border border-border rounded-md p-4 bg-muted/10">
+      <div className="flex flex-wrap md:flex-nowrap gap-2">
+        <div className="w-full md:w-auto">
+          <Label htmlFor="part-code" className="text-sm">Codice</Label>
           <Input
             id="part-code"
             value={code}
             onChange={(e) => setCode(e.target.value)}
             placeholder="Codice ricambio"
+            className="h-9"
           />
         </div>
         
-        <div className="md:col-span-2">
-          <Label htmlFor="part-description">Descrizione</Label>
+        <div className="flex-1">
+          <Label htmlFor="part-description" className="text-sm">Descrizione</Label>
           <Input
             id="part-description"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Descrizione ricambio"
+            className="h-9"
           />
         </div>
         
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <Label htmlFor="part-price">Prezzo</Label>
-            <Input
-              id="part-price"
-              type="number"
-              value={netPrice}
-              onChange={(e) => setNetPrice(e.target.value ? parseFloat(e.target.value) : "")}
-              placeholder="0.00"
-              min="0"
-              step="0.01"
-            />
-          </div>
-          
-          <div>
-            <Label htmlFor="part-markup">Ricarico %</Label>
-            <Input
-              id="part-markup"
-              type="number"
-              value={markup}
-              onChange={(e) => setMarkup(e.target.value ? parseFloat(e.target.value) : "")}
-              placeholder="20"
-              min="0"
-              step="1"
-            />
-          </div>
+        <div className="w-24">
+          <Label htmlFor="part-price" className="text-sm">Prezzo</Label>
+          <Input
+            id="part-price"
+            type="number"
+            value={netPrice}
+            onChange={(e) => setNetPrice(e.target.value ? parseFloat(e.target.value) : "")}
+            placeholder="0.00"
+            min="0"
+            step="0.01"
+            className="h-9"
+          />
         </div>
-      </div>
-      
-      <div className="flex justify-end">
-        <Button 
-          type="button" 
-          size="sm" 
-          onClick={handleAddPart}
-          disabled={!description || netPrice === "" || markup === ""}
-        >
-          Aggiungi Ricambio
-        </Button>
+        
+        <div className="w-20">
+          <Label htmlFor="part-markup" className="text-sm">Ricarico %</Label>
+          <Input
+            id="part-markup"
+            type="number"
+            value={markup}
+            onChange={(e) => setMarkup(e.target.value ? parseFloat(e.target.value) : "")}
+            placeholder="20"
+            min="0"
+            step="1"
+            className="h-9"
+          />
+        </div>
+        
+        <div className="flex items-end">
+          <Button 
+            type="button" 
+            size="sm" 
+            onClick={handleAddPart}
+            disabled={!description || netPrice === "" || markup === ""}
+            className="h-9 bg-primary hover:bg-primary/90"
+          >
+            <span className="mr-1">+</span> Aggiungi
+          </Button>
+        </div>
       </div>
       
       {parts.length > 0 && (

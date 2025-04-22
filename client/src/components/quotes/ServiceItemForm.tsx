@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -14,14 +15,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Accordion,
   AccordionContent,
@@ -36,35 +29,21 @@ interface ServiceItemFormProps {
   onChange: (items: QuoteItem[]) => void;
 }
 
+type ServiceCategory = "Tagliando" | "Frenante" | "Sospensioni" | "Accessori" | "Manutenzione" | "Riparazione" | "Carrozzeria" | "Motore" | "Elettronica" | "Altro" | "Personalizzato";
+
 export default function ServiceItemForm({ items, onChange }: ServiceItemFormProps) {
   const [serviceTypes, setServiceTypes] = useState<ServiceType[]>([]);
-  const [filteredTypes, setFilteredTypes] = useState<ServiceType[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [customServiceName, setCustomServiceName] = useState("");
   
   // Load service types on component mount
   useEffect(() => {
     const loadServiceTypes = async () => {
       const types = await getAllServiceTypes();
       setServiceTypes(types);
-      setFilteredTypes(types);
     };
     
     loadServiceTypes();
   }, []);
-  
-  // Filter service types by category
-  useEffect(() => {
-    const filterTypes = async () => {
-      if (selectedCategory === "all") {
-        setFilteredTypes(serviceTypes);
-      } else {
-        const types = await getServiceTypesByCategory(selectedCategory);
-        setFilteredTypes(types);
-      }
-    };
-    
-    filterTypes();
-  }, [selectedCategory, serviceTypes]);
   
   const handleAddItem = (serviceType: ServiceType) => {
     const newItem: QuoteItem = {
@@ -99,6 +78,35 @@ export default function ServiceItemForm({ items, onChange }: ServiceItemFormProp
       return item;
     }));
   };
+
+  const handleAddCustomService = () => {
+    if (!customServiceName.trim()) return;
+    
+    // Creare un tipo di servizio personalizzato
+    const customType: ServiceType = {
+      id: uuidv4(),
+      name: customServiceName,
+      category: "Personalizzato" as ServiceCategory,
+      laborPrice: 40,
+      description: "Servizio personalizzato"
+    };
+    
+    handleAddItem(customType);
+    setCustomServiceName("");
+  };
+  
+  const isCategorySelected = (category: ServiceCategory) => {
+    return items.some(item => item.serviceType.category === category);
+  };
+  
+  const handleCategoryToggle = (category: ServiceCategory, checked: boolean) => {
+    if (checked) {
+      const serviceType = serviceTypes.find(st => st.category === category);
+      if (serviceType) handleAddItem(serviceType);
+    } else {
+      onChange(items.filter(item => item.serviceType.category !== category));
+    }
+  };
   
   const formatCurrency = (amount: number): string => {
     return new Intl.NumberFormat('it-IT', {
@@ -109,58 +117,112 @@ export default function ServiceItemForm({ items, onChange }: ServiceItemFormProp
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-lg font-medium">Servizi e Ricambi</h2>
-          <p className="text-sm text-muted-foreground">Aggiungi servizi e ricambi al preventivo</p>
+      <div className="space-y-4">
+        <h3 className="text-lg font-medium text-primary">Servizi ({items.length} selezionati)</h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="border border-border rounded-md overflow-hidden p-4 bg-muted/20">
+            <div className="grid grid-cols-1 gap-4">
+              <div className="flex items-center space-x-2 p-3 rounded-md border border-primary/50 bg-muted/30">
+                <Checkbox 
+                  id="service-tagliando" 
+                  checked={isCategorySelected("Tagliando")}
+                  onCheckedChange={(checked) => handleCategoryToggle("Tagliando", checked as boolean)}
+                />
+                <Label htmlFor="service-tagliando" className="text-lg cursor-pointer font-semibold">Tagliando</Label>
+              </div>
+              
+              <div className="flex items-center space-x-2 p-3 rounded-md border border-primary/50 bg-muted/30">
+                <Checkbox 
+                  id="service-frenante" 
+                  checked={isCategorySelected("Frenante")}
+                  onCheckedChange={(checked) => handleCategoryToggle("Frenante", checked as boolean)}
+                />
+                <Label htmlFor="service-frenante" className="text-lg cursor-pointer font-semibold">Frenante</Label>
+              </div>
+              
+              <div className="flex items-center space-x-2 p-3 rounded-md border border-primary/50 bg-muted/30">
+                <Checkbox 
+                  id="service-sospensioni" 
+                  checked={isCategorySelected("Sospensioni")}
+                  onCheckedChange={(checked) => handleCategoryToggle("Sospensioni", checked as boolean)}
+                />
+                <Label htmlFor="service-sospensioni" className="text-lg cursor-pointer font-semibold">Sospensioni</Label>
+              </div>
+              
+              <div className="flex items-center space-x-2 p-3 rounded-md border border-border bg-muted/30">
+                <Checkbox 
+                  id="service-accessori" 
+                  checked={isCategorySelected("Accessori")}
+                  onCheckedChange={(checked) => handleCategoryToggle("Accessori", checked as boolean)}
+                />
+                <Label htmlFor="service-accessori" className="text-lg cursor-pointer font-semibold">Accessori</Label>
+              </div>
+            </div>
+          </div>
+          
+          <div className="border border-border rounded-md overflow-hidden p-4 bg-muted/20">
+            <div className="grid grid-cols-1 gap-4">
+              <div className="flex items-center space-x-2 p-3 rounded-md border border-border bg-muted/30">
+                <Checkbox 
+                  id="service-manutenzione" 
+                  checked={isCategorySelected("Manutenzione")}
+                  onCheckedChange={(checked) => handleCategoryToggle("Manutenzione", checked as boolean)}
+                />
+                <Label htmlFor="service-manutenzione" className="text-lg cursor-pointer font-semibold">Manutenzione</Label>
+              </div>
+              
+              <div className="flex items-center space-x-2 p-3 rounded-md border border-border bg-muted/30">
+                <Checkbox 
+                  id="service-riparazione" 
+                  checked={isCategorySelected("Riparazione")}
+                  onCheckedChange={(checked) => handleCategoryToggle("Riparazione", checked as boolean)}
+                />
+                <Label htmlFor="service-riparazione" className="text-lg cursor-pointer font-semibold">Riparazione</Label>
+              </div>
+              
+              <div className="flex items-center space-x-2 p-3 rounded-md border border-border bg-muted/30">
+                <Checkbox 
+                  id="service-carrozzeria" 
+                  checked={isCategorySelected("Carrozzeria")}
+                  onCheckedChange={(checked) => handleCategoryToggle("Carrozzeria", checked as boolean)}
+                />
+                <Label htmlFor="service-carrozzeria" className="text-lg cursor-pointer font-semibold">Carrozzeria</Label>
+              </div>
+              
+              <div className="flex items-center space-x-2 p-3 rounded-md border border-border bg-muted/30">
+                <Checkbox 
+                  id="service-altro" 
+                  checked={isCategorySelected("Altro")}
+                  onCheckedChange={(checked) => handleCategoryToggle("Altro", checked as boolean)}
+                />
+                <Label htmlFor="service-altro" className="text-lg cursor-pointer font-semibold">Altro</Label>
+              </div>
+            </div>
+          </div>
         </div>
         
-        <Select
-          value={selectedCategory}
-          onValueChange={setSelectedCategory}
-        >
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Filtra per categoria" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tutte le categorie</SelectItem>
-            <SelectItem value="Tagliando">Tagliando</SelectItem>
-            <SelectItem value="Frenante">Frenante</SelectItem>
-            <SelectItem value="Sospensioni">Sospensioni</SelectItem>
-            <SelectItem value="Accessori">Accessori</SelectItem>
-            <SelectItem value="Altro">Altro</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {filteredTypes.map(serviceType => (
-          <Card key={serviceType.id} className="hover:shadow-md transition-shadow">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">{serviceType.name}</CardTitle>
-              <CardDescription className="text-xs">{serviceType.category}</CardDescription>
-            </CardHeader>
-            <CardContent className="pb-2">
-              <div className="flex justify-between text-sm">
-                <span>Manodopera:</span>
-                <span className="font-medium">{formatCurrency(serviceType.laborPrice)}/ora</span>
-              </div>
-              {serviceType.description && (
-                <p className="text-xs text-muted-foreground mt-2">{serviceType.description}</p>
-              )}
-            </CardContent>
-            <CardFooter className="pt-0">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="w-full"
-                onClick={() => handleAddItem(serviceType)}
-              >
-                Aggiungi al preventivo
-              </Button>
-            </CardFooter>
-          </Card>
-        ))}
+        <div className="border border-primary rounded-md p-4 bg-muted/30">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="servizio-personalizzato" className="font-semibold text-primary">Servizio personalizzato</Label>
+            <Button 
+              type="button" 
+              size="sm"
+              className="bg-primary hover:bg-primary/90"
+              onClick={handleAddCustomService}
+              disabled={!customServiceName.trim()}
+            >
+              <span className="mr-1">+</span> Aggiungi
+            </Button>
+          </div>
+          <Input 
+            id="servizio-personalizzato" 
+            className="mt-2" 
+            placeholder="Inserisci servizio personalizzato (es. Riparazione specifica)"
+            value={customServiceName}
+            onChange={(e) => setCustomServiceName(e.target.value)}
+          />
+        </div>
       </div>
       
       <Separator className="my-4" />

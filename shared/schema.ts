@@ -79,7 +79,13 @@ export const serviceCategories = [
   "Frenante",
   "Sospensioni",
   "Accessori",
-  "Altro"
+  "Manutenzione",
+  "Riparazione",
+  "Carrozzeria",
+  "Motore",
+  "Elettronica",
+  "Altro",
+  "Personalizzato"
 ] as const;
 
 export const serviceTypeSchema = z.object({
