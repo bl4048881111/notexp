@@ -197,8 +197,32 @@ export default function SparePartsEntryForm({
                       }`}
                       onClick={() => handleSelectService(index)}
                     >
-                      <div className="font-medium">{item.serviceType.name}</div>
-                      <div className="text-sm text-muted-foreground flex justify-between">
+                      <div className="flex justify-between items-center">
+                        <div className="font-medium">{item.serviceType.name}</div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            // Se stiamo eliminando l'elemento attivo, resetta l'indice
+                            if (index === currentServiceIndex) {
+                              setCurrentServiceIndex(null);
+                            } 
+                            // Se stiamo eliminando un elemento con indice inferiore a quello attuale, aggiorna l'indice
+                            else if (currentServiceIndex !== null && index < currentServiceIndex) {
+                              setCurrentServiceIndex(currentServiceIndex - 1);
+                            }
+                            
+                            // Rimuovi l'elemento dall'array
+                            const newItems = items.filter((_, i) => i !== index);
+                            onChange(newItems);
+                          }}
+                          className="h-6 w-6 -mt-1 -mr-1"
+                        >
+                          <span className="material-icons text-destructive text-xs">close</span>
+                        </Button>
+                      </div>
+                      <div className="text-sm text-muted-foreground flex justify-between mt-1">
                         <span>
                           {item.parts.length > 0 
                             ? `${item.parts.length} ricambi inseriti` 
