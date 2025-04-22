@@ -33,7 +33,7 @@ export default function CalendarView({
 }: CalendarViewProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [calendarDays, setCalendarDays] = useState<Date[]>([]);
-  const [view, setView] = useState<'day' | 'week' | 'month'>('month');
+  const [view, setView] = useState<string>('month');
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   // Generate calendar days array

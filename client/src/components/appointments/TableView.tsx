@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { format } from "date-fns";
-import { Edit, Trash, CheckCircle } from "lucide-react";
-import { Appointment } from "@shared/schema";
-import { deleteAppointment, updateAppointment } from "@shared/firebase";
+import { it } from "date-fns/locale";
+import { Edit, Trash, CheckCircle, Eye, FileText } from "lucide-react";
+import { Appointment, Quote } from "@shared/schema";
+import { deleteAppointment, updateAppointment, getQuotesByClientId } from "@shared/firebase";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
 
 import {
   Table,
@@ -23,9 +25,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface TableViewProps {
   appointments: Appointment[];
@@ -33,6 +45,7 @@ interface TableViewProps {
   onEdit: (appointment: Appointment) => void;
   onDeleteSuccess: () => void;
   onStatusChange: () => void;
+  onEditQuote?: (quote: Quote) => void;
 }
 
 export default function TableView({ 
@@ -40,12 +53,22 @@ export default function TableView({
   isLoading, 
   onEdit, 
   onDeleteSuccess,
-  onStatusChange
+  onStatusChange,
+  onEditQuote
 }: TableViewProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [appointmentToDelete, setAppointmentToDelete] = useState<Appointment | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [viewAppointment, setViewAppointment] = useState<Appointment | null>(null);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const { toast } = useToast();
+  
+  // Query per ottenere preventivi del cliente
+  const { data: clientQuotes = [], isLoading: isLoadingQuotes } = useQuery({
+    queryKey: ['/api/quotes', viewAppointment?.clientId],
+    queryFn: () => viewAppointment ? getQuotesByClientId(viewAppointment.clientId) : Promise.resolve([]),
+    enabled: !!viewAppointment,
+  });
   
   const handleDeleteClick = (appointment: Appointment) => {
     setAppointmentToDelete(appointment);
@@ -90,6 +113,18 @@ export default function TableView({
         description: "Si è verificato un errore durante l'aggiornamento dello stato",
         variant: "destructive",
       });
+    }
+  };
+  
+  const handleViewAppointment = (appointment: Appointment) => {
+    setViewAppointment(appointment);
+    setViewDialogOpen(true);
+  };
+  
+  const handleEditQuote = (quote: Quote) => {
+    setViewDialogOpen(false);
+    if (onEditQuote) {
+      onEditQuote(quote);
     }
   };
   
@@ -140,42 +175,58 @@ export default function TableView({
               </TableRow>
             ) : (
               appointments.map((appointment) => (
-                <TableRow key={appointment.id} className="hover:bg-accent/50">
-                  <TableCell className="font-medium text-primary">{appointment.id}</TableCell>
-                  <TableCell>
+                <TableRow key={appointment.id} className="cursor-pointer hover:bg-accent/50">
+                  <TableCell className="font-medium text-primary" onClick={() => handleViewAppointment(appointment)}>
+                    {appointment.id.substring(0, 8)}
+                  </TableCell>
+                  <TableCell onClick={() => handleViewAppointment(appointment)}>
                     <div className="font-medium">
-                      {format(new Date(appointment.date), 'dd/MM/yyyy')}
+                      {format(new Date(appointment.date), 'EEEE d MMMM yyyy', { locale: it })}
                     </div>
                     <div className="text-xs text-muted-foreground">
                       {appointment.time} ({appointment.duration} min)
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell onClick={() => handleViewAppointment(appointment)}>
                     <div>{appointment.clientName}</div>
                     <div className="text-xs text-muted-foreground">{appointment.phone}</div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell onClick={() => handleViewAppointment(appointment)}>
                     <div>{appointment.model}</div>
                     <div className="text-xs text-muted-foreground">{appointment.plate}</div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell onClick={() => handleViewAppointment(appointment)}>
                     <div className="flex flex-wrap gap-1">
                       {appointment.services && appointment.services.map((service, index) => (
-                        <Badge key={index} variant="outline" className="bg-accent/50 text-foreground text-xs">
+                        <Badge key={index} variant="outline" className="bg-primary/10 border-primary text-xs">
                           {service}
                         </Badge>
                       ))}
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell onClick={() => handleViewAppointment(appointment)}>
                     {getStatusBadge(appointment.status)}
                   </TableCell>
                   <TableCell>
-                    <div className="flex space-x-2">
+                    <div className="flex space-x-1">
                       <Button 
                         variant="ghost" 
                         size="icon" 
-                        onClick={() => onEdit(appointment)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewAppointment(appointment);
+                        }}
+                        title="Visualizza"
+                      >
+                        <Eye className="h-4 w-4 text-primary" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEdit(appointment);
+                        }}
                         title="Modifica"
                       >
                         <Edit className="h-4 w-4 text-primary" />
@@ -183,16 +234,22 @@ export default function TableView({
                       <Button 
                         variant="ghost" 
                         size="icon" 
-                        onClick={() => handleDeleteClick(appointment)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteClick(appointment);
+                        }}
                         title="Elimina"
                       >
-                        <Trash className="h-4 w-4 text-primary" />
+                        <Trash className="h-4 w-4 text-destructive" />
                       </Button>
                       {appointment.status !== "completato" && (
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          onClick={() => handleCompleteAppointment(appointment)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCompleteAppointment(appointment);
+                          }}
                           title="Completa"
                         >
                           <CheckCircle className="h-4 w-4 text-primary" />
@@ -215,6 +272,153 @@ export default function TableView({
         {/* Pagination would go here */}
       </div>
       
+      {/* Dialog di visualizzazione appuntamento */}
+      <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+        <DialogContent className="sm:max-w-[700px]">
+          <DialogHeader>
+            <DialogTitle>Dettagli Appuntamento</DialogTitle>
+            <DialogDescription>
+              {viewAppointment && format(new Date(viewAppointment.date), 'EEEE d MMMM yyyy', { locale: it })}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {viewAppointment && (
+            <div className="space-y-4">
+              {/* Dati cliente e veicolo */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">Dati Cliente</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-lg font-semibold">{viewAppointment.clientName}</div>
+                    <div className="text-sm text-muted-foreground">{viewAppointment.phone}</div>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">Veicolo</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-lg font-semibold">{viewAppointment.model}</div>
+                    <div className="text-sm text-muted-foreground">Targa: {viewAppointment.plate}</div>
+                  </CardContent>
+                </Card>
+              </div>
+              
+              {/* Data, ora e stato */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Data e Ora</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <div className="text-sm text-muted-foreground">Data</div>
+                    <div className="font-medium">{format(new Date(viewAppointment.date), 'dd/MM/yyyy')}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-muted-foreground">Ora</div>
+                    <div className="font-medium">{viewAppointment.time}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-muted-foreground">Stato</div>
+                    <div className="font-medium">{getStatusBadge(viewAppointment.status)}</div>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              {/* Servizi */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Servizi</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    {viewAppointment.services && viewAppointment.services.length > 0 ? (
+                      viewAppointment.services.map((service, index) => (
+                        <Badge key={index} variant="outline" className="bg-primary/10 border-primary">
+                          {service}
+                        </Badge>
+                      ))
+                    ) : (
+                      <div className="text-sm text-muted-foreground">Nessun servizio specificato</div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+              
+              {/* Note */}
+              {viewAppointment.notes && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">Note</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm">{viewAppointment.notes}</p>
+                  </CardContent>
+                </Card>
+              )}
+              
+              {/* Preventivi associati */}
+              <Card>
+                <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                  <CardTitle className="text-base">Preventivi Cliente</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {isLoadingQuotes ? (
+                    <Skeleton className="h-20 w-full" />
+                  ) : clientQuotes.length > 0 ? (
+                    <ScrollArea className="h-[200px]">
+                      <div className="space-y-2">
+                        {clientQuotes.map(quote => (
+                          <div key={quote.id} className="flex items-center justify-between p-2 border rounded-md">
+                            <div>
+                              <div className="font-medium">Preventivo {quote.id.substring(0, 8)}</div>
+                              <div className="text-xs text-muted-foreground">
+                                {format(new Date(quote.createdAt), 'dd/MM/yyyy')} - 
+                                {quote.status === "bozza" ? " Bozza" : 
+                                  quote.status === "inviato" ? " Inviato" : 
+                                  quote.status === "accettato" ? " Accettato" : 
+                                  quote.status === "rifiutato" ? " Rifiutato" : 
+                                  quote.status === "scaduto" ? " Scaduto" : " Sconosciuto"}
+                              </div>
+                            </div>
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => handleEditQuote(quote)}
+                              className="flex items-center gap-1"
+                            >
+                              <Edit className="h-3 w-3" />
+                              <span>Modifica</span>
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  ) : (
+                    <div className="text-sm text-muted-foreground py-4 text-center">
+                      Nessun preventivo associato al cliente
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewDialogOpen(false)}>
+              Chiudi
+            </Button>
+            <Button onClick={() => viewAppointment && onEdit(viewAppointment)}>
+              Modifica Appuntamento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Dialog di conferma eliminazione */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
