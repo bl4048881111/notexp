@@ -254,9 +254,9 @@ export default function SparePartsEntryForm({
               
               {activeService.parts.length > 0 ? (
                 <div className="mt-2">
-                  <table className="w-full border-collapse">
+                  <table className="w-full border-collapse border rounded-md overflow-hidden">
                     <thead>
-                      <tr className="bg-muted/40 text-left text-sm">
+                      <tr className="bg-black text-white text-left text-sm">
                         <th className="p-2 font-medium">Codice</th>
                         <th className="p-2 font-medium">Descrizione</th>
                         <th className="p-2 font-medium">Qtà</th>
@@ -267,13 +267,13 @@ export default function SparePartsEntryForm({
                     </thead>
                     <tbody>
                       {activeService.parts.map((part, index) => (
-                        <tr key={part.id} className={`border-b ${index % 2 === 0 ? 'bg-white' : 'bg-muted/10'}`}>
+                        <tr key={part.id} className={`border-b ${index % 2 === 0 ? 'bg-white' : 'bg-primary/5'}`}>
                           <td className="p-2 font-medium">{part.code}</td>
                           <td className="p-2">
                             {part.name}
                             {part.brand && <span className="text-sm text-muted-foreground ml-1">({part.brand})</span>}
                           </td>
-                          <td className="p-2">{part.quantity}</td>
+                          <td className="p-2 text-center">{part.quantity}</td>
                           <td className="p-2 text-right">{formatCurrency(part.unitPrice)}</td>
                           <td className="p-2 text-right font-medium">{formatCurrency(part.finalPrice)}</td>
                           <td className="p-2 text-right">
@@ -281,15 +281,15 @@ export default function SparePartsEntryForm({
                               variant="ghost"
                               size="sm"
                               onClick={() => handleRemovePart(part.id)}
-                              className="h-8 w-8 p-0"
+                              className="h-7 w-7 p-0"
                             >
-                              <span className="material-icons text-destructive">delete</span>
+                              <span className="material-icons text-destructive" style={{fontSize: "16px"}}>delete</span>
                             </Button>
                           </td>
                         </tr>
                       ))}
-                      <tr className="border-t-2 font-medium">
-                        <td colSpan={4} className="p-2 text-right">Totale ricambi:</td>
+                      <tr className="border-t font-medium bg-primary/10">
+                        <td colSpan={4} className="p-2 text-right font-bold">Totale ricambi:</td>
                         <td className="p-2 text-right text-primary font-bold">
                           {formatCurrency(activeService.parts.reduce((sum, part) => sum + part.finalPrice, 0))}
                         </td>

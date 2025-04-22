@@ -790,42 +790,41 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                   </div>
                   
                   <div>
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Totale Preventivo</CardTitle>
-                        <CardDescription>Riepilogo dei costi</CardDescription>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="flex justify-between">
+                    <div className="border rounded-md overflow-hidden bg-primary/5">
+                      <div className="bg-black text-white p-3">
+                        <h3 className="font-semibold text-base">Totale Preventivo</h3>
+                      </div>
+                      <div className="p-3 space-y-2 text-sm">
+                        <div className="flex justify-between items-center">
                           <span>Subtotale Servizi:</span>
-                          <span>{formatCurrency(form.getValues("subtotal") || 0)}</span>
+                          <span className="font-medium">{formatCurrency(form.getValues("subtotal") || 0)}</span>
                         </div>
                         
-                        <div className="flex justify-between">
+                        <div className="flex justify-between items-center">
                           <span>Manodopera extra:</span>
-                          <span>
+                          <span className="font-medium">
                             {formatCurrency((form.getValues("laborPrice") || 0) * (form.getValues("laborHours") || 0))}
                           </span>
                         </div>
                         
-                        <div className="flex justify-between">
+                        <div className="flex justify-between items-center">
                           <span>IVA ({form.getValues("taxRate")}%):</span>
-                          <span>{formatCurrency(form.getValues("taxAmount") || 0)}</span>
+                          <span className="font-medium">{formatCurrency(form.getValues("taxAmount") || 0)}</span>
                         </div>
                         
-                        <Separator />
+                        <div className="h-px w-full bg-border my-2"></div>
                         
-                        <div className="flex justify-between font-bold text-lg">
-                          <span>TOTALE:</span>
-                          <span>
+                        <div className="flex justify-between items-center bg-primary/10 p-2 rounded-sm">
+                          <span className="font-bold">TOTALE:</span>
+                          <span className="font-bold text-primary">
                             {formatCurrency(
                               (form.getValues("total") || 0) + 
                               (form.getValues("laborPrice") || 0) * (form.getValues("laborHours") || 0)
                             )}
                           </span>
                         </div>
-                      </CardContent>
-                    </Card>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 
