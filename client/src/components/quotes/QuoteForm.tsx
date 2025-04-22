@@ -233,6 +233,8 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
     const laborPrice = form.getValues('laborPrice') || 0;
     const laborHours = form.getValues('laborHours') || 0;
     const laborTotal = laborPrice * laborHours;
+    
+    console.log(`Calcolando manodopera: ${laborPrice}€/ora × ${laborHours} ore = ${laborTotal}€`);
     subtotal += laborTotal;
     
     // Calcoli dell'IVA
@@ -240,6 +242,7 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
     const taxAmount = (subtotal * taxRate) / 100;
     const total = subtotal + taxAmount;
     
+    console.log(`Totali calcolati: Subtotale ${subtotal}€, IVA ${taxAmount}€, Totale ${total}€`);
     return { subtotal, taxAmount, total };
   }
   
