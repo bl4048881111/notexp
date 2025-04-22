@@ -188,10 +188,17 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
     }).format(amount);
   };
   
-  // Gestisce l'aggiornamento degli elementi del preventivo - versione completamente semplificata
+  // Gestisce l'aggiornamento degli elementi del preventivo
   const handleItemsChange = useCallback((newItems: QuoteItem[]) => {
-    // SEMPLICE: Aggiorna solo lo stato senza calcoli e log
-    setItems(newItems);
+    // Calcola i totali corretti per ogni item usando la funzione helper
+    const itemsWithCorrectTotals = newItems.map(item => ({
+      ...item,
+      totalPrice: calculateItemTotal(item)
+    }));
+    
+    // Aggiorna lo stato con i calcoli corretti
+    setItems(itemsWithCorrectTotals);
+    console.log("Items aggiornati con totali corretti");
   }, []);
   
   // Versione migliorata che include manodopera nei totali
