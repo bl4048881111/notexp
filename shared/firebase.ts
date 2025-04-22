@@ -290,31 +290,31 @@ const initDefaultServiceTypes = async (): Promise<void> => {
   // Default service types grouped by category
   const defaultServiceTypes = [
     // Tagliando
-    { name: "Filtro Aria", category: "Tagliando", description: "Sostituzione filtro aria", laborPrice: 15 },
-    { name: "Filtro Olio", category: "Tagliando", description: "Sostituzione filtro olio", laborPrice: 15 },
-    { name: "Filtro Carburante", category: "Tagliando", description: "Sostituzione filtro carburante", laborPrice: 20 },
-    { name: "Filtro Abitacolo", category: "Tagliando", description: "Sostituzione filtro abitacolo", laborPrice: 20 },
-    { name: "Olio", category: "Tagliando", description: "Cambio olio motore", laborPrice: 25 },
-    { name: "Tagliando Completo", category: "Tagliando", description: "Tagliando completo", laborPrice: 50 },
+    { name: "Filtro Aria", category: "Tagliando" as const, description: "Sostituzione filtro aria", laborPrice: 15 },
+    { name: "Filtro Olio", category: "Tagliando" as const, description: "Sostituzione filtro olio", laborPrice: 15 },
+    { name: "Filtro Carburante", category: "Tagliando" as const, description: "Sostituzione filtro carburante", laborPrice: 20 },
+    { name: "Filtro Abitacolo", category: "Tagliando" as const, description: "Sostituzione filtro abitacolo", laborPrice: 20 },
+    { name: "Olio", category: "Tagliando" as const, description: "Cambio olio motore", laborPrice: 25 },
+    { name: "Tagliando Completo", category: "Tagliando" as const, description: "Tagliando completo", laborPrice: 50 },
     
     // Frenante
-    { name: "Pattini Anteriori", category: "Frenante", description: "Sostituzione pattini freni anteriori", laborPrice: 40 },
-    { name: "Pattini Posteriori", category: "Frenante", description: "Sostituzione pattini freni posteriori", laborPrice: 40 },
-    { name: "Dischi Anteriori", category: "Frenante", description: "Sostituzione dischi freni anteriori", laborPrice: 40 },
-    { name: "Dischi/Ganasce Posteriori", category: "Frenante", description: "Sostituzione dischi o ganasce posteriori", laborPrice: 50 },
-    { name: "Sistema Frenante Completo", category: "Frenante", description: "Revisione completa sistema frenante", laborPrice: 120 },
+    { name: "Pattini Anteriori", category: "Frenante" as const, description: "Sostituzione pattini freni anteriori", laborPrice: 40 },
+    { name: "Pattini Posteriori", category: "Frenante" as const, description: "Sostituzione pattini freni posteriori", laborPrice: 40 },
+    { name: "Dischi Anteriori", category: "Frenante" as const, description: "Sostituzione dischi freni anteriori", laborPrice: 40 },
+    { name: "Dischi/Ganasce Posteriori", category: "Frenante" as const, description: "Sostituzione dischi o ganasce posteriori", laborPrice: 50 },
+    { name: "Sistema Frenante Completo", category: "Frenante" as const, description: "Revisione completa sistema frenante", laborPrice: 120 },
     
     // Sospensioni
-    { name: "Ammortizzatori Anteriori", category: "Sospensioni", description: "Sostituzione ammortizzatori anteriori", laborPrice: 60 },
-    { name: "Ammortizzatori Posteriori", category: "Sospensioni", description: "Sostituzione ammortizzatori posteriori", laborPrice: 60 },
-    { name: "Braccetti", category: "Sospensioni", description: "Sostituzione braccetti sospensioni", laborPrice: 50 },
-    { name: "Sospensioni Complete", category: "Sospensioni", description: "Revisione completa sospensioni", laborPrice: 150 },
+    { name: "Ammortizzatori Anteriori", category: "Sospensioni" as const, description: "Sostituzione ammortizzatori anteriori", laborPrice: 60 },
+    { name: "Ammortizzatori Posteriori", category: "Sospensioni" as const, description: "Sostituzione ammortizzatori posteriori", laborPrice: 60 },
+    { name: "Braccetti", category: "Sospensioni" as const, description: "Sostituzione braccetti sospensioni", laborPrice: 50 },
+    { name: "Sospensioni Complete", category: "Sospensioni" as const, description: "Revisione completa sospensioni", laborPrice: 150 },
     
     // Accessori
-    { name: "Spazzole", category: "Accessori", description: "Sostituzione spazzole tergicristalli", laborPrice: 10 },
-    { name: "Batteria", category: "Accessori", description: "Sostituzione batteria", laborPrice: 15 },
-    { name: "Additivi", category: "Accessori", description: "Aggiunta additivi", laborPrice: 5 },
-    { name: "Altro", category: "Accessori", description: "Altri accessori", laborPrice: 15 }
+    { name: "Spazzole", category: "Accessori" as const, description: "Sostituzione spazzole tergicristalli", laborPrice: 10 },
+    { name: "Batteria", category: "Accessori" as const, description: "Sostituzione batteria", laborPrice: 15 },
+    { name: "Additivi", category: "Accessori" as const, description: "Aggiunta additivi", laborPrice: 5 },
+    { name: "Altro", category: "Accessori" as const, description: "Altri accessori", laborPrice: 15 }
   ];
   
   // Create each service type
