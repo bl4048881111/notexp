@@ -545,25 +545,24 @@ export default function AppointmentForm({
                               ) : (
                                 <div className="p-3">
                                   {filteredClients.slice(0, 5).map((client, index) => (
-                                    <>
+                                    <div key={client.id}>
                                       <div
-                                        key={client.id}
-                                        className={`p-2 cursor-pointer transition-colors ${
-                                          index === selectedIndex ? "bg-primary/20 border-2 border-primary" : "hover:bg-primary/5 border border-primary/20"
-                                        } rounded-lg mb-1 shadow-sm`}
+                                        className={`p-3 cursor-pointer transition-colors ${
+                                          index === selectedIndex ? "bg-primary/30 border-2 border-primary shadow-md" : "hover:bg-primary/10 border border-primary/30"
+                                        } rounded-lg mb-2 shadow-sm`}
                                         onClick={() => handleSelectClient(client)}
                                       >
                                         <div className="flex justify-between items-center">
                                           <div className="flex items-center gap-3">
-                                            <div className="bg-primary/10 p-1.5 rounded-full">
-                                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <div className="bg-primary/20 p-2 rounded-full">
+                                              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                               </svg>
                                             </div>
                                             <div>
-                                              <div className="font-bold text-base text-foreground">{client.name} {client.surname}</div>
-                                              <div className="text-sm text-muted-foreground flex items-center mt-1">
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1.5 text-primary/80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                              <div className="font-bold text-lg text-foreground">{client.name} {client.surname}</div>
+                                              <div className="text-sm text-muted-foreground flex items-center mt-1.5">
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5 text-primary/80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                                                 </svg>
                                                 {client.phone}
@@ -571,20 +570,20 @@ export default function AppointmentForm({
                                             </div>
                                           </div>
                                           <div className="flex flex-col items-end">
-                                            <div className="inline-flex items-center bg-primary/15 border border-primary/30 rounded-md px-2 py-1 text-primary text-xs font-bold">
-                                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <div className="inline-flex items-center bg-primary/30 border border-primary/50 rounded-md px-2.5 py-1.5 text-primary text-sm font-bold">
+                                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                                               </svg>
                                               {client.plate}
                                             </div>
-                                            <div className="mt-1.5 text-sm font-medium text-foreground">{client.model}</div>
+                                            <div className="mt-2 text-sm font-medium text-foreground">{client.model}</div>
                                           </div>
                                         </div>
                                       </div>
                                       {index < filteredClients.length - 1 && (
                                         <div className="border-t border-primary/10 my-2"></div>
                                       )}
-                                    </>
+                                    </div>
                                   ))}
                                 </div>
                               )}
