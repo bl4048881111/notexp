@@ -1005,31 +1005,71 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                         <h3 className="font-semibold text-base">Totale Preventivo</h3>
                       </div>
                       <div className="p-3 space-y-2 text-sm">
-                        <div className="flex justify-between items-center">
-                          <span>Subtotale Servizi:</span>
-                          <span className="font-medium">{formatCurrency(form.getValues("subtotal") || 0)}</span>
-                        </div>
+                        {/* Ricalcola i totali in tempo reale anziché usare i valori memorizzati */}
+                        {(() => {
+                          // Calcolare tutti i totali direttamente qui
+                          let itemsSubtotal = 0;
+                          
+                          // Calcola il totale dei ricambi
+                          items.forEach(item => {
+                            if (item.parts && Array.isArray(item.parts)) {
+                              item.parts.forEach(part => {
+                                itemsSubtotal += part.finalPrice || 0;
+                              });
+                            }
+                          });
+                          
+                          // Aggiungi manodopera
+                          const laborPrice = form.getValues('laborPrice') || 0;
+                          const laborHours = form.getValues('laborHours') || 0;
+                          const laborTotal = laborPrice * laborHours;
+                          
+                          // Calcola subtotale
+                          const subtotal = itemsSubtotal + laborTotal;
+                          
+                          // Imposta i valori per il salvataggio
+                          form.setValue("subtotal", subtotal);
+                          
+                          // Calcola IVA
+                          const taxRate = form.getValues('taxRate') || 22;
+                          const taxAmount = (subtotal * taxRate) / 100;
+                          form.setValue("taxAmount", taxAmount);
+                          
+                          // Calcola totale finale
+                          const total = subtotal + taxAmount;
+                          form.setValue("total", total);
+                          
+                          return (
+                            <>
+                              <div className="flex justify-between items-center">
+                                <span>Subtotale Servizi:</span>
+                                <span className="font-medium">{formatCurrency(subtotal)}</span>
+                              </div>
+                              
+                              <div className="flex justify-between items-center">
+                                <span>Manodopera extra:</span>
+                                <span className="font-medium">
+                                  {formatCurrency(laborTotal)}
+                                </span>
+                              </div>
+                              
+                              <div className="flex justify-between items-center">
+                                <span>IVA ({taxRate}%):</span>
+                                <span className="font-medium">{formatCurrency(taxAmount)}</span>
+                              </div>
+                              
+                              <div className="h-px w-full bg-border my-2"></div>
+                              
+                              <div className="flex justify-between items-center bg-primary/10 p-2 rounded-sm">
+                                <span className="font-bold">TOTALE:</span>
+                                <span className="font-bold text-primary">
+                                  {formatCurrency(total)}
+                                </span>
+                              </div>
+                            </>
+                          );
+                        })()}
                         
-                        <div className="flex justify-between items-center">
-                          <span>Manodopera extra:</span>
-                          <span className="font-medium">
-                            {formatCurrency((form.getValues("laborPrice") || 0) * (form.getValues("laborHours") || 0))}
-                          </span>
-                        </div>
-                        
-                        <div className="flex justify-between items-center">
-                          <span>IVA ({form.getValues("taxRate")}%):</span>
-                          <span className="font-medium">{formatCurrency(form.getValues("taxAmount") || 0)}</span>
-                        </div>
-                        
-                        <div className="h-px w-full bg-border my-2"></div>
-                        
-                        <div className="flex justify-between items-center bg-primary/10 p-2 rounded-sm">
-                          <span className="font-bold">TOTALE:</span>
-                          <span className="font-bold text-primary">
-                            {formatCurrency(form.getValues("total") || 0)}
-                          </span>
-                        </div>
                       </div>
                     </div>
                   </div>
