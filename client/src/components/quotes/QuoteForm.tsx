@@ -377,6 +377,23 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
     });
   }, [items]);
   
+  // Aggiorna totali quando cambia la manodopera extra
+  useEffect(() => {
+    // Usa un flag per evitare di eseguire questo effect al primo render
+    if (form.formState.isDirty) {
+      const laborPrice = form.getValues("laborPrice") || 0;
+      const laborHours = form.getValues("laborHours") || 0;
+      
+      // Calcola i totali solo se uno dei valori è cambiato e diverso da zero
+      if ((laborPrice > 0 && laborHours > 0) || form.formState.dirtyFields.laborPrice || form.formState.dirtyFields.laborHours) {
+        console.log("Aggiorno totali per cambio manodopera:", laborPrice, "€/h ×", laborHours, "h");
+        
+        // Riutilizza la funzione esistente per calcolare i totali in modo sicuro
+        calculateTotals(items);
+      }
+    }
+  }, [form.watch("laborPrice"), form.watch("laborHours")]);
+  
   // Funzione per andare al passaggio successivo
   const goToNextStep = () => {
     setCurrentStep(prev => Math.min(prev + 1, totalSteps));
@@ -841,11 +858,8 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                                     onChange={(e) => {
                                       const value = parseFloat(e.target.value);
                                       field.onChange(value);
-                                      // Ricalcola i totali quando cambia la tariffa
-                                      const hours = form.getValues("laborHours") || 0;
-                                      const laborTotal = value * hours;
-                                      const newTotal = form.getValues("subtotal") + laborTotal;
-                                      form.setValue("total", newTotal);
+                                      // Non utilizziamo più l'aggiornamento diretto qui
+                                      // perché potrebbe causare loop di aggiornamento infiniti
                                     }}
                                   />
                                   <span>€/ora</span>
@@ -872,11 +886,8 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                                     onChange={(e) => {
                                       const value = parseFloat(e.target.value);
                                       field.onChange(value);
-                                      // Ricalcola i totali quando cambiano le ore
-                                      const price = form.getValues("laborPrice") || 0;
-                                      const laborTotal = price * value;
-                                      const newTotal = form.getValues("subtotal") + laborTotal;
-                                      form.setValue("total", newTotal);
+                                      // Non utilizziamo più l'aggiornamento diretto qui
+                                      // perché potrebbe causare loop di aggiornamento infiniti
                                     }}
                                   />
                                   <span>ore</span>
@@ -961,10 +972,7 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                         <div className="flex justify-between items-center bg-primary/10 p-2 rounded-sm">
                           <span className="font-bold">TOTALE:</span>
                           <span className="font-bold text-primary">
-                            {formatCurrency(
-                              (form.getValues("total") || 0) + 
-                              (form.getValues("laborPrice") || 0) * (form.getValues("laborHours") || 0)
-                            )}
+                            {formatCurrency(form.getValues("total") || 0)}
                           </span>
                         </div>
                       </div>
