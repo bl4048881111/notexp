@@ -67,6 +67,8 @@ export const appointmentSchema = z.object({
   totalPartsPrice: z.number().optional(),
   notes: z.string().optional(),
   status: z.enum(["programmato", "completato", "annullato"]),
+  // ID del preventivo collegato
+  quoteId: z.string().optional(),
   // Orari dettagliati per supportare le fasce orarie
   startHour: z.number().optional(),
   startMinute: z.number().optional(),

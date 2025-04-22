@@ -367,41 +367,41 @@ export default function AppointmentForm({
                                   }}
                                   className="w-full"
                                 />
-                              </div>
-                              
-                              {isSearching && (
-                                <div className="absolute top-full mt-1 left-0 right-0 border rounded-md bg-background shadow-md z-10 max-h-52 overflow-y-auto">
-                                  {filteredClients.length === 0 ? (
-                                    <div className="p-2 text-center text-sm text-muted-foreground">
-                                      Nessun cliente trovato
-                                    </div>
-                                  ) : (
-                                    <div>
-                                      {filteredClients.map((client, index) => (
-                                        <div
-                                          key={client.id}
-                                          className={`p-2 cursor-pointer flex justify-between items-center ${
-                                            selectedIndex === index ? "bg-accent" : "hover:bg-accent/50"
-                                          }`}
-                                          onClick={() => handleSelectClient(client)}
-                                        >
-                                          <div>
-                                            <div className="font-medium">
-                                              {client.name} {client.surname}
+                                
+                                {isSearching && (
+                                  <div className="absolute top-full mt-1 left-0 right-0 border rounded-md bg-background shadow-md z-10 max-h-52 overflow-y-auto">
+                                    {filteredClients.length === 0 ? (
+                                      <div className="p-2 text-center text-sm text-muted-foreground">
+                                        Nessun cliente trovato
+                                      </div>
+                                    ) : (
+                                      <div>
+                                        {filteredClients.map((client, index) => (
+                                          <div
+                                            key={client.id}
+                                            className={`p-2 cursor-pointer flex justify-between items-center ${
+                                              selectedIndex === index ? "bg-accent" : "hover:bg-accent/50"
+                                            }`}
+                                            onClick={() => handleSelectClient(client)}
+                                          >
+                                            <div>
+                                              <div className="font-medium">
+                                                {client.name} {client.surname}
+                                              </div>
+                                              <div className="text-sm text-muted-foreground">
+                                                {client.model} ({client.plate})
+                                              </div>
                                             </div>
                                             <div className="text-sm text-muted-foreground">
-                                              {client.model} ({client.plate})
+                                              {client.phone}
                                             </div>
                                           </div>
-                                          <div className="text-sm text-muted-foreground">
-                                            {client.phone}
-                                          </div>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                              )}
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
                             </div>
                             <p className="text-xs text-muted-foreground mt-2">
                               Puoi cercare per nome cliente, numero di telefono o targa
