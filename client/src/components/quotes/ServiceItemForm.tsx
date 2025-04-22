@@ -71,6 +71,103 @@ export default function ServiceItemForm({ items, onChange }: ServiceItemFormProp
   const [selectedServices, setSelectedServices] = useState<Record<string, boolean>>({});
   const [activeCategory, setActiveCategory] = useState<ServiceCategory>("Tagliando");
   
+  // Stati per la maschera di inserimento articoli manuali
+  const [showArticleForm, setShowArticleForm] = useState<boolean>(false);
+  const [articleCode, setArticleCode] = useState<string>("");
+  const [articleDescription, setArticleDescription] = useState<string>("");
+  const [articleQuantity, setArticleQuantity] = useState<number | "">(1);
+  const [articlePrice, setArticlePrice] = useState<number | "">(0);
+  const [currentService, setCurrentService] = useState<{id: string, name: string, price: number} | null>(null);
+  
+  // Gestisce l'aggiunta di un articolo manuale dopo la selezione del servizio
+  const handleAddManualArticle = () => {
+    if (!currentService) return;
+    
+    // Validazione
+    if (!articleCode || !articleDescription || articlePrice === "" || articleQuantity === "") {
+      alert("Inserisci tutti i campi dell'articolo");
+      return;
+    }
+    
+    // Crea l'oggetto serviceType
+    const isValidCategory = ["Tagliando", "Frenante", "Sospensioni", "Accessori", 
+                           "Manutenzione", "Riparazione", "Carrozzeria", 
+                           "Motore", "Elettronica", "Altro", "Personalizzato"].includes(activeCategory);
+    
+    const serviceType: ServiceType = {
+      id: currentService.id,
+      name: currentService.name,
+      category: isValidCategory ? activeCategory as any : "Altro",
+      description: `${activeCategory} - ${currentService.name}`,
+      laborPrice: typeof articlePrice === "string" ? parseFloat(articlePrice) || 0 : articlePrice,
+    };
+    
+    const laborHoursNum = typeof laborHours === "string" ? parseFloat(laborHours) || 1 : laborHours;
+    
+    // Crea la parte manuale
+    const manualPart: SparePart = {
+      id: uuidv4(),
+      code: articleCode,
+      name: articleDescription,
+      quantity: typeof articleQuantity === "string" ? parseFloat(articleQuantity) || 1 : articleQuantity,
+      unitPrice: typeof articlePrice === "string" ? parseFloat(articlePrice) || 0 : articlePrice,
+      finalPrice: (typeof articlePrice === "string" ? parseFloat(articlePrice) || 0 : articlePrice) * 
+                  (typeof articleQuantity === "string" ? parseFloat(articleQuantity) || 1 : articleQuantity)
+    };
+    
+    // Calcola il prezzo totale
+    const partsPrice = manualPart.finalPrice;
+    const laborCost = laborPrice * laborHoursNum;
+    const totalPrice = laborCost + partsPrice;
+    
+    // Crea il nuovo elemento
+    const newItem: QuoteItem = {
+      id: uuidv4(),
+      serviceType,
+      laborPrice,
+      laborHours: laborHoursNum,
+      parts: [manualPart],
+      notes: notes || undefined,
+      totalPrice
+    };
+    
+    // Aggiungi l'elemento
+    onChange([...items, newItem]);
+    
+    // Reset dei campi
+    setArticleCode("");
+    setArticleDescription("");
+    setArticleQuantity(1);
+    setArticlePrice(0);
+    setLaborHours("");
+    setNotes("");
+    setShowArticleForm(false);
+    setCurrentService(null);
+    
+    // Marca il servizio come selezionato
+    setSelectedServices({
+      ...selectedServices,
+      [currentService.id]: true
+    });
+  };
+  
+  // Gestisce il click su un servizio
+  const handleServiceClick = (categoryId: ServiceCategory, service: { id: string, name: string, price: number }) => {
+    // Se il servizio è già selezionato, rimuovilo
+    if (selectedServices[service.id]) {
+      const itemId = items.find(
+        item => item.serviceType.id === service.id
+      )?.id;
+      if (itemId) handleRemoveItem(itemId);
+      return;
+    }
+    
+    // Altrimenti, imposta il servizio corrente e mostra il form
+    setCurrentService(service);
+    setShowArticleForm(true);
+  };
+  
+  // Gestisce l'aggiunta standard di un servizio (non più usata direttamente, ma tenuta per compatibilità)
   const handleAddService = (categoryId: ServiceCategory, service: { id: string, name: string, price: number }) => {
     // Crea un nuovo servizio da aggiungere al preventivo
     // Verifica che la categoria sia valida secondo lo schema
@@ -113,6 +210,7 @@ export default function ServiceItemForm({ items, onChange }: ServiceItemFormProp
     });
   };
   
+  // Gestisce la rimozione di un elemento
   const handleRemoveItem = (id: string) => {
     const itemToRemove = items.find(item => item.id === id);
     if (itemToRemove) {
@@ -149,7 +247,128 @@ export default function ServiceItemForm({ items, onChange }: ServiceItemFormProp
           ))}
         </div>
         
-        {activeCategory && (
+        {/* Form per l'inserimento manuale dell'articolo */}
+        {showArticleForm && currentService && (
+          <div className="mb-6 border rounded-lg p-4 bg-muted/20">
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="font-medium">Inserimento Articolo: {currentService.name}</h3>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => {
+                  setShowArticleForm(false);
+                  setCurrentService(null);
+                }}
+              >
+                Annulla
+              </Button>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <Label htmlFor="articleCode">Codice Articolo</Label>
+                <Input
+                  id="articleCode"
+                  value={articleCode}
+                  onChange={(e) => setArticleCode(e.target.value)}
+                  placeholder="Inserisci il codice articolo"
+                  className="mt-1"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="articleDescription">Descrizione</Label>
+                <Input
+                  id="articleDescription"
+                  value={articleDescription}
+                  onChange={(e) => setArticleDescription(e.target.value)}
+                  placeholder="Inserisci la descrizione dell'articolo"
+                  className="mt-1"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="articleQuantity">Quantità</Label>
+                <Input
+                  id="articleQuantity"
+                  type="number"
+                  value={articleQuantity}
+                  onChange={(e) => setArticleQuantity(e.target.value === "" ? "" : parseFloat(e.target.value))}
+                  placeholder="Quantità"
+                  min={1}
+                  step={1}
+                  className="mt-1"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="articlePrice">Prezzo Unitario (€)</Label>
+                <Input
+                  id="articlePrice"
+                  type="number"
+                  value={articlePrice}
+                  onChange={(e) => setArticlePrice(e.target.value === "" ? "" : parseFloat(e.target.value))}
+                  placeholder="Prezzo unitario"
+                  min={0}
+                  step={0.01}
+                  className="mt-1"
+                />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <Label htmlFor="laborHours">Ore di Manodopera</Label>
+                <Input
+                  id="laborHours"
+                  type="number"
+                  value={laborHours}
+                  onChange={(e) => setLaborHours(e.target.value === "" ? "" : parseFloat(e.target.value))}
+                  placeholder="Ore di manodopera"
+                  min={0}
+                  step={0.5}
+                  className="mt-1"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="laborPrice">Costo Orario Manodopera (€)</Label>
+                <Input
+                  id="laborPrice"
+                  type="number"
+                  value={laborPrice}
+                  onChange={(e) => setLaborPrice(parseFloat(e.target.value))}
+                  placeholder="Costo orario manodopera"
+                  min={0}
+                  step={0.01}
+                  className="mt-1"
+                />
+              </div>
+            </div>
+            
+            <div className="mb-4">
+              <Label htmlFor="notes">Note</Label>
+              <Textarea
+                id="notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Note aggiuntive per questo servizio"
+                className="mt-1 h-20"
+              />
+            </div>
+            
+            <div className="flex justify-end">
+              <Button 
+                type="button" 
+                onClick={handleAddManualArticle}
+              >
+                Aggiungi Articolo
+              </Button>
+            </div>
+          </div>
+        )}
+        
+        {activeCategory && !showArticleForm && (
           <div className="border rounded-lg p-4">
             <h3 className="font-medium mb-4">Servizi {activeCategory}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -159,16 +378,7 @@ export default function ServiceItemForm({ items, onChange }: ServiceItemFormProp
                   className={`border rounded-lg p-3 cursor-pointer transition-all ${
                     selectedServices[service.id] ? 'border-primary bg-primary/5' : 'hover:border-primary/50'
                   }`}
-                  onClick={() => {
-                    if (selectedServices[service.id]) {
-                      const itemId = items.find(
-                        item => item.serviceType.id === service.id
-                      )?.id;
-                      if (itemId) handleRemoveItem(itemId);
-                    } else {
-                      handleAddService(activeCategory, service);
-                    }
-                  }}
+                  onClick={() => handleServiceClick(activeCategory, service)}
                 >
                   <div className="flex justify-between items-start">
                     <div className="flex items-center gap-2">
@@ -176,13 +386,13 @@ export default function ServiceItemForm({ items, onChange }: ServiceItemFormProp
                         id={service.id}
                         checked={selectedServices[service.id] || false}
                         onCheckedChange={(checked) => {
-                          if (checked) {
-                            handleAddService(activeCategory, service);
-                          } else {
+                          if (!checked) {
                             const itemId = items.find(
                               item => item.serviceType.id === service.id
                             )?.id;
                             if (itemId) handleRemoveItem(itemId);
+                          } else {
+                            handleServiceClick(activeCategory, service);
                           }
                         }}
                         onClick={(e) => e.stopPropagation()}
@@ -226,6 +436,15 @@ export default function ServiceItemForm({ items, onChange }: ServiceItemFormProp
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">
                       {item.serviceType.name}
+                      {item.parts.length > 0 && (
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {item.parts.map(part => (
+                            <div key={part.id} className="mt-1">
+                              {part.code && <strong>{part.code}</strong>} - {part.name} (x{part.quantity}) - {formatCurrency(part.finalPrice)}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                       {item.notes && (
                         <div className="text-xs text-muted-foreground mt-1">{item.notes}</div>
                       )}

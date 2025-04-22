@@ -35,12 +35,14 @@ export type CreateClientInput = z.infer<typeof createClientSchema>;
 export const sparePartSchema = z.object({
   id: z.string(),
   code: z.string().min(1, "Codice articolo è obbligatorio"),
+  name: z.string().min(1, "Nome articolo è obbligatorio"),
   description: z.string().optional(),
   quantity: z.number().min(1, "La quantità deve essere almeno 1").default(1),
-  netPrice: z.number().min(0, "Il prezzo deve essere maggiore o uguale a 0"),
-  markup: z.number().min(0, "La percentuale deve essere maggiore o uguale a 0"),
-  margin: z.number().min(0, "Il margine deve essere maggiore o uguale a 0"),
-  finalPrice: z.number().min(0, "Il prezzo finale deve essere maggiore o uguale a 0")
+  unitPrice: z.number().min(0, "Il prezzo unitario deve essere maggiore o uguale a 0"),
+  finalPrice: z.number().min(0, "Il prezzo finale deve essere maggiore o uguale a 0"),
+  netPrice: z.number().min(0, "Il prezzo deve essere maggiore o uguale a 0").optional(),
+  markup: z.number().min(0, "La percentuale deve essere maggiore o uguale a 0").optional(),
+  margin: z.number().min(0, "Il margine deve essere maggiore o uguale a 0").optional()
 });
 
 export const createSparePartSchema = sparePartSchema.omit({ id: true });

@@ -106,12 +106,10 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote }: QuoteFo
     const fetchClients = async () => {
       setIsLoading(true);
       try {
-        // Simulated data loading
-        const response = await fetch("/api/clients");
-        if (response.ok) {
-          const data: Client[] = await response.json();
-          setClients(data);
-        }
+        // Carica i clienti dalla API Firebase
+        const data = await getAllClients();
+        console.log("Clienti caricati:", data);
+        setClients(data);
       } catch (error) {
         console.error("Errore nel caricamento dei clienti:", error);
       } finally {
