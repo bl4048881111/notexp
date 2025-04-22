@@ -374,7 +374,7 @@ export default function AppointmentForm({
                               </div>
                               
                               {isSearching && (
-                                <div className="absolute top-full mt-4 left-0 right-0 border-2 border-primary/60 rounded-lg bg-background shadow-xl z-10 max-h-[250px] overflow-auto scrollbar-hide">
+                                <div className="absolute top-full mt-4 left-0 right-0 border-2 border-primary/60 rounded-lg bg-black shadow-xl z-10 max-h-[250px] overflow-auto scrollbar-hide">
                                   {filteredClients.length === 0 ? (
                                     <div className="p-4 text-center text-sm text-foreground">
                                       <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mx-auto mb-2 text-primary/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -383,12 +383,12 @@ export default function AppointmentForm({
                                       Nessun cliente trovato
                                     </div>
                                   ) : (
-                                    <div className="p-2 border border-primary/30 rounded-lg bg-muted mb-2">
+                                    <div className="p-1 rounded-lg bg-black">
                                       {filteredClients.slice(0, 5).map((client, index) => (
                                         <div key={client.id}>
                                           <div
                                             className={`p-1.5 cursor-pointer transition-colors ${
-                                              index === selectedIndex ? "bg-primary/50 border border-primary shadow-md" : "hover:bg-primary/20 bg-card/90 border border-primary/40"
+                                              index === selectedIndex ? "bg-primary text-white border border-primary shadow-md" : "hover:bg-gray-800 bg-black border border-gray-700"
                                             } rounded-lg mb-1`}
                                             onClick={() => handleSelectClient(client)}
                                           >
@@ -400,8 +400,8 @@ export default function AppointmentForm({
                                                   </svg>
                                                 </div>
                                                 <div>
-                                                  <div className="font-bold text-sm text-primary">{client.name} {client.surname}</div>
-                                                  <div className="text-sm text-muted-foreground flex items-center mt-1.5">
+                                                  <div className="font-bold text-sm text-white">{client.name} {client.surname}</div>
+                                                  <div className="text-sm text-gray-300 flex items-center mt-1.5">
                                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5 text-primary/80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                                                     </svg>
@@ -416,12 +416,12 @@ export default function AppointmentForm({
                                                   </svg>
                                                   {client.plate}
                                                 </div>
-                                                <div className="mt-1 text-xs text-foreground">{client.model}</div>
+                                                <div className="mt-1 text-xs text-gray-300">{client.model}</div>
                                               </div>
                                             </div>
                                           </div>
                                           {index < filteredClients.length - 1 && (
-                                            <div className="border-t-2 border-primary/20 my-2"></div>
+                                            <div className="border-t border-gray-700 my-2"></div>
                                           )}
                                         </div>
                                       ))}
