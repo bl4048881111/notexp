@@ -86,13 +86,16 @@ export default function AppointmentForm({
   const filteredClients = useMemo(() => {
     if (!searchQuery) return [];
     
+    const query = searchQuery.toLowerCase();
     return clients.filter(client => {
-      const fullName = `${client.name} ${client.surname}`;
-      // Case sensitive search
-      return fullName.includes(searchQuery) || 
-        client.phone.includes(searchQuery) || 
-        client.plate.includes(searchQuery) ||
-        client.model.includes(searchQuery);
+      const fullName = `${client.name} ${client.surname}`.toLowerCase();
+      const plate = client.plate.toLowerCase();
+      const model = client.model.toLowerCase();
+      // Case insensitive search
+      return fullName.includes(query) || 
+        client.phone.includes(query) || 
+        plate.includes(query) ||
+        model.includes(query);
     }).slice(0, 5); // Limitiamo i risultati a 5 per una migliore usabilità
   }, [clients, searchQuery]);
   
@@ -104,7 +107,7 @@ export default function AppointmentForm({
       phone: "",
       plate: "",
       model: "",
-      date: selectedDate || format(new Date(), 'yyyy-MM-dd'),
+      date: selectedDate || format(new Date(), 'dd/MM/yyyy'),
       time: "09:00",
       duration: 60,
       services: [],
@@ -117,6 +120,13 @@ export default function AppointmentForm({
   useEffect(() => {
     if (appointment) {
       const { id, ...appointmentData } = appointment;
+      
+      // Se la data è nel formato yyyy-MM-dd, la convertiamo in dd/MM/yyyy per la visualizzazione
+      if (appointmentData.date && appointmentData.date.includes('-')) {
+        const [year, month, day] = appointmentData.date.split('-');
+        appointmentData.date = `${day}/${month}/${year}`;
+      }
+      
       form.reset(appointmentData);
       
       // Fetch client data for the appointment
@@ -130,8 +140,20 @@ export default function AppointmentForm({
       // Controlliamo se è nel formato yyyy-MM-ddTHH:mm (con l'ora)
       if (selectedDate.includes('T')) {
         const [date, time] = selectedDate.split('T');
-        form.setValue("date", date);
+        
+        // Convertiamo la data dal formato ISO al formato italiano
+        if (date.includes('-')) {
+          const [year, month, day] = date.split('-');
+          form.setValue("date", `${day}/${month}/${year}`);
+        } else {
+          form.setValue("date", date);
+        }
+        
         form.setValue("time", time);
+      } else if (selectedDate.includes('-')) {
+        // Convertiamo la data dal formato ISO al formato italiano
+        const [year, month, day] = selectedDate.split('-');
+        form.setValue("date", `${day}/${month}/${year}`);
       } else {
         form.setValue("date", selectedDate);
       }
@@ -203,6 +225,12 @@ export default function AppointmentForm({
     setIsSubmitting(true);
     
     try {
+      // Convertiamo la data dal formato italiano (dd/MM/yyyy) al formato ISO (yyyy-MM-dd)
+      if (data.date && data.date.includes('/')) {
+        const [day, month, year] = data.date.split('/');
+        data.date = `${year}-${month}-${day}`;
+      }
+      
       if (appointment) {
         // Update existing appointment
         await updateAppointment(appointment.id, data);
@@ -221,6 +249,7 @@ export default function AppointmentForm({
       
       onSuccess();
     } catch (error) {
+      console.error("Errore durante il salvataggio dell'appuntamento:", error);
       toast({
         title: "Errore",
         description: "Si è verificato un errore durante il salvataggio dell'appuntamento",
@@ -302,12 +331,6 @@ export default function AppointmentForm({
                 ) : (
                   <div className="space-y-4">
                     <div>
-                      <Label className="mb-2 block flex items-center gap-1.5">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                        Cerca cliente
-                      </Label>
                       <div className="relative">
                         <div className="relative rounded-md shadow-sm">
                           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -316,7 +339,7 @@ export default function AppointmentForm({
                             </svg>
                           </div>
                           <Input
-                            placeholder="Cerca per nome, targa o telefono (ricerca case-sensitive)"
+                            placeholder="Cerca cliente per nome, targa o telefono..."
                             value={searchQuery}
                             onChange={(e) => {
                               setSearchQuery(e.target.value);
@@ -539,6 +562,7 @@ export default function AppointmentForm({
                             Data
                           </FormLabel>
                           <FormControl>
+                            {/* Il tipo date utilizza il formato ISO (yyyy-MM-dd) internamente */}
                             <Input 
                               type="date" 
                               {...field} 
