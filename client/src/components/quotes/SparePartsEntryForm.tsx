@@ -412,67 +412,7 @@ export default function SparePartsEntryForm({
         </div>
       )}
       
-      {/* Riepilogo di tutti i servizi */}
-      <div className="mt-6">
-        <Separator className="mb-4" />
-        
-        <h4 className="font-medium mb-3">Riepilogo Servizi e Ricambi</h4>
-        
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Servizio</TableHead>
-                <TableHead>Categoria</TableHead>
-                <TableHead className="text-right">Manodopera</TableHead>
-                <TableHead className="text-right">Ricambi</TableHead>
-                <TableHead className="text-right">Totale</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {items.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell className="font-medium">
-                    {item.serviceType.name}
-                    {item.parts.length > 0 && (
-                      <div className="text-xs text-muted-foreground mt-1">
-                        {item.parts.map(part => (
-                          <div key={part.id} className="mt-1">
-                            {part.code && <strong>{part.code}</strong>} {part.brand && `(${part.brand})`} - {part.name} (x{part.quantity}) - {formatCurrency(part.finalPrice)}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell>{item.serviceType.category}</TableCell>
-                  <TableCell className="text-right">
-                    {formatCurrency(item.laborPrice * item.laborHours)}
-                    <div className="text-xs text-muted-foreground">
-                      {item.laborHours} ore × {formatCurrency(item.laborPrice)}/h
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {formatCurrency(item.parts.reduce((sum, part) => sum + part.finalPrice, 0))}
-                    <div className="text-xs text-muted-foreground">
-                      {item.parts.length} ricambi
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right font-medium">{formatCurrency(item.totalPrice)}</TableCell>
-                </TableRow>
-              ))}
-              
-              <TableRow>
-                <TableCell colSpan={4} className="text-right font-medium">
-                  Totale Servizi:
-                </TableCell>
-                <TableCell className="text-right font-bold">
-                  {formatCurrency(items.reduce((sum, item) => sum + item.totalPrice, 0))}
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </div>
-      </div>
+
     </div>
   );
 }

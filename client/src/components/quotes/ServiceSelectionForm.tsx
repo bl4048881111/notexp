@@ -4,6 +4,7 @@ import { QuoteItem, ServiceType } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -205,41 +206,36 @@ export default function ServiceSelectionForm({
       </div>
       
       {items.length > 0 && (
-        <>
-          <Separator />
-          
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Servizio</TableHead>
-                  <TableHead>Categoria</TableHead>
-                  <TableHead className="w-[80px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium">
-                      {item.serviceType.name}
-                    </TableCell>
-                    <TableCell>{item.serviceType.category}</TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleRemoveItem(item.id)}
-                        className="h-8 w-8"
-                      >
-                        <span className="material-icons text-destructive">delete</span>
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+        <div className="mt-4">
+          <div className="flex justify-between items-center mb-2">
+            <h4 className="font-medium">Servizi selezionati: {items.length}</h4>
+            {items.length > 0 && (
+              <div className="text-sm text-muted-foreground">
+                <span className="font-medium text-green-600">{Object.keys(items.reduce((acc, item) => {
+                  acc[item.serviceType.category] = true;
+                  return acc;
+                }, {} as Record<string, boolean>)).length}</span> categorie
+              </div>
+            )}
           </div>
-        </>
+          
+          <div className="flex flex-wrap gap-2">
+            {items.map((item) => (
+              <div key={item.id} className="border rounded-lg px-3 py-2 flex items-center gap-2 bg-muted/20">
+                <span>{item.serviceType.name}</span>
+                <Badge variant="outline">{item.serviceType.category}</Badge>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleRemoveItem(item.id)}
+                  className="h-6 w-6 ml-1"
+                >
+                  <span className="material-icons text-destructive text-sm">close</span>
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );
