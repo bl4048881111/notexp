@@ -340,11 +340,7 @@ export default function ServiceManagementPage() {
                           <p className="text-sm text-gray-300 mb-2">
                             {service.description || "Nessuna descrizione"}
                           </p>
-                          <div className="text-sm font-medium">
-                            <span className="inline-block bg-orange-500 text-white rounded-full px-3 py-1">
-                              {service.laborPrice} €/ora
-                            </span>
-                          </div>
+
                         </div>
                         <div className="flex flex-col gap-2">
                           <Button 
@@ -443,28 +439,7 @@ export default function ServiceManagementPage() {
                 )}
               />
               
-              <FormField
-                control={form.control}
-                name="laborPrice"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Tariffa oraria (€/h)*</FormLabel>
-                    <FormControl>
-                      <div className="flex items-center space-x-2">
-                        <Input 
-                          {...field} 
-                          type="number" 
-                          min={0} 
-                          step={0.01}
-                          onChange={(e) => field.onChange(parseFloat(e.target.value))}
-                        />
-                        <span>€/ora</span>
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+
               
               <DialogFooter className="mt-6">
                 <Button type="button" variant="outline" onClick={handleCloseDialog}>
