@@ -4,11 +4,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
 import { Appointment, CreateAppointmentInput, Client, Quote } from "@shared/schema";
 import { createAppointmentSchema } from "@shared/schema";
-import { createAppointment, updateAppointment, getAllClients, getClientById, getQuotesByClientId } from "@shared/firebase";
+import { createAppointment, updateAppointment, deleteAppointment, getAllClients, getClientById, getQuotesByClientId } from "@shared/firebase";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
-import { XCircle, FileText, Calendar, Check, ArrowRight, Plus } from "lucide-react";
+import { XCircle, FileText, Calendar, Check, ArrowRight, Plus, Trash2 } from "lucide-react";
 
 import {
   Dialog,
@@ -216,6 +216,32 @@ export default function AppointmentForm({
     }
   };
   
+  const handleDeleteAppointment = async () => {
+    if (!appointment) return;
+    
+    if (confirm("Sei sicuro di voler eliminare questo appuntamento? Questa azione non può essere annullata.")) {
+      setIsSubmitting(true);
+      
+      try {
+        await deleteAppointment(appointment.id);
+        toast({
+          title: "Appuntamento eliminato",
+          description: "L'appuntamento è stato eliminato con successo",
+        });
+        onSuccess();
+      } catch (error) {
+        console.error("Errore durante l'eliminazione dell'appuntamento:", error);
+        toast({
+          title: "Errore",
+          description: "Si è verificato un errore durante l'eliminazione dell'appuntamento",
+          variant: "destructive",
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
+  };
+  
   const onSubmit = async (data: CreateAppointmentInput) => {
     if (!selectedClient) {
       toast({
@@ -408,7 +434,7 @@ export default function AppointmentForm({
                         <div className="relative">
                           <div className="relative rounded-md shadow-sm">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-primary/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-primary/80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" />
                               </svg>
                             </div>
@@ -446,15 +472,15 @@ export default function AppointmentForm({
                                   }
                                 }
                               }}
-                              className="pl-10 border-primary/20 focus-visible:ring-primary/30"
+                              className="pl-10 border-primary/30 focus-visible:ring-primary/40 bg-primary/5"
                             />
                           </div>
                           
                           {isSearching && (
-                            <div className="absolute top-full mt-1 left-0 right-0 border border-primary/20 rounded-md bg-background shadow-md z-10 max-h-52 overflow-y-auto">
+                            <div className="absolute top-full mt-1 left-0 right-0 border border-primary/30 rounded-md bg-background shadow-lg z-10 max-h-52 overflow-y-auto">
                               {filteredClients.length === 0 ? (
                                 <div className="p-4 text-center text-sm text-muted-foreground">
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mx-auto mb-2 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M12 13h.01M12 18a6 6 0 100-12 6 6 0 000 12z" />
                                   </svg>
                                   Nessun cliente trovato
@@ -465,30 +491,30 @@ export default function AppointmentForm({
                                     <div
                                       key={client.id}
                                       className={`p-3 cursor-pointer transition-colors ${
-                                        index === selectedIndex ? "bg-primary/10" : "hover:bg-accent"
-                                      } ${index !== filteredClients.length - 1 ? "border-b border-primary/10" : ""}`}
+                                        index === selectedIndex ? "bg-primary/20" : "hover:bg-primary/5"
+                                      } ${index !== filteredClients.length - 1 ? "border-b border-primary/20" : ""}`}
                                       onClick={() => handleSelectClient(client)}
                                     >
                                       <div className="flex justify-between items-start">
                                         <div>
-                                          <div className="font-medium">{client.name} {client.surname}</div>
-                                          <div className="text-xs text-muted-foreground flex flex-col gap-1 mt-1">
-                                            <span className="flex items-center gap-1">
-                                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <div className="font-medium text-base">{client.name} {client.surname}</div>
+                                          <div className="text-sm text-foreground/70 flex flex-col gap-1 mt-1">
+                                            <span className="flex items-center gap-1.5">
+                                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-primary/80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                                               </svg>
                                               {client.phone}
                                             </span>
                                           </div>
                                         </div>
-                                        <div className="text-xs text-right">
-                                          <span className="inline-flex items-center bg-primary/5 border border-primary/10 rounded px-2 py-1">
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1 text-primary/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <div className="text-sm text-right">
+                                          <span className="inline-flex items-center bg-primary/10 border border-primary/20 rounded px-2 py-1 text-primary font-medium">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                                             </svg>
                                             {client.plate}
                                           </span>
-                                          <div className="mt-1">{client.model}</div>
+                                          <div className="mt-1.5 text-foreground/70">{client.model}</div>
                                         </div>
                                       </div>
                                     </div>
@@ -703,7 +729,7 @@ export default function AppointmentForm({
               {/* Pulsanti di navigazione */}
               <DialogFooter className="pt-4 border-t mt-6">
                 <div className="flex w-full justify-between">
-                  <div>
+                  <div className="flex gap-2">
                     <Button 
                       type="button" 
                       variant="outline" 
@@ -713,6 +739,20 @@ export default function AppointmentForm({
                       <XCircle className="h-4 w-4" />
                       Annulla
                     </Button>
+                    
+                    {/* Pulsante Elimina (visibile solo quando si modifica un appuntamento esistente) */}
+                    {appointment && (
+                      <Button 
+                        type="button" 
+                        variant="destructive" 
+                        onClick={handleDeleteAppointment}
+                        className="gap-1"
+                        disabled={isSubmitting}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Elimina
+                      </Button>
+                    )}
                   </div>
                   
                   <div className="flex gap-2">
@@ -769,7 +809,7 @@ export default function AppointmentForm({
                         ) : (
                           <>
                             <Calendar className="h-4 w-4" />
-                            Fine
+                            {appointment ? "Aggiorna" : "Fine"}
                           </>
                         )}
                       </Button>
