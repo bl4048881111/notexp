@@ -239,44 +239,44 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
   const calculateTotals = (quoteItems: QuoteItem[]) => {
     console.log("QuoteForm - calculateTotals chiamato");
     
-    // Utilizziamo un setTimeout per evitare un aggiornamento di stato a cascata
-    // che potrebbe portare a un errore di "Maximum update depth exceeded"
-    setTimeout(() => {
-      // Log dettagliato dei servizi e ricambi per debugging
-      console.log("Calcolo totali per i seguenti servizi:");
-      quoteItems.forEach(item => {
-        console.log(`- ${item.serviceType.name}: ${item.totalPrice}€`);
-        console.log(`  Manodopera: ${item.laborPrice || 0}€/h × ${item.laborHours || 0}h = ${(item.laborPrice || 0) * (item.laborHours || 0)}€`);
-        
-        // Verifica che l'array parts sia valido
-        if (!Array.isArray(item.parts)) {
-          console.warn(`⚠️ Servizio ${item.serviceType.name} non ha un array parts valido!`);
+    // Log dettagliato dei servizi e ricambi per debugging
+    console.log("Calcolo totali per i seguenti servizi:");
+    quoteItems.forEach(item => {
+      console.log(`- ${item.serviceType.name}: ${item.totalPrice}€`);
+      
+      // Verifica che l'array parts sia valido
+      if (!Array.isArray(item.parts)) {
+        console.warn(`⚠️ Servizio ${item.serviceType.name} non ha un array parts valido!`);
+        return;
+      }
+      
+      console.log(`  Ricambi (${item.parts.length}):`);
+      item.parts.forEach(part => {
+        if (!part) {
+          console.warn("  ⚠️ Ricambio non valido (null/undefined)");
           return;
         }
-        
-        console.log(`  Ricambi (${item.parts.length}):`);
-        item.parts.forEach(part => {
-          if (!part) {
-            console.warn("  ⚠️ Ricambio non valido (null/undefined)");
-            return;
-          }
-          console.log(`    ${part.code}: ${part.unitPrice || 0}€ × ${part.quantity || 1} = ${part.finalPrice || 0}€`);
-        });
+        console.log(`    ${part.code}: ${part.unitPrice || 0}€ × ${part.quantity || 1} = ${part.finalPrice || 0}€`);
       });
-      
-      const subtotal = quoteItems.reduce((sum, item) => sum + item.totalPrice, 0);
-      const taxRate = form.getValues("taxRate") || 22;
-      const taxAmount = (subtotal * taxRate) / 100;
-      const total = subtotal + taxAmount;
-      
-      console.log(`Subtotale: ${subtotal}€`);
-      console.log(`IVA (${taxRate}%): ${taxAmount}€`);
-      console.log(`Totale: ${total}€`);
-      
-      form.setValue("subtotal", subtotal);
-      form.setValue("taxAmount", taxAmount);
-      form.setValue("total", total);
-    }, 0);
+    });
+    
+    // Calcolo manuale del subtotale (somma solo dei prezzi dei ricambi, non della manodopera)
+    const subtotal = quoteItems.reduce((sum, item) => sum + item.totalPrice, 0);
+    
+    // I valori laborPrice e laborHours saranno aggiunti al totale finale quando il preventivo viene salvato
+    // Non aggiorniamo i valori del form qui per evitare cicli infiniti
+    
+    console.log(`Subtotale (solo ricambi): ${subtotal}€`);
+    
+    // Per debug, calcoliamo i valori finali ma non li settiamo nel form
+    const taxRate = form.getValues("taxRate") || 22;
+    const taxAmount = (subtotal * taxRate) / 100;
+    const total = subtotal + taxAmount;
+    
+    console.log(`IVA (${taxRate}%): ${taxAmount}€ (solo per debug)`);
+    console.log(`Totale: ${total}€ (solo per debug)`);
+    
+    return { subtotal, taxAmount, total };
   };
   
   // Gestisce il submit del form
@@ -379,19 +379,22 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
   
   // Aggiorna totali quando cambia la manodopera extra
   useEffect(() => {
-    // Usa un flag per evitare di eseguire questo effect al primo render
-    if (form.formState.isDirty) {
-      const laborPrice = form.getValues("laborPrice") || 0;
-      const laborHours = form.getValues("laborHours") || 0;
-      
-      // Calcola i totali solo se uno dei valori è cambiato e diverso da zero
-      if ((laborPrice > 0 && laborHours > 0) || form.formState.dirtyFields.laborPrice || form.formState.dirtyFields.laborHours) {
-        console.log("Aggiorno totali per cambio manodopera:", laborPrice, "€/h ×", laborHours, "h");
-        
-        // Riutilizza la funzione esistente per calcolare i totali in modo sicuro
-        calculateTotals(items);
-      }
-    }
+    const laborPrice = form.getValues("laborPrice") || 0;
+    const laborHours = form.getValues("laborHours") || 0;
+    
+    // Usiamo una variabile di riferimento per evitare cicli infiniti
+    const laborCost = laborPrice * laborHours;
+    
+    // Imposta i totali manualmente invece di chiamare calculateTotals
+    const subtotal = (form.getValues("subtotal") || 0);
+    const taxRate = form.getValues("taxRate") || 22;
+    const taxAmount = ((subtotal) * taxRate) / 100;
+    const total = subtotal + taxAmount;
+    
+    console.log("Manodopera:", laborPrice, "€/h ×", laborHours, "h =", laborCost, "€");
+    console.log("Totali:", {subtotal, taxRate, taxAmount, total});
+    
+    // Non facciamo nulla per evitare cicli infiniti - i totali saranno calcolati durante il salvataggio
   }, [form.watch("laborPrice"), form.watch("laborHours")]);
   
   // Funzione per andare al passaggio successivo
