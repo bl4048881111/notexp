@@ -352,7 +352,7 @@ export default function AppointmentForm({
       {/* Dialog principale dell'appuntamento */}
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto scrollbar-hide">
-          <DialogHeader className="pb-4 border-b">
+          <DialogHeader className="pb-4 border-b sticky top-0 bg-background z-10">
             <DialogTitle className="text-xl flex items-center gap-2">
               <Calendar className="h-5 w-5 text-primary" />
               {appointment ? "Modifica Appuntamento" : "Nuovo Appuntamento"}
@@ -371,7 +371,7 @@ export default function AppointmentForm({
                   className={`flex flex-col items-center flex-1 ${currentStep === 1 ? "text-primary" : "text-muted-foreground"}`}
                 >
                   <div 
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold mb-1
+                    className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold mb-1
                     ${currentStep === 1 
                       ? "bg-primary text-primary-foreground" 
                       : currentStep > 1 
@@ -395,7 +395,7 @@ export default function AppointmentForm({
                   className={`flex flex-col items-center flex-1 ${currentStep === 2 ? "text-primary" : "text-muted-foreground"}`}
                 >
                   <div 
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold mb-1
+                    className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold mb-1
                     ${currentStep === 2 
                       ? "bg-primary text-primary-foreground" 
                       : currentStep > 2 
@@ -419,7 +419,7 @@ export default function AppointmentForm({
                   className={`flex flex-col items-center flex-1 ${currentStep === 3 ? "text-primary" : "text-muted-foreground"}`}
                 >
                   <div 
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold mb-1
+                    className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold mb-1
                     ${currentStep === 3 
                       ? "bg-primary text-primary-foreground" 
                       : "bg-muted text-muted-foreground"
@@ -534,7 +534,7 @@ export default function AppointmentForm({
                           </div>
                           
                           {isSearching && (
-                            <div className="absolute top-full mt-2 left-0 right-0 border-2 border-primary/60 rounded-lg bg-background shadow-xl z-10 max-h-[450px] overflow-auto scrollbar-hide">
+                            <div className="absolute top-full mt-2 left-0 right-0 border-2 border-primary/60 rounded-lg bg-background shadow-xl z-10 max-h-[300px] overflow-auto scrollbar-hide">
                               {filteredClients.length === 0 ? (
                                 <div className="p-4 text-center text-sm text-foreground">
                                   <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mx-auto mb-2 text-primary/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -544,19 +544,19 @@ export default function AppointmentForm({
                                 </div>
                               ) : (
                                 <div className="p-3">
-                                  {filteredClients.map((client, index) => (
+                                  {filteredClients.slice(0, 5).map((client, index) => (
                                     <>
                                       <div
                                         key={client.id}
-                                        className={`p-4 cursor-pointer transition-colors ${
+                                        className={`p-2 cursor-pointer transition-colors ${
                                           index === selectedIndex ? "bg-primary/20 border-2 border-primary" : "hover:bg-primary/5 border border-primary/20"
-                                        } rounded-lg mb-2 shadow-sm`}
+                                        } rounded-lg mb-1 shadow-sm`}
                                         onClick={() => handleSelectClient(client)}
                                       >
                                         <div className="flex justify-between items-center">
                                           <div className="flex items-center gap-3">
-                                            <div className="bg-primary/10 p-2 rounded-full">
-                                              <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <div className="bg-primary/10 p-1.5 rounded-full">
+                                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                               </svg>
                                             </div>
@@ -571,8 +571,8 @@ export default function AppointmentForm({
                                             </div>
                                           </div>
                                           <div className="flex flex-col items-end">
-                                            <div className="inline-flex items-center bg-primary/15 border border-primary/30 rounded-md px-3 py-1.5 text-primary font-bold">
-                                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <div className="inline-flex items-center bg-primary/15 border border-primary/30 rounded-md px-2 py-1 text-primary text-xs font-bold">
+                                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                                               </svg>
                                               {client.plate}
@@ -793,14 +793,15 @@ export default function AppointmentForm({
                 </div>
               )}
               
-              {/* Pulsanti di navigazione */}
-              <DialogFooter className="pt-4 border-t mt-6">
+              {/* Pulsanti di navigazione fissi */}
+              <DialogFooter className="py-3 border-t mt-6 sticky bottom-0 bg-background z-10">
                 <div className="flex w-full justify-between">
                   <div className="flex gap-2">
                     <Button 
                       type="button" 
                       variant="outline" 
                       onClick={onClose}
+                      size="sm"
                       className="gap-1"
                     >
                       <XCircle className="h-4 w-4" />
@@ -811,7 +812,8 @@ export default function AppointmentForm({
                     {appointment && (
                       <Button 
                         type="button" 
-                        variant="destructive" 
+                        variant="destructive"
+                        size="sm"
                         onClick={handleDeleteAppointment}
                         className="gap-1"
                         disabled={isSubmitting}
@@ -827,7 +829,8 @@ export default function AppointmentForm({
                     {currentStep > 1 && (
                       <Button 
                         type="button" 
-                        variant="outline" 
+                        variant="outline"
+                        size="sm"
                         onClick={() => setCurrentStep(prev => prev - 1)}
                         className="gap-1 border-primary/20 text-primary hover:bg-primary/5"
                       >
@@ -841,7 +844,8 @@ export default function AppointmentForm({
                     {/* Pulsante Avanti (visibile solo nei primi due step) */}
                     {currentStep < 3 ? (
                       <Button 
-                        type="button" 
+                        type="button"
+                        size="sm"
                         onClick={() => {
                           if (currentStep === 1 && !selectedClient) {
                             toast({
@@ -861,7 +865,8 @@ export default function AppointmentForm({
                     ) : (
                       /* Pulsante Fine (visibile solo nell'ultimo step) */
                       <Button 
-                        type="submit" 
+                        type="submit"
+                        size="sm"
                         disabled={isSubmitting || !selectedClient}
                         className="gap-2 bg-primary"
                       >
