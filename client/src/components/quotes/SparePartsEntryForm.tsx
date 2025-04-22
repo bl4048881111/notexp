@@ -36,18 +36,33 @@ export default function SparePartsEntryForm({
   
   // Seleziona il primo servizio senza ricambi se non c'è un servizio corrente selezionato
   useEffect(() => {
-    // Eseguiamo questa logica solo una volta all'inizializzazione
+    // Eseguiamo questa logica solo se cambia la lunghezza di items e non abbiamo un servizio selezionato
     if (currentServiceIndex === null && items.length > 0) {
+      // Usa una reference per evitare aggiornamenti ciclici
+      let indexToSelect = -1;
+      
       // Trova il primo elemento che non ha ricambi
       const firstWithoutParts = items.findIndex(item => item.parts.length === 0);
+      
       if (firstWithoutParts !== -1) {
-        setCurrentServiceIndex(firstWithoutParts);
-      } else {
+        indexToSelect = firstWithoutParts;
+      } else if (items.length > 0) {
         // Se tutti hanno ricambi, seleziona il primo
-        setCurrentServiceIndex(0);
+        indexToSelect = 0;
+      }
+      
+      // Aggiorna solo se abbiamo trovato un indice valido
+      if (indexToSelect >= 0) {
+        setCurrentServiceIndex(indexToSelect);
+        
+        // Imposta i valori di manodopera dal servizio selezionato
+        const selectedItem = items[indexToSelect];
+        setLaborHours(selectedItem.laborHours);
+        setLaborPrice(selectedItem.laborPrice);
       }
     }
-  }, [items]);
+  // Dipende solo dalla lunghezza di items, non dal contenuto, per evitare cicli infiniti
+  }, [items.length, currentServiceIndex]);
   
   // Reset dei campi del form
   const resetForm = () => {
@@ -158,8 +173,9 @@ export default function SparePartsEntryForm({
     setLaborPrice(selectedItem.laborPrice);
   };
   
-  // Formatta i numeri come valuta
+  // Formatta i numeri come valuta - memoizzata per evitare ricorsioni
   const formatCurrency = (amount: number): string => {
+    if (isNaN(amount)) return "€0,00";
     return new Intl.NumberFormat('it-IT', {
       style: 'currency',
       currency: 'EUR'
@@ -286,7 +302,13 @@ export default function SparePartsEntryForm({
                   </div>
                   
                   <div className="ml-4 text-sm text-muted-foreground">
-                    Totale manodopera: <span className="font-medium text-foreground">{formatCurrency(laborPrice * (typeof laborHours === "string" ? 0 : laborHours))}</span>
+                    Totale manodopera: <span className="font-medium text-foreground">
+                      {formatCurrency(
+                        typeof laborPrice === "number" && 
+                        typeof laborHours === "number" ? 
+                        laborPrice * laborHours : 0
+                      )}
+                    </span>
                   </div>
                 </div>
               </div>
