@@ -57,15 +57,7 @@ import {
   Settings, 
   Filter, 
   CheckCircle, 
-  XCircle, 
-  Wrench, 
-  ArrowUpDown, 
-  Sparkles, 
-  Tool, 
-  Hammer, 
-  Car, 
-  Gauge, 
-  Zap, 
+  XCircle,
   Plus, 
   Search 
 } from "lucide-react";
