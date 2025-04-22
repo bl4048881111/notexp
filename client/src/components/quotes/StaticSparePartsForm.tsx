@@ -11,14 +11,12 @@ interface StaticSparePartsFormProps {
   items: QuoteItem[];
   onAddPart: (serviceId: string, part: Omit<SparePart, 'id'>) => void;
   onRemovePart: (serviceId: string, partId: string) => void;
-  onEditService?: (serviceId: string, updates: Partial<QuoteItem>) => void;
 }
 
 export default function StaticSparePartsForm({ 
   items, 
   onAddPart,
-  onRemovePart,
-  onEditService
+  onRemovePart
 }: StaticSparePartsFormProps) {
   // Ora abbiamo bisogno di alcuni stati locali per il popup
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -101,32 +99,9 @@ export default function StaticSparePartsForm({
             {categoriesMap[category].map(service => (
               <div key={service.id} className="mb-6 last:mb-0">
                 <div className="flex justify-between items-center mb-3">
-                  <div className="flex items-center gap-2">
-                    <h4 className="font-medium text-lg text-primary">
-                      {service.serviceType.name}
-                    </h4>
-                    <Select 
-                      value={service.laborPrice?.toString() || service.serviceType.laborPrice?.toString() || "0"}
-                      onValueChange={(value) => {
-                        if (onEditService) {
-                          const laborPrice = parseFloat(value);
-                          onEditService(service.id, { laborPrice });
-                        }
-                      }}
-                    >
-                      <SelectTrigger className="w-[130px] h-8">
-                        <SelectValue placeholder="Costo manodopera" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="25">€25/ora</SelectItem>
-                        <SelectItem value="30">€30/ora</SelectItem>
-                        <SelectItem value="35">€35/ora</SelectItem>
-                        <SelectItem value="40">€40/ora</SelectItem>
-                        <SelectItem value="45">€45/ora</SelectItem>
-                        <SelectItem value="50">€50/ora</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <h4 className="font-medium text-lg text-primary">
+                    {service.serviceType.name}
+                  </h4>
                   <span className="text-sm">
                     Prezzo base: {formatCurrency(service.serviceType.laborPrice || 0)}
                   </span>
