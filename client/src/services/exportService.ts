@@ -190,13 +190,13 @@ export const exportQuoteToPDF = async (quote: Quote): Promise<void> => {
     doc.text('Ricambi', 14, finalY);
     
     // Format the parts data for PDF table
-    const partsData = allParts.map(part => [
-      part.code,
-      part.name,
-      part.quantity,
-      `€${part.unitPrice.toFixed(2)}`,
+    const partsData = allParts.filter(part => part && part.code).map(part => [
+      part.code || 'N/D',
+      part.name || 'Ricambio',
+      part.quantity || 1,
+      `€${(part.unitPrice || 0).toFixed(2)}`,
       part.brand || '',
-      `€${part.finalPrice.toFixed(2)}`,
+      `€${(part.finalPrice || 0).toFixed(2)}`,
     ]);
     
     autoTable(doc, {

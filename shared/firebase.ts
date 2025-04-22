@@ -248,17 +248,35 @@ export const deleteQuote = async (id: string): Promise<void> => {
 
 // Helper function to calculate quote totals
 export const calculateQuoteTotals = (quote: Quote): Quote => {
+  // Ensure quote has items array
+  if (!quote.items || !Array.isArray(quote.items)) {
+    quote.items = [];
+  }
+  
   // Calculate total for each item
   const items = quote.items.map(item => {
+    // Ensure item has parts array
+    if (!item.parts || !Array.isArray(item.parts)) {
+      item.parts = [];
+    }
+    
     // Sum up parts prices, assicurandoci di usare prezzo unitario × quantità
     const partsTotal = item.parts.reduce((sum, part) => {
+      if (!part) return sum;
       // Assicurarsi che finalPrice sia corretto (prezzo unitario × quantità)
-      const partPrice = part.unitPrice * part.quantity;
+      const unitPrice = part.unitPrice || 0;
+      const quantity = part.quantity || 1;
+      const partPrice = unitPrice * quantity;
+      // Update finalPrice
+      part.finalPrice = partPrice;
       return sum + partPrice;
     }, 0);
     
     // Calculate labor cost: price per hour * hours
-    const laborTotal = item.laborPrice * item.laborHours;
+    const laborPrice = item.laborPrice || 0;
+    const laborHours = item.laborHours || 0;
+    const laborTotal = laborPrice * laborHours;
+    
     // Total price for this item
     const itemTotal = partsTotal + laborTotal;
     
@@ -269,16 +287,19 @@ export const calculateQuoteTotals = (quote: Quote): Quote => {
   });
   
   // Calculate quote subtotal from service items
-  const itemsSubtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
+  const itemsSubtotal = items.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
   
   // Calculate extra labor cost
-  const extraLaborCost = (quote.laborPrice || 0) * (quote.laborHours || 0);
+  const laborPrice = quote.laborPrice || 0;
+  const laborHours = quote.laborHours || 0;
+  const extraLaborCost = laborPrice * laborHours;
   
   // Calculate total subtotal (items + extra labor)
   const subtotal = itemsSubtotal + extraLaborCost;
   
-  // Calculate tax amount
-  const taxAmount = (subtotal * quote.taxRate) / 100;
+  // Calculate tax amount (default 22% if not specified)
+  const taxRate = quote.taxRate || 22;
+  const taxAmount = (subtotal * taxRate) / 100;
   
   // Calculate total
   const total = subtotal + taxAmount;
