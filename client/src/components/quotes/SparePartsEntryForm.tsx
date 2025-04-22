@@ -382,23 +382,21 @@ export default function SparePartsEntryForm({
                             <div className="flex justify-end gap-1">
                               <Button
                                 variant="ghost"
-                                size="sm"
+                                size="icon"
                                 onClick={() => handleEditPart(part)}
-                                className="h-7 px-2 py-0 text-primary hover:text-primary flex items-center"
+                                className="h-6 w-6 text-primary"
                                 title="Modifica ricambio"
                               >
-                                <span className="material-icons mr-1" style={{fontSize: "14px"}}>edit</span>
-                                <span className="text-xs">Modifica</span>
+                                <span className="material-icons" style={{fontSize: "16px"}}>edit</span>
                               </Button>
                               <Button
                                 variant="ghost"
-                                size="sm"
+                                size="icon"
                                 onClick={() => handleRemovePart(part.id)}
-                                className="h-7 px-2 py-0 text-destructive hover:text-destructive/80 flex items-center"
+                                className="h-6 w-6 text-destructive"
                                 title="Elimina ricambio"
                               >
-                                <span className="material-icons mr-1" style={{fontSize: "14px"}}>delete</span>
-                                <span className="text-xs">Elimina</span>
+                                <span className="material-icons" style={{fontSize: "16px"}}>delete</span>
                               </Button>
                             </div>
                           </td>
