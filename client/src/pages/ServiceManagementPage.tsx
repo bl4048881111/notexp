@@ -246,14 +246,14 @@ export default function ServiceManagementPage() {
             <div>
               <Label className="mb-2 block">Filtra per categoria</Label>
               <Select
-                value={categoryFilter || ""}
-                onValueChange={(value) => setCategoryFilter(value === "" ? null : value)}
+                value={categoryFilter || "all"}
+                onValueChange={(value) => setCategoryFilter(value === "all" ? null : value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Tutte le categorie" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Tutte le categorie</SelectItem>
+                  <SelectItem value="all">Tutte le categorie</SelectItem>
                   {serviceCategories.map((category) => (
                     <SelectItem key={category} value={category}>
                       {category}
