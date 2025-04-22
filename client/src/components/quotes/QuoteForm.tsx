@@ -12,6 +12,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogClose
 } from "@/components/ui/dialog";
 import {
   Form,
@@ -32,13 +33,14 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, X } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 import ClientForm from "../clients/ClientForm";
 import ServiceItemForm from "./ServiceItemForm";
+import SparePartForm from "./SparePartForm";
 
 interface QuoteFormProps {
   isOpen: boolean;
@@ -193,6 +195,8 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote }: QuoteFo
       }
       setActiveTab("services");
     } else if (activeTab === "services") {
+      setActiveTab("ricambi");
+    } else if (activeTab === "ricambi") {
       setActiveTab("summary");
     }
   };
@@ -239,24 +243,26 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote }: QuoteFo
   return (
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{quote ? "Modifica Preventivo" : "Nuovo Preventivo"}</DialogTitle>
-            <DialogDescription>
-              {quote 
-                ? `Modifica preventivo ${quote.id} per ${quote.clientName}` 
-                : "Crea un nuovo preventivo per un cliente"
-              }
-            </DialogDescription>
+        <DialogContent className="sm:max-w-[900px] max-h-[90vh] overflow-y-auto bg-background border-primary">
+          <DialogHeader className="border-b border-border pb-2">
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-xl font-bold text-primary">
+                {quote ? "Modifica Preventivo" : "Nuovo Preventivo"}
+              </DialogTitle>
+              <DialogClose className="rounded-full hover:bg-muted p-2">
+                <X className="h-4 w-4" />
+              </DialogClose>
+            </div>
           </DialogHeader>
           
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="grid grid-cols-3">
-                  <TabsTrigger value="client">Cliente</TabsTrigger>
-                  <TabsTrigger value="services">Servizi</TabsTrigger>
-                  <TabsTrigger value="summary">Riepilogo</TabsTrigger>
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
+                <TabsList className="grid grid-cols-4 bg-muted/20 mb-4">
+                  <TabsTrigger value="client" className="text-foreground data-[state=active]:text-primary data-[state=active]:bg-background data-[state=active]:shadow-none">Cliente</TabsTrigger>
+                  <TabsTrigger value="services" className="text-foreground data-[state=active]:text-primary data-[state=active]:bg-background data-[state=active]:shadow-none">Servizi</TabsTrigger>
+                  <TabsTrigger value="ricambi" className="text-foreground data-[state=active]:text-primary data-[state=active]:bg-background data-[state=active]:shadow-none">Ricambi</TabsTrigger>
+                  <TabsTrigger value="summary" className="text-foreground data-[state=active]:text-primary data-[state=active]:bg-background data-[state=active]:shadow-none">Riepilogo</TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="client" className="space-y-4 pt-4">
@@ -417,6 +423,56 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote }: QuoteFo
                     <Button type="button" onClick={handleNextTab}>
                       Avanti
                     </Button>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="ricambi" className="space-y-4 pt-4">
+                  <div className="space-y-4">
+                    <div className="bg-muted/30 rounded-md p-4">
+                      <h3 className="text-lg font-medium text-primary mb-4">Ricambi per Servizi</h3>
+                      
+                      <div className="grid grid-cols-1 gap-4">
+                        {quoteItems.length === 0 ? (
+                          <div className="text-center py-8 text-muted-foreground">
+                            Nessun servizio selezionato. Aggiungi servizi nella scheda precedente.
+                          </div>
+                        ) : (
+                          quoteItems.map((item, index) => (
+                            <div key={item.id} className="border rounded-md p-4">
+                              <h4 className="font-medium mb-2">{index + 1}. {item.serviceType.name}</h4>
+                              <SparePartForm
+                                parts={item.parts}
+                                onChange={(parts) => {
+                                  const updatedItems = quoteItems.map(i => {
+                                    if (i.id === item.id) {
+                                      // Calculate new total price with updated parts
+                                      const laborTotal = i.laborPrice * i.laborHours;
+                                      const partsTotal = parts.reduce((sum, part) => sum + part.finalPrice, 0);
+                                      return {
+                                        ...i,
+                                        parts,
+                                        totalPrice: laborTotal + partsTotal
+                                      };
+                                    }
+                                    return i;
+                                  });
+                                  setQuoteItems(updatedItems);
+                                }}
+                              />
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-end space-x-2 pt-4">
+                      <Button type="button" variant="outline" onClick={() => setActiveTab("services")}>
+                        Indietro
+                      </Button>
+                      <Button type="button" onClick={handleNextTab}>
+                        Avanti
+                      </Button>
+                    </div>
                   </div>
                 </TabsContent>
                 
