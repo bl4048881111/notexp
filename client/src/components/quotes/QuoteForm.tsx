@@ -265,7 +265,7 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote }: QuoteFo
   
   // Stato per il passaggio corrente
   const [currentStep, setCurrentStep] = useState<number>(1);
-  const totalSteps = 3;
+  const totalSteps = 4;
   
   // Funzione per andare al passaggio successivo
   const goToNextStep = () => {
@@ -300,8 +300,8 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote }: QuoteFo
         
         {/* Indicatore Passaggi */}
         <div className="w-full flex items-center mb-6">
-          <div className="w-full grid grid-cols-3 gap-2">
-            {[1, 2, 3].map((step) => (
+          <div className="w-full grid grid-cols-4 gap-2">
+            {[1, 2, 3, 4].map((step) => (
               <div 
                 key={step} 
                 className={`border rounded-lg p-2 text-center transition-colors ${
@@ -313,7 +313,8 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote }: QuoteFo
                 <span className={currentStep === step ? "font-medium" : ""}>
                   {step === 1 && "1. Dati Cliente"}
                   {step === 2 && "2. Servizi"}
-                  {step === 3 && "3. Riepilogo"}
+                  {step === 3 && "3. Ricambi"}
+                  {step === 4 && "4. Riepilogo"}
                 </span>
               </div>
             ))}
@@ -327,7 +328,7 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote }: QuoteFo
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <h2 className="text-xl font-semibold">Dati Cliente e Veicolo</h2>
-                  <div className="text-sm text-muted-foreground">Passo 1 di 3</div>
+                  <div className="text-sm text-muted-foreground">Passo 1 di 4</div>
                 </div>
                 
                 {selectedClient ? (
@@ -525,7 +526,7 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote }: QuoteFo
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <h2 className="text-xl font-semibold">Selezione Servizi</h2>
-                  <div className="text-sm text-muted-foreground">Passo 2 di 3</div>
+                  <div className="text-sm text-muted-foreground">Passo 2 di 4</div>
                 </div>
                 
                 <ServiceItemForm
@@ -552,12 +553,50 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote }: QuoteFo
               </div>
             )}
             
-            {/* STEP 3: Riepilogo */}
+            {/* STEP 3: Ricambi */}
             {currentStep === 3 && (
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
+                  <h2 className="text-xl font-semibold">Inserimento Ricambi</h2>
+                  <div className="text-sm text-muted-foreground">Passo 3 di 4</div>
+                </div>
+                
+                <SparePartForm
+                  parts={items
+                    .filter(item => item.parts && item.parts.length > 0)
+                    .flatMap(item => item.parts || [])
+                  }
+                  onChange={(parts) => {
+                    // Qui inseriamo la logica per aggiornare i ricambi
+                    const updatedItems = [...items];
+                    // Aggiorna i parts nei quote items
+                    calculateTotals(updatedItems);
+                    setItems(updatedItems);
+                  }}
+                />
+                
+                <div className="flex justify-between space-x-2 pt-4">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={goToPreviousStep}
+                  >
+                    Indietro
+                  </Button>
+                  
+                  <Button type="button" onClick={goToNextStep}>
+                    Avanti
+                  </Button>
+                </div>
+              </div>
+            )}
+            
+            {/* STEP 4: Riepilogo e Conferma */}
+            {currentStep === 4 && (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
                   <h2 className="text-xl font-semibold">Riepilogo e Conferma</h2>
-                  <div className="text-sm text-muted-foreground">Passo 3 di 3</div>
+                  <div className="text-sm text-muted-foreground">Passo 4 di 4</div>
                 </div>
                 
                 <div className="border p-4 rounded-md bg-muted/20 mb-4">
@@ -571,6 +610,36 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote }: QuoteFo
                       <p><span className="font-medium">Veicolo:</span> {form.getValues("model")}</p>
                       <p><span className="font-medium">Targa:</span> {form.getValues("plate")}</p>
                     </div>
+                  </div>
+                </div>
+                
+                <div className="border p-4 rounded-md bg-muted/20 mb-4">
+                  <h3 className="font-medium mb-2">Servizi Selezionati</h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <thead className="bg-muted/50">
+                        <tr>
+                          <th className="text-left p-2">Servizio</th>
+                          <th className="text-left p-2">Categoria</th>
+                          <th className="text-right p-2">Prezzo</th>
+                          <th className="text-right p-2">Manodopera</th>
+                          <th className="text-right p-2">Ricambi</th>
+                          <th className="text-right p-2">Totale</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {items.map((item, index) => (
+                          <tr key={index} className="border-t">
+                            <td className="p-2">{item.name}</td>
+                            <td className="p-2">{item.category}</td>
+                            <td className="p-2 text-right">{formatCurrency(item.price)}</td>
+                            <td className="p-2 text-right">{item.laborHours ? `${item.laborHours} h × ${formatCurrency(item.laborPrice || 0)}` : '-'}</td>
+                            <td className="p-2 text-right">{item.parts?.length ? `${item.parts.length} ricambi` : '-'}</td>
+                            <td className="p-2 text-right font-medium">{formatCurrency(item.totalPrice)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
                 
