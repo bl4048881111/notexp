@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { v4 as uuidv4 } from "uuid";
 import { format } from "date-fns";
 import { Client, Quote, createQuoteSchema, QuoteItem, SparePart } from "@shared/schema";
+import { getAllClients, getClientById, createQuote, updateQuote, calculateQuoteTotals } from "@shared/firebase";
 import {
   Dialog,
   DialogContent,
@@ -59,7 +60,6 @@ import { useToast } from "@/hooks/use-toast";
 import { ComboboxDemo } from "@/components/ui/ComboboxDemo";
 import ServiceItemForm from "./ServiceItemForm";
 import SparePartForm from "./SparePartForm";
-import { createQuote, updateQuote, calculateQuoteTotals } from "@shared/firebase";
 
 interface QuoteFormProps {
   isOpen: boolean;
@@ -87,7 +87,7 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote }: QuoteFo
       phone: quote?.phone || "",
       plate: quote?.plate || "",
       model: quote?.model || "",
-      kilometrage: quote?.kilometrage || 0,
+
       date: quote?.date || format(new Date(), "yyyy-MM-dd"),
       status: quote?.status || "bozza",
       items: quote?.items || [],
@@ -140,9 +140,8 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote }: QuoteFo
   // Funzione per recuperare un client specifico
   const fetchClientById = async (id: string) => {
     try {
-      const response = await fetch(`/api/clients/${id}`);
-      if (response.ok) {
-        const client: Client = await response.json();
+      const client = await getClientById(id);
+      if (client) {
         setSelectedClient(client);
         
         form.setValue("clientId", client.id);
@@ -462,21 +461,7 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote }: QuoteFo
                   </div>
                 )}
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="kilometrage"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Chilometraggio</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="Chilometraggio attuale" type="number" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
+                <div className="grid grid-cols-1 gap-4">
                   <FormField
                     control={form.control}
                     name="date"
@@ -585,7 +570,6 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote }: QuoteFo
                     <div>
                       <p><span className="font-medium">Veicolo:</span> {form.getValues("model")}</p>
                       <p><span className="font-medium">Targa:</span> {form.getValues("plate")}</p>
-                      <p><span className="font-medium">Km:</span> {form.getValues("kilometrage")}</p>
                     </div>
                   </div>
                 </div>
