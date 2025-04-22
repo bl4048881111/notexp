@@ -216,29 +216,37 @@ export default function AppointmentForm({
     }
   };
   
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  
   const handleDeleteAppointment = async () => {
     if (!appointment) return;
     
-    if (confirm("Sei sicuro di voler eliminare questo appuntamento? Questa azione non può essere annullata.")) {
-      setIsSubmitting(true);
-      
-      try {
-        await deleteAppointment(appointment.id);
-        toast({
-          title: "Appuntamento eliminato",
-          description: "L'appuntamento è stato eliminato con successo",
-        });
-        onSuccess();
-      } catch (error) {
-        console.error("Errore durante l'eliminazione dell'appuntamento:", error);
-        toast({
-          title: "Errore",
-          description: "Si è verificato un errore durante l'eliminazione dell'appuntamento",
-          variant: "destructive",
-        });
-      } finally {
-        setIsSubmitting(false);
-      }
+    // Mostro il dialog personalizzato invece del confirm() predefinito
+    setShowDeleteConfirm(true);
+  };
+  
+  const confirmDelete = async () => {
+    if (!appointment) return;
+    
+    setIsSubmitting(true);
+    setShowDeleteConfirm(false);
+    
+    try {
+      await deleteAppointment(appointment.id);
+      toast({
+        title: "Appuntamento eliminato",
+        description: "L'appuntamento è stato eliminato con successo",
+      });
+      onSuccess();
+    } catch (error) {
+      console.error("Errore durante l'eliminazione dell'appuntamento:", error);
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore durante l'eliminazione dell'appuntamento",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
   
@@ -292,6 +300,52 @@ export default function AppointmentForm({
 
   return (
     <>
+      {/* Dialog per conferma eliminazione */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="text-xl flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5" />
+              Conferma eliminazione
+            </DialogTitle>
+            <DialogDescription className="text-base">
+              Sei sicuro di voler eliminare questo appuntamento? Questa azione non può essere annullata.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowDeleteConfirm(false)}
+            >
+              Annulla
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Eliminazione in corso...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Elimina
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Dialog principale dell'appuntamento */}
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader className="pb-4 border-b">
@@ -477,7 +531,7 @@ export default function AppointmentForm({
                           </div>
                           
                           {isSearching && (
-                            <div className="absolute top-full mt-1 left-0 right-0 border-2 border-primary/60 rounded-md bg-background shadow-xl z-10 max-h-52 overflow-y-auto">
+                            <div className="absolute top-full mt-2 left-0 right-0 border-2 border-primary/60 rounded-md bg-background shadow-xl z-10 max-h-[400px]">
                               {filteredClients.length === 0 ? (
                                 <div className="p-4 text-center text-sm text-foreground">
                                   <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mx-auto mb-2 text-primary/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -486,35 +540,35 @@ export default function AppointmentForm({
                                   Nessun cliente trovato
                                 </div>
                               ) : (
-                                <div className="p-2">
+                                <div className="p-3">
                                   {filteredClients.map((client, index) => (
                                     <div
                                       key={client.id}
-                                      className={`p-3 cursor-pointer transition-colors ${
+                                      className={`p-4 cursor-pointer transition-colors ${
                                         index === selectedIndex ? "bg-primary/30 border border-primary/60" : "hover:bg-primary/10"
-                                      } ${index !== filteredClients.length - 1 ? "" : ""} rounded-md my-1.5 shadow-sm`}
+                                      } rounded-md mb-2.5 shadow-sm`}
                                       onClick={() => handleSelectClient(client)}
                                     >
                                       <div className="flex justify-between items-start">
                                         <div>
-                                          <div className="font-semibold text-base text-foreground">{client.name} {client.surname}</div>
-                                          <div className="text-sm text-foreground flex flex-col gap-1 mt-1">
-                                            <span className="flex items-center gap-1.5">
-                                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                          <div className="font-semibold text-lg text-foreground">{client.name} {client.surname}</div>
+                                          <div className="text-base text-foreground flex flex-col gap-1 mt-2">
+                                            <span className="flex items-center gap-2">
+                                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                                               </svg>
                                               {client.phone}
                                             </span>
                                           </div>
                                         </div>
-                                        <div className="text-sm text-right">
-                                          <span className="inline-flex items-center bg-primary/20 border border-primary/40 rounded px-2.5 py-1.5 text-primary font-medium">
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <div className="text-base text-right">
+                                          <span className="inline-flex items-center bg-primary/20 border border-primary/40 rounded-lg px-3 py-2 text-primary font-medium">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
                                             </svg>
                                             {client.plate}
                                           </span>
-                                          <div className="mt-1.5 text-foreground">{client.model}</div>
+                                          <div className="mt-2 text-foreground font-medium">{client.model}</div>
                                         </div>
                                       </div>
                                     </div>
