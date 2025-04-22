@@ -75,6 +75,7 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote }: QuoteFo
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [selectedIndex, setSelectedIndex] = useState<number>(-1);
   const { toast } = useToast();
   
   // Configurazione del form con validazione
@@ -362,6 +363,33 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote }: QuoteFo
                             onChange={(e) => {
                               setSearchQuery(e.target.value);
                               setIsSearching(e.target.value.length > 0);
+                              setSelectedIndex(-1); // Reset selected index when typing
+                            }}
+                            onKeyDown={(e) => {
+                              if (isSearching && filteredClients.length > 0) {
+                                // Freccia giù
+                                if (e.key === 'ArrowDown') {
+                                  e.preventDefault();
+                                  setSelectedIndex(prev => 
+                                    prev < filteredClients.length - 1 ? prev + 1 : prev
+                                  );
+                                }
+                                // Freccia su
+                                else if (e.key === 'ArrowUp') {
+                                  e.preventDefault();
+                                  setSelectedIndex(prev => prev > 0 ? prev - 1 : 0);
+                                }
+                                // Invio per selezionare
+                                else if (e.key === 'Enter' && selectedIndex >= 0) {
+                                  e.preventDefault();
+                                  handleSelectClient(filteredClients[selectedIndex]);
+                                }
+                                // Esc per chiudere
+                                else if (e.key === 'Escape') {
+                                  e.preventDefault();
+                                  setIsSearching(false);
+                                }
+                              }
                             }}
                             className="w-full"
                           />
