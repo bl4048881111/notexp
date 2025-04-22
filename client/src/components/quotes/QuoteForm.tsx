@@ -194,20 +194,25 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
   // Gestisce l'aggiornamento degli elementi del preventivo
   const handleItemsChange = (newItems: QuoteItem[]) => {
     setItems(newItems);
-    form.setValue("items", newItems);
+    // Non impostiamo il valore del form qui perché causerebbe una ricorsione
+    // form.setValue("items", newItems); 
     calculateTotals(newItems);
   };
   
   // Calcola i totali del preventivo
   const calculateTotals = (quoteItems: QuoteItem[]) => {
-    const subtotal = quoteItems.reduce((sum, item) => sum + item.totalPrice, 0);
-    const taxRate = form.getValues("taxRate") || 22;
-    const taxAmount = (subtotal * taxRate) / 100;
-    const total = subtotal + taxAmount;
-    
-    form.setValue("subtotal", subtotal);
-    form.setValue("taxAmount", taxAmount);
-    form.setValue("total", total);
+    // Utilizziamo un setTimeout per evitare un aggiornamento di stato a cascata
+    // che potrebbe portare a un errore di "Maximum update depth exceeded"
+    setTimeout(() => {
+      const subtotal = quoteItems.reduce((sum, item) => sum + item.totalPrice, 0);
+      const taxRate = form.getValues("taxRate") || 22;
+      const taxAmount = (subtotal * taxRate) / 100;
+      const total = subtotal + taxAmount;
+      
+      form.setValue("subtotal", subtotal);
+      form.setValue("taxAmount", taxAmount);
+      form.setValue("total", total);
+    }, 0);
   };
   
   // Gestisce il submit del form
