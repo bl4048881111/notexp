@@ -8,6 +8,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card } from "@/components/ui/card";
 
+type ViewType = "day" | "week" | "month";
+
 // Definizione delle fasce orarie (dalle 8 alle 19)
 const TIME_SLOTS = Array.from({ length: 22 }, (_, i) => ({
   hour: Math.floor((8 * 60 + i * 30) / 60),
@@ -33,7 +35,7 @@ export default function CalendarView({
 }: CalendarViewProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [calendarDays, setCalendarDays] = useState<Date[]>([]);
-  const [view, setView] = useState<"day" | "week" | "month">("month");
+  const [view, setView] = useState<ViewType>("month");
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   // Generate calendar days array
