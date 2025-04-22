@@ -31,7 +31,9 @@ import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 
 // Definizione delle categorie e dei servizi
-const services = {
+type ServiceCategory = "Tagliando" | "Frenante" | "Sospensioni" | "Accessori";
+
+const services: Record<ServiceCategory, Array<{ id: string, name: string, price: number }>> = {
   "Tagliando": [
     { id: "filtro-aria", name: "Filtro Aria", price: 25 },
     { id: "filtro-olio", name: "Filtro Olio", price: 20 },
@@ -67,8 +69,9 @@ export default function ServiceItemForm({ items, onChange }: ServiceItemFormProp
   const [laborHours, setLaborHours] = useState<number | "">("");
   const [notes, setNotes] = useState<string>("");
   const [selectedServices, setSelectedServices] = useState<Record<string, boolean>>({});
+  const [activeCategory, setActiveCategory] = useState<ServiceCategory>("Tagliando");
   
-  const handleAddService = (categoryId: string, service: { id: string, name: string, price: number }) => {
+  const handleAddService = (categoryId: ServiceCategory, service: { id: string, name: string, price: number }) => {
     // Crea un nuovo servizio da aggiungere al preventivo
     // Verifica che la categoria sia valida secondo lo schema
     const isValidCategory = ["Tagliando", "Frenante", "Sospensioni", "Accessori", 
@@ -132,87 +135,73 @@ export default function ServiceItemForm({ items, onChange }: ServiceItemFormProp
   
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div>
-          <div className="mb-4">
-            <Label className="mb-1 block">Tariffa oraria manodopera</Label>
-            <div className="flex items-center space-x-2">
-              <Input
-                type="number"
-                value={laborPrice}
-                onChange={(e) => setLaborPrice(parseFloat(e.target.value) || 0)}
-                className="w-24"
-                min={0}
-              />
-              <span>€/ora</span>
+      <div className="mb-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+          {Object.entries(services).map(([category, categoryServices]) => (
+            <div key={category} 
+              className="border rounded-lg hover:border-primary/70 hover:shadow-sm transition-all cursor-pointer"
+              onClick={() => setActiveCategory(category as ServiceCategory)}
+            >
+              <div className={`p-4 rounded-t-lg flex justify-center items-center font-medium h-20 ${activeCategory === category ? 'bg-primary text-primary-foreground' : 'bg-muted/50'}`}>
+                {category}
+              </div>
             </div>
-          </div>
-          
-          <div className="mb-4">
-            <Label className="mb-1 block">Ore di manodopera</Label>
-            <div className="flex items-center space-x-2">
-              <Input
-                type="number"
-                value={laborHours}
-                onChange={(e) => setLaborHours(e.target.value ? parseFloat(e.target.value) : "")}
-                className="w-24"
-                min={0}
-                step={0.5}
-              />
-              <span>ore</span>
-            </div>
-          </div>
-          
-          <div className="mb-4">
-            <Label className="mb-1 block">Note</Label>
-            <Textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Note per il servizio (opzionale)"
-              className="h-24"
-            />
-          </div>
+          ))}
         </div>
         
-        <div className="border rounded-md">
-          <Accordion type="multiple" defaultValue={["Tagliando", "Frenante", "Sospensioni", "Accessori"]}>
-            {Object.entries(services).map(([category, categoryServices]) => (
-              <AccordionItem value={category} key={category}>
-                <AccordionTrigger className="px-4">
-                  {category}
-                </AccordionTrigger>
-                <AccordionContent className="px-4 pb-2">
-                  <div className="space-y-2">
-                    {categoryServices.map((service) => (
-                      <div key={service.id} className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <Checkbox 
-                            id={service.id}
-                            checked={selectedServices[service.id] || false}
-                            onCheckedChange={(checked) => {
-                              if (checked) {
-                                handleAddService(category, service);
-                              } else {
-                                const itemId = items.find(
-                                  item => item.serviceType.id === service.id
-                                )?.id;
-                                if (itemId) handleRemoveItem(itemId);
-                              }
-                            }}
-                          />
-                          <Label htmlFor={service.id} className="cursor-pointer">
-                            {service.name}
-                          </Label>
-                        </div>
-                        <span className="text-sm">{formatCurrency(service.price)}</span>
+        {activeCategory && (
+          <div className="border rounded-lg p-4">
+            <h3 className="font-medium mb-4">Servizi {activeCategory}</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {services[activeCategory].map((service) => (
+                <div 
+                  key={service.id} 
+                  className={`border rounded-lg p-3 cursor-pointer transition-all ${
+                    selectedServices[service.id] ? 'border-primary bg-primary/5' : 'hover:border-primary/50'
+                  }`}
+                  onClick={() => {
+                    if (selectedServices[service.id]) {
+                      const itemId = items.find(
+                        item => item.serviceType.id === service.id
+                      )?.id;
+                      if (itemId) handleRemoveItem(itemId);
+                    } else {
+                      handleAddService(activeCategory, service);
+                    }
+                  }}
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-2">
+                      <Checkbox 
+                        id={service.id}
+                        checked={selectedServices[service.id] || false}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            handleAddService(activeCategory, service);
+                          } else {
+                            const itemId = items.find(
+                              item => item.serviceType.id === service.id
+                            )?.id;
+                            if (itemId) handleRemoveItem(itemId);
+                          }
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <div>
+                        <Label htmlFor={service.id} className="cursor-pointer font-medium">
+                          {service.name}
+                        </Label>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Prezzo: {formatCurrency(service.price)}
+                        </p>
                       </div>
-                    ))}
+                    </div>
                   </div>
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-        </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
       
       {items.length > 0 && (

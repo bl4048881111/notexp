@@ -1,11 +1,17 @@
 import { useState, useEffect } from "react";
-import { format, parse } from "date-fns";
-import { it } from "date-fns/locale";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Quote, CreateQuoteInput, createQuoteSchema, Client, QuoteItem } from "@shared/schema";
-import { getAllClients, createQuote, updateQuote } from "@shared/firebase";
-
+import { v4 as uuidv4 } from "uuid";
+import { format } from "date-fns";
+import { Client, Quote, createQuoteSchema, QuoteItem, SparePart } from "@shared/schema";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Form,
   FormControl,
@@ -14,37 +20,46 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import { 
-  Popover, 
-  PopoverContent, 
-  PopoverTrigger 
-} from "@/components/ui/popover";
-import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Card, CardContent } from "@/components/ui/card";
+import { CalendarIcon, XCircle } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { it } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
-
+import { ComboboxDemo } from "@/components/ui/ComboboxDemo";
 import ServiceItemForm from "./ServiceItemForm";
 import SparePartForm from "./SparePartForm";
-import { useIsMobile } from "../../hooks/use-mobile";
-import { CalendarIcon, Car, FileEdit, Settings, Wrench, User } from "lucide-react";
-import { ComboboxDemo } from "../../components/ui/ComboboxDemo";
+import { createQuote, updateQuote, calculateQuoteTotals } from "@shared/firebase";
 
 interface QuoteFormProps {
   isOpen: boolean;
@@ -55,129 +70,175 @@ interface QuoteFormProps {
 
 export default function QuoteForm({ isOpen, onClose, onSuccess, quote }: QuoteFormProps) {
   const [clients, setClients] = useState<Client[]>([]);
-  const [items, setItems] = useState<QuoteItem[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [items, setItems] = useState<QuoteItem[]>(quote?.items || []);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [activeTab, setActiveTab] = useState("general");
+  const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const { toast } = useToast();
-  const isMobile = useIsMobile();
   
-  const defaultValues: Partial<CreateQuoteInput> = {
-    clientId: "",
-    clientName: "",
-    phone: "",
-    plate: "",
-    model: "",
-    date: format(new Date(), "yyyy-MM-dd"),
-    items: [],
-    subtotal: 0,
-    taxRate: 22,
-    taxAmount: 0,
-    total: 0,
-    status: "bozza",
-    notes: "",
-    createdAt: Date.now()
-  };
-  
-  const form = useForm<CreateQuoteInput>({
+  // Configurazione del form con validazione
+  const form = useForm({
     resolver: zodResolver(createQuoteSchema),
-    defaultValues: quote ? {
-      ...quote,
-      date: quote.date || format(new Date(), "yyyy-MM-dd"),
-    } : defaultValues
+    defaultValues: {
+      id: quote?.id || uuidv4(),
+      clientId: quote?.clientId || "",
+      clientName: quote?.clientName || "",
+      phone: quote?.phone || "",
+      plate: quote?.plate || "",
+      model: quote?.model || "",
+      kilometrage: quote?.kilometrage || 0,
+      date: quote?.date || format(new Date(), "yyyy-MM-dd"),
+      status: quote?.status || "bozza",
+      items: quote?.items || [],
+      subtotal: quote?.subtotal || 0,
+      taxRate: quote?.taxRate || 22,
+      taxAmount: quote?.taxAmount || 0,
+      total: quote?.total || 0,
+      notes: quote?.notes || "",
+      laborPrice: quote?.laborPrice || 45,
+      laborHours: quote?.laborHours || 0
+    }
   });
-
-  // Carica i clienti all'apertura del form
+  
+  // Effetto per caricare i clienti dalla API
   useEffect(() => {
-    const loadClients = async () => {
-      const fetchedClients = await getAllClients();
-      setClients(fetchedClients);
+    const fetchClients = async () => {
+      setIsLoading(true);
+      try {
+        // Simulated data loading
+        const response = await fetch("/api/clients");
+        if (response.ok) {
+          const data: Client[] = await response.json();
+          setClients(data);
+        }
+      } catch (error) {
+        console.error("Errore nel caricamento dei clienti:", error);
+      } finally {
+        setIsLoading(false);
+      }
     };
     
-    if (isOpen) {
-      loadClients();
+    // Check URL for auto-populate
+    const urlParams = new URLSearchParams(window.location.search);
+    const clientId = urlParams.get('clientId');
+    if (clientId) {
+      fetchClientById(clientId);
     }
-  }, [isOpen]);
+    
+    fetchClients();
+  }, []);
   
-  // Se il preventivo è stato passato per la modifica, carica i dati
+  // Effetto per impostare gli elementi del preventivo
   useEffect(() => {
     if (quote) {
-      form.reset({
-        ...quote,
-        date: quote.date || format(new Date(), "yyyy-MM-dd"),
-      });
-      
-      setItems(quote.items || []);
-      
-      const client = clients.find(c => c.id === quote.clientId);
-      if (client) {
-        setSelectedClient(client);
+      setItems(quote.items);
+      if (quote.clientId) {
+        fetchClientById(quote.clientId);
       }
-    } else {
-      form.reset(defaultValues);
-      setItems([]);
-      setSelectedClient(null);
     }
-  }, [quote, clients, form]);
+  }, [quote]);
   
-  // Aggiorna i calcoli quando cambiano gli elementi o il tasso IVA
-  useEffect(() => {
-    const subtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
+  // Funzione per recuperare un client specifico
+  const fetchClientById = async (id: string) => {
+    try {
+      const response = await fetch(`/api/clients/${id}`);
+      if (response.ok) {
+        const client: Client = await response.json();
+        setSelectedClient(client);
+        
+        form.setValue("clientId", client.id);
+        form.setValue("clientName", `${client.name} ${client.surname}`);
+        form.setValue("phone", client.phone);
+        form.setValue("plate", client.plate);
+        form.setValue("model", client.model);
+      }
+    } catch (error) {
+      console.error("Errore nel caricamento del cliente:", error);
+    }
+  };
+  
+  // Gestisce la selezione di un cliente
+  const handleSelectClient = (client: Client) => {
+    setSelectedClient(client);
+    form.setValue("clientId", client.id);
+    form.setValue("clientName", `${client.name} ${client.surname}`);
+    form.setValue("phone", client.phone);
+    form.setValue("plate", client.plate);
+    form.setValue("model", client.model);
+    setIsSearching(false);
+  };
+  
+  // Gestisce la rimozione del cliente selezionato
+  const handleClearSelectedClient = () => {
+    setSelectedClient(null);
+    form.setValue("clientId", "");
+    form.setValue("clientName", "");
+    form.setValue("phone", "");
+  };
+  
+  // Formatta il prezzo
+  const formatCurrency = (amount: number): string => {
+    return new Intl.NumberFormat('it-IT', {
+      style: 'currency',
+      currency: 'EUR'
+    }).format(amount);
+  };
+  
+  // Gestisce l'aggiornamento degli elementi del preventivo
+  const handleItemsChange = (newItems: QuoteItem[]) => {
+    setItems(newItems);
+    form.setValue("items", newItems);
+    calculateTotals(newItems);
+  };
+  
+  // Calcola i totali del preventivo
+  const calculateTotals = (quoteItems: QuoteItem[]) => {
+    const subtotal = quoteItems.reduce((sum, item) => sum + item.totalPrice, 0);
     const taxRate = form.getValues("taxRate") || 22;
     const taxAmount = (subtotal * taxRate) / 100;
     const total = subtotal + taxAmount;
     
-    form.setValue("items", items);
     form.setValue("subtotal", subtotal);
     form.setValue("taxAmount", taxAmount);
     form.setValue("total", total);
-  }, [items, form]);
-  
-  const handleSelectClient = (client: Client) => {
-    setSelectedClient(client);
-    
-    form.setValue("clientId", client.id);
-    form.setValue("clientName", `${client.name} ${client.surname}`);
-    form.setValue("phone", client.phone);
-    
-    // Se il cliente ha un veicolo, imposta i dati del veicolo
-    if (client.vehicles && client.vehicles.length > 0) {
-      const primaryVehicle = client.vehicles[0];
-      form.setValue("plate", primaryVehicle.plate);
-      form.setValue("model", primaryVehicle.model);
-    }
   };
   
-  const onSubmit = async (formData: any) => {
+  // Gestisce il submit del form
+  const onSubmit = async (data: any) => {
+    setIsLoading(true);
+    
     try {
-      // Assicurati che il preventivo abbia tutti i dati calcolati
-      const finalData = {
-        ...(quote ? { id: quote.id } : {}), // Include l'id se è un aggiornamento
-        ...formData,
+      const laborPrice = form.getValues("laborPrice");
+      const laborHours = form.getValues("laborHours");
+      
+      // Aggiorna i dati del form con gli items aggiornati
+      const quoteData = {
+        ...data,
         items,
-        subtotal: items.reduce((sum, item) => sum + item.totalPrice, 0),
-        taxAmount: (formData.subtotal * formData.taxRate) / 100,
-        total: formData.subtotal + formData.taxAmount,
-        createdAt: formData.createdAt || Date.now()
+        laborPrice,
+        laborHours
       };
       
+      // Calcola i totali finali
+      const finalQuote = calculateQuoteTotals(quoteData as Quote);
+      
+      // Salva il preventivo
       if (quote) {
-        // Aggiorna il preventivo esistente
-        await updateQuote(quote.id, finalData);
-        onSuccess();
+        await updateQuote(quote.id, finalQuote);
         toast({
           title: "Preventivo aggiornato",
           description: "Il preventivo è stato aggiornato con successo.",
         });
       } else {
-        // Crea un nuovo preventivo
-        await createQuote(finalData);
-        onSuccess();
+        await createQuote(finalQuote);
         toast({
           title: "Preventivo creato",
           description: "Il preventivo è stato creato con successo.",
         });
       }
       
+      onSuccess();
       onClose();
     } catch (error) {
       console.error("Errore durante il salvataggio del preventivo:", error);
@@ -186,354 +247,413 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote }: QuoteFo
         description: "Si è verificato un errore durante il salvataggio del preventivo.",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
-  };
-  
-  const formatDate = (date: string) => {
-    if (!date) return "";
-    try {
-      const parsedDate = parse(date, "yyyy-MM-dd", new Date());
-      return format(parsedDate, "d MMMM yyyy", { locale: it });
-    } catch (e) {
-      return date;
-    }
-  };
-  
-  const formatCurrency = (amount: number): string => {
-    return new Intl.NumberFormat('it-IT', {
-      style: 'currency',
-      currency: 'EUR'
-    }).format(amount);
   };
 
+  // Filtra i clienti in base alla ricerca
+  const filteredClients = clients.filter(client => {
+    if (!searchQuery) return false;
+    
+    const fullName = `${client.name} ${client.surname}`.toLowerCase();
+    const query = searchQuery.toLowerCase();
+    
+    return (
+      fullName.includes(query) || 
+      client.phone.includes(query) || 
+      client.plate.toLowerCase().includes(query)
+    );
+  });
+  
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold">
-            {quote ? "Modifica Preventivo" : "Nuovo Preventivo"}
-          </DialogTitle>
+          <DialogTitle>{quote ? "Modifica Preventivo" : "Nuovo Preventivo"}</DialogTitle>
           <DialogDescription>
-            {quote ? "Modifica i dettagli del preventivo" : "Inserisci i dettagli per creare un nuovo preventivo"}
+            {quote ? "Aggiorna i dettagli del preventivo" : "Crea un nuovo preventivo per un cliente"}
           </DialogDescription>
         </DialogHeader>
-
+        
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <Tabs 
-              defaultValue="general" 
-              value={activeTab} 
-              onValueChange={setActiveTab}
-              className="w-full"
-            >
-              <TabsList className="grid grid-cols-3 mb-6">
-                <TabsTrigger value="general" className="flex items-center gap-2">
-                  <FileEdit size={16} />
-                  <span>Generale</span>
-                </TabsTrigger>
-                <TabsTrigger value="services" className="flex items-center gap-2">
-                  <Wrench size={16} />
-                  <span>Servizi</span>
-                </TabsTrigger>
-                <TabsTrigger value="parts" className="flex items-center gap-2">
-                  <Settings size={16} />
-                  <span>Ricambi</span>
-                </TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="general">
-                <div className="space-y-6">
-                  <Card>
-                    <CardContent className="pt-6">
-                      <div className="flex items-center gap-2 mb-4">
-                        <User className="text-primary" />
-                        <h3 className="text-lg font-medium">Cliente</h3>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                        <div className="col-span-1 md:col-span-2">
-                          <FormLabel>Seleziona cliente</FormLabel>
-                          {clients.length > 0 ? (
-                            <ComboboxDemo
-                              items={clients.map(client => ({
-                                value: client.id,
-                                label: `${client.name} ${client.surname} - ${client.phone}`
-                              }))}
-                              value={selectedClient ? selectedClient.id : ""}
-                              onChange={(value: string) => {
-                                const client = clients.find(c => c.id === value);
-                                if (client) handleSelectClient(client);
-                              }}
-                              placeholder="Cerca cliente..."
-                            />
-                          ) : (
-                            <div className="text-muted-foreground">Caricamento clienti...</div>
-                          )}
-                        </div>
-                        
-                        <FormField
-                          control={form.control}
-                          name="clientName"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Nome cliente</FormLabel>
-                              <FormControl>
-                                <Input {...field} placeholder="Nome e cognome" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        <FormField
-                          control={form.control}
-                          name="phone"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Telefono</FormLabel>
-                              <FormControl>
-                                <Input {...field} placeholder="Numero di telefono" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                      
-                      <div className="flex items-center gap-2 mb-4">
-                        <Car className="text-primary" />
-                        <h3 className="text-lg font-medium">Veicolo</h3>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                        <FormField
-                          control={form.control}
-                          name="plate"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Targa</FormLabel>
-                              <FormControl>
-                                <Input {...field} placeholder="Targa veicolo" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        <FormField
-                          control={form.control}
-                          name="model"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Veicolo</FormLabel>
-                              <FormControl>
-                                <Input {...field} placeholder="Marca e modello" />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                      
-                      <div className="flex items-center gap-2 mb-4">
-                        <CalendarIcon className="text-primary" />
-                        <h3 className="text-lg font-medium">Data</h3>
-                      </div>
-                      
-                      <div className="mb-2">
-                        <FormField
-                          control={form.control}
-                          name="date"
-                          render={({ field }) => (
-                            <FormItem className="flex flex-col">
-                              <FormLabel>Data preventivo</FormLabel>
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <FormControl>
-                                    <Button
-                                      variant={"outline"}
-                                      className={`w-full pl-3 text-left font-normal ${
-                                        !field.value ? "text-muted-foreground" : ""
-                                      }`}
-                                    >
-                                      {field.value ? (
-                                        formatDate(field.value)
-                                      ) : (
-                                        <span>Seleziona una data</span>
-                                      )}
-                                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                    </Button>
-                                  </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-auto p-0" align="start">
-                                  <Calendar
-                                    mode="single"
-                                    selected={field.value ? new Date(field.value) : undefined}
-                                    onSelect={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
-                                    disabled={(date) => date < new Date("1900-01-01")}
-                                    initialFocus
-                                  />
-                                </PopoverContent>
-                              </Popover>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                        <FormField
-                          control={form.control}
-                          name="notes"
-                          render={({ field }) => (
-                            <FormItem className="col-span-1 md:col-span-2">
-                              <FormLabel>Note</FormLabel>
-                              <FormControl>
-                                <Textarea
-                                  {...field}
-                                  placeholder="Note aggiuntive (opzionale)"
-                                  className="min-h-[100px]"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
+            {/* Sezione Info Cliente */}
+            <div className="space-y-4">
+              {selectedClient ? (
+                <div className="flex justify-between items-center border p-4 rounded-md bg-muted/40">
+                  <div>
+                    <h3 className="font-medium">{selectedClient.name} {selectedClient.surname}</h3>
+                    <div className="text-sm text-muted-foreground mt-1 space-y-1">
+                      <p>Tel: {selectedClient.phone}</p>
+                      <p>Veicolo: {selectedClient.model} ({selectedClient.plate})</p>
+                    </div>
+                  </div>
+                  <Button 
+                    type="button" 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={handleClearSelectedClient}
+                  >
+                    <XCircle className="h-4 w-4 mr-1" />
+                    <span>Cambia</span>
+                  </Button>
                 </div>
-              </TabsContent>
-              
-              <TabsContent value="services">
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center gap-2 mb-4">
-                      <Wrench className="text-primary" />
-                      <h3 className="text-lg font-medium">Servizi</h3>
-                    </div>
-                    
-                    <ServiceItemForm
-                      items={items}
-                      onChange={setItems}
-                    />
-                  </CardContent>
-                </Card>
-              </TabsContent>
-              
-              <TabsContent value="parts">
-                <Card>
-                  <CardContent className="pt-6">
-                    <div className="flex items-center gap-2 mb-4">
-                      <Settings className="text-primary" />
-                      <h3 className="text-lg font-medium">Riepilogo Ricambi</h3>
-                    </div>
-                    
-                    {items.length === 0 ? (
-                      <div className="text-center py-12 text-muted-foreground">
-                        <Settings className="mx-auto h-12 w-12 opacity-20 mb-2" />
-                        <p>Nessun servizio selezionato con ricambi</p>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="mt-4"
-                          onClick={() => setActiveTab("services")}
-                        >
-                          Vai a Servizi
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="space-y-6">
-                        {items.map((item, index) => (
-                          <div key={item.id} className="border rounded-md p-4">
-                            <div className="flex justify-between items-center mb-2">
-                              <h4 className="font-medium text-primary">{index + 1}. {item.serviceType.name}</h4>
-                              <span className="text-sm bg-muted px-2 py-0.5 rounded">{item.serviceType.category}</span>
-                            </div>
-                            
-                            <SparePartForm
-                              parts={item.parts}
-                              onChange={(parts) => {
-                                const updatedItems = [...items];
-                                updatedItems[index] = {
-                                  ...item,
-                                  parts,
-                                  totalPrice: 
-                                    (item.laborPrice * item.laborHours) + 
-                                    parts.reduce((sum, part) => sum + part.finalPrice, 0)
-                                };
-                                setItems(updatedItems);
-                              }}
-                            />
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <Label className="mb-2 block">Cerca cliente</Label>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Input
+                          placeholder="Cerca per nome, targa o telefono"
+                          value={searchQuery}
+                          onChange={(e) => {
+                            setSearchQuery(e.target.value);
+                            setIsSearching(e.target.value.length > 0);
+                          }}
+                          className="w-full"
+                        />
+                        {isSearching && (
+                          <div className="absolute top-full mt-1 left-0 right-0 border rounded-md bg-background shadow-md z-10 max-h-52 overflow-y-auto">
+                            {filteredClients.length === 0 ? (
+                              <div className="p-2 text-center text-sm text-muted-foreground">
+                                Nessun cliente trovato
+                              </div>
+                            ) : (
+                              <div>
+                                {filteredClients.map((client) => (
+                                  <div
+                                    key={client.id}
+                                    className="p-2 cursor-pointer hover:bg-accent flex justify-between items-center"
+                                    onClick={() => handleSelectClient(client)}
+                                  >
+                                    <div>
+                                      <div className="font-medium">
+                                        {client.name} {client.surname}
+                                      </div>
+                                      <div className="text-sm text-muted-foreground">
+                                        {client.model} ({client.plate})
+                                      </div>
+                                    </div>
+                                    <div className="text-sm text-muted-foreground">
+                                      {client.phone}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
-                        ))}
+                        )}
                       </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
-            
-            <div className="bg-muted/20 border rounded-md p-4 mt-4">
-              <div className="flex justify-between items-center mb-2">
-                <span className="font-medium">Subtotale:</span>
-                <span>{formatCurrency(form.getValues("subtotal"))}</span>
-              </div>
-              
-              <div className="flex justify-between items-center mb-2">
-                <div className="flex items-center gap-2">
-                  <span>IVA:</span>
-                  <FormField
-                    control={form.control}
-                    name="taxRate"
-                    render={({ field }) => (
-                      <FormItem className="mb-0">
-                        <FormControl>
-                          <Input
-                            {...field}
-                            type="number"
-                            className="w-16 h-8 text-right"
-                            onChange={(e) => {
-                              const value = parseInt(e.target.value);
-                              field.onChange(value || 0);
-                              
-                              // Ricalcola l'importo dell'IVA e il totale
-                              const subtotal = form.getValues("subtotal");
-                              const taxAmount = (subtotal * (value || 0)) / 100;
-                              form.setValue("taxAmount", taxAmount);
-                              form.setValue("total", subtotal + taxAmount);
-                            }}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                  <span>%</span>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="clientName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Nome Cliente</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="Nome completo" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="phone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Telefono</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="Numero di telefono" type="tel" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="plate"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Targa</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="Targa del veicolo" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="model"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Modello</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder="Modello del veicolo" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </div>
-                <span>{formatCurrency(form.getValues("taxAmount"))}</span>
-              </div>
+              )}
               
-              <Separator className="my-2" />
-              
-              <div className="flex justify-between items-center">
-                <span className="font-bold text-lg">Totale:</span>
-                <span className="font-bold text-lg">
-                  {formatCurrency(form.getValues("total"))}
-                </span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="kilometrage"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Chilometraggio</FormLabel>
+                      <FormControl>
+                        <Input {...field} placeholder="Chilometraggio attuale" type="number" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="date"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Data</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-full pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value ? (
+                                format(new Date(field.value), "PPP", {
+                                  locale: it,
+                                })
+                              ) : (
+                                <span>Seleziona una data</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={new Date(field.value)}
+                            onSelect={(date) => {
+                              if (date) {
+                                field.onChange(format(date, "yyyy-MM-dd"));
+                              }
+                            }}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
             </div>
             
-            <div className="flex justify-end gap-2 mt-4">
+            <Separator />
+            
+            {/* Sezione Servizi */}
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold">Aggiungi Servizi</h2>
+              <ServiceItemForm
+                items={items}
+                onChange={handleItemsChange}
+              />
+            </div>
+            
+            <Separator />
+            
+            {/* Sezione Riepilogo */}
+            <div className="space-y-4">
+              <h2 className="text-xl font-semibold">Riepilogo</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <h3 className="font-medium">Manodopera</h3>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="laborPrice"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Tariffa oraria</FormLabel>
+                            <FormControl>
+                              <div className="flex items-center space-x-2">
+                                <Input 
+                                  {...field} 
+                                  type="number" 
+                                  min={0} 
+                                  onChange={(e) => {
+                                    const value = parseFloat(e.target.value);
+                                    field.onChange(value);
+                                    // Ricalcola i totali quando cambia la tariffa
+                                    const hours = form.getValues("laborHours") || 0;
+                                    const laborTotal = value * hours;
+                                    const newTotal = form.getValues("subtotal") + laborTotal;
+                                    form.setValue("total", newTotal);
+                                  }}
+                                />
+                                <span>€/ora</span>
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="laborHours"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Ore totali</FormLabel>
+                            <FormControl>
+                              <div className="flex items-center space-x-2">
+                                <Input 
+                                  {...field} 
+                                  type="number" 
+                                  min={0} 
+                                  step={0.5} 
+                                  onChange={(e) => {
+                                    const value = parseFloat(e.target.value);
+                                    field.onChange(value);
+                                    // Ricalcola i totali quando cambiano le ore
+                                    const price = form.getValues("laborPrice") || 0;
+                                    const laborTotal = price * value;
+                                    const newTotal = form.getValues("subtotal") + laborTotal;
+                                    form.setValue("total", newTotal);
+                                  }}
+                                />
+                                <span>ore</span>
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    
+                    <FormField
+                      control={form.control}
+                      name="notes"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Note</FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              {...field} 
+                              placeholder="Note aggiuntive per il preventivo"
+                              className="h-24"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+                
+                <div>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Totale Preventivo</CardTitle>
+                      <CardDescription>Riepilogo dei costi</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex justify-between">
+                        <span>Subtotale Servizi:</span>
+                        <span>{formatCurrency(form.getValues("subtotal") || 0)}</span>
+                      </div>
+                      
+                      <div className="flex justify-between">
+                        <span>Manodopera extra:</span>
+                        <span>
+                          {formatCurrency((form.getValues("laborPrice") || 0) * (form.getValues("laborHours") || 0))}
+                        </span>
+                      </div>
+                      
+                      <div className="flex justify-between">
+                        <span>IVA ({form.getValues("taxRate")}%):</span>
+                        <span>{formatCurrency(form.getValues("taxAmount") || 0)}</span>
+                      </div>
+                      
+                      <Separator />
+                      
+                      <div className="flex justify-between font-bold text-lg">
+                        <span>TOTALE:</span>
+                        <span>
+                          {formatCurrency(
+                            (form.getValues("total") || 0) + 
+                            (form.getValues("laborPrice") || 0) * (form.getValues("laborHours") || 0)
+                          )}
+                        </span>
+                      </div>
+                    </CardContent>
+                    <CardFooter className="flex justify-between">
+                      <FormField
+                        control={form.control}
+                        name="status"
+                        render={({ field }) => (
+                          <FormItem className="w-full">
+                            <div className="flex items-center space-x-4">
+                              <FormLabel className="w-24">Stato:</FormLabel>
+                              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Seleziona uno stato" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="bozza">Bozza</SelectItem>
+                                  <SelectItem value="inviato">Inviato</SelectItem>
+                                  <SelectItem value="accettato">Accettato</SelectItem>
+                                  <SelectItem value="rifiutato">Rifiutato</SelectItem>
+                                  <SelectItem value="scaduto">Scaduto</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </CardFooter>
+                  </Card>
+                </div>
+              </div>
+            </div>
+            
+            <DialogFooter>
               <Button type="button" variant="outline" onClick={onClose}>
                 Annulla
               </Button>
-              <Button 
-                type="submit" 
-                className="bg-primary hover:bg-primary/90"
-              >
-                {quote ? "Aggiorna Preventivo" : "Crea Preventivo"}
+              <Button type="submit" disabled={isLoading}>
+                {quote ? "Aggiorna" : "Salva"} Preventivo
               </Button>
-            </div>
+            </DialogFooter>
           </form>
         </Form>
       </DialogContent>
