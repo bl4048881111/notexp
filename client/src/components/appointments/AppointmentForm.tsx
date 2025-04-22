@@ -539,9 +539,9 @@ export default function AppointmentForm({
                 </div>
               )}
               
-              {/* Sezione Data/Ora e Note */}
+              {/* Sezione Data/Ora e Note come ultimo step */}
               {selectedClient && (
-                <div className="space-y-4">
+                <div className="space-y-4 mt-6 pt-6 border-t">
                   <div className="flex justify-between items-center">
                     <h2 className="text-lg font-semibold flex items-center">
                       <Calendar className="h-5 w-5 mr-1.5 text-primary" />
@@ -612,7 +612,7 @@ export default function AppointmentForm({
                         <FormControl>
                           <Textarea 
                             placeholder="Aggiungi informazioni importanti riguardo l'appuntamento..." 
-                            className="resize-none border-primary/20 focus-visible:ring-primary/30 min-h-[100px]" 
+                            className="resize-none border-primary/20 focus-visible:ring-primary/30 min-h-[80px]" 
                             {...field} 
                           />
                         </FormControl>
