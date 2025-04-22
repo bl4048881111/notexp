@@ -21,19 +21,17 @@ export default function SparePartsEntryForm({
   // Stati locali
   const [activeTab, setActiveTab] = useState<string | null>(initialActiveTab);
   
-  // Aggiorna il tab attivo quando cambia initialActiveTab
+  // Aggiorna il tab attivo quando cambia initialActiveTab (versione semplificata per evitare loop)
   useEffect(() => {
     console.log("initialActiveTab:", initialActiveTab);
     if (initialActiveTab) {
       setActiveTab(initialActiveTab);
-      
-      // Assicurati che un tab sia selezionato se ci sono servizi disponibili
-      if (!activeTab && items.length > 0) {
-        setActiveTab(items[0].id);
-        if (onActiveTabChange) onActiveTabChange(items[0].id);
-      }
+    } else if (items.length > 0 && !activeTab) {
+      // Imposta il tab attivo solo se non è già impostato e ci sono items
+      setActiveTab(items[0].id);
     }
-  }, [initialActiveTab, items, activeTab, onActiveTabChange]);
+    // Nota: rimosso onActiveTabChange per evitare cicli di callback
+  }, [initialActiveTab, items.length]); // Dipendenze ridotte per evitare loop
   const [articleCode, setArticleCode] = useState<string>("");
   const [articleDescription, setArticleDescription] = useState<string>("");
   const [articleBrand, setArticleBrand] = useState<string>("");

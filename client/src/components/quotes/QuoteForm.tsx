@@ -659,7 +659,12 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                   items={items}
                   onChange={handleItemsChange}
                   initialActiveTab={activeTab}
-                  onActiveTabChange={setActiveTab}
+                  onActiveTabChange={(tabId) => {
+                    // Previene cambiamenti di tab durante l'inizializzazione
+                    if (tabId !== activeTab) {
+                      setActiveTab(tabId);
+                    }
+                  }}
                 />
                 
                 <div className="flex justify-between space-x-2 pt-4">
