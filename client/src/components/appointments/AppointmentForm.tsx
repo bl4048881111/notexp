@@ -328,15 +328,11 @@ export default function AppointmentForm({
                       ) : (
                         <div className="space-y-4">
                           <div>
-                            <div className="relative">
-                              <div className="relative rounded-lg shadow-sm">
-                                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                  </svg>
-                                </div>
+                            <Label className="mb-2 block">Cerca cliente</Label>
+                            <div className="flex gap-2">
+                              <div className="relative flex-1">
                                 <Input
-                                  placeholder="Cerca cliente per nome, targa o telefono..."
+                                  placeholder="Cerca per nome, targa o telefono"
                                   value={searchQuery}
                                   onChange={(e) => {
                                     setSearchQuery(e.target.value);
@@ -369,60 +365,37 @@ export default function AppointmentForm({
                                       }
                                     }
                                   }}
-                                  className="pl-11 py-5 text-base border-2 border-primary/40 focus-visible:ring-primary/60 bg-primary/5 text-foreground font-medium rounded-lg"
+                                  className="w-full"
                                 />
                               </div>
                               
                               {isSearching && (
-                                <div className="absolute top-full mt-4 left-0 right-0 border-2 border-primary/60 rounded-lg bg-black shadow-xl z-10 max-h-[250px] overflow-auto scrollbar-hide">
+                                <div className="absolute top-full mt-1 left-0 right-0 border rounded-md bg-background shadow-md z-10 max-h-52 overflow-y-auto">
                                   {filteredClients.length === 0 ? (
-                                    <div className="p-4 text-center text-sm text-foreground">
-                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mx-auto mb-2 text-primary/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M12 13h.01M12 18a6 6 0 100-12 6 6 0 000 12z" />
-                                      </svg>
+                                    <div className="p-2 text-center text-sm text-muted-foreground">
                                       Nessun cliente trovato
                                     </div>
                                   ) : (
-                                    <div className="p-1 rounded-lg bg-black">
-                                      {filteredClients.slice(0, 5).map((client, index) => (
-                                        <div key={client.id}>
-                                          <div
-                                            className={`p-1.5 cursor-pointer transition-colors ${
-                                              index === selectedIndex ? "bg-primary text-white border border-primary shadow-md" : "hover:bg-gray-800 bg-black border border-gray-700"
-                                            } rounded-lg mb-1`}
-                                            onClick={() => handleSelectClient(client)}
-                                          >
-                                            <div className="flex justify-between items-center">
-                                              <div className="flex items-center gap-3">
-                                                <div className="bg-primary p-1 rounded-full">
-                                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-background" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                  </svg>
-                                                </div>
-                                                <div>
-                                                  <div className="font-bold text-sm text-white">{client.name} {client.surname}</div>
-                                                  <div className="text-sm text-gray-300 flex items-center mt-1.5">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5 text-primary/80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                                                    </svg>
-                                                    {client.phone}
-                                                  </div>
-                                                </div>
-                                              </div>
-                                              <div className="flex flex-col items-end">
-                                                <div className="inline-flex items-center bg-primary border border-primary rounded-md px-2 py-1 text-background text-xs font-bold">
-                                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1 text-background" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                                                  </svg>
-                                                  {client.plate}
-                                                </div>
-                                                <div className="mt-1 text-xs text-gray-300">{client.model}</div>
-                                              </div>
+                                    <div>
+                                      {filteredClients.map((client, index) => (
+                                        <div
+                                          key={client.id}
+                                          className={`p-2 cursor-pointer flex justify-between items-center ${
+                                            selectedIndex === index ? "bg-accent" : "hover:bg-accent/50"
+                                          }`}
+                                          onClick={() => handleSelectClient(client)}
+                                        >
+                                          <div>
+                                            <div className="font-medium">
+                                              {client.name} {client.surname}
+                                            </div>
+                                            <div className="text-sm text-muted-foreground">
+                                              {client.model} ({client.plate})
                                             </div>
                                           </div>
-                                          {index < filteredClients.length - 1 && (
-                                            <div className="border-t border-gray-700 my-2"></div>
-                                          )}
+                                          <div className="text-sm text-muted-foreground">
+                                            {client.phone}
+                                          </div>
                                         </div>
                                       ))}
                                     </div>
