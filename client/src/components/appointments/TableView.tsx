@@ -131,11 +131,11 @@ export default function TableView({
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "programmato":
-        return <Badge variant="outline" className="bg-blue-950/50 text-blue-200 border-blue-700">Programmato</Badge>;
+        return <Badge variant="outline" className="bg-gray-900 text-orange-400 border-orange-500">Programmato</Badge>;
       case "completato":
-        return <Badge variant="outline" className="bg-green-950/50 text-green-200 border-green-700">Completato</Badge>;
+        return <Badge variant="outline" className="bg-gray-900 text-gray-300 border-gray-700">Completato</Badge>;
       case "annullato":
-        return <Badge variant="outline" className="bg-red-950/50 text-red-200 border-red-700">Annullato</Badge>;
+        return <Badge variant="outline" className="bg-gray-900 text-gray-500 border-gray-800">Annullato</Badge>;
       default:
         return <Badge>{status}</Badge>;
     }
@@ -198,7 +198,7 @@ export default function TableView({
                   <TableCell onClick={() => handleViewAppointment(appointment)}>
                     <div className="flex flex-wrap gap-1">
                       {appointment.services && appointment.services.map((service, index) => (
-                        <Badge key={index} variant="outline" className="bg-primary/10 border-primary text-xs">
+                        <Badge key={index} variant="outline" className="bg-gray-900 border-orange-500 text-orange-400 text-xs">
                           {service}
                         </Badge>
                       ))}
@@ -337,7 +337,7 @@ export default function TableView({
                   <div className="flex flex-wrap gap-2">
                     {viewAppointment.services && viewAppointment.services.length > 0 ? (
                       viewAppointment.services.map((service, index) => (
-                        <Badge key={index} variant="outline" className="bg-primary/10 border-primary">
+                        <Badge key={index} variant="outline" className="bg-gray-900 border-orange-500 text-orange-400">
                           {service}
                         </Badge>
                       ))
