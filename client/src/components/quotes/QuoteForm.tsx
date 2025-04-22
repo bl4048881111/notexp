@@ -4,7 +4,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { v4 as uuidv4 } from "uuid";
 import { format } from "date-fns";
 import { Client, Quote, createQuoteSchema, QuoteItem, SparePart } from "@shared/schema";
-import { getAllClients, getClientById, createQuote, updateQuote, calculateQuoteTotals } from "@shared/firebase";
+import { getAllClients, getClientById, createQuote, updateQuote } from "@shared/firebase";
+import { calculateQuoteTotals, calculateItemTotal } from "./QuoteCalculator";
 import {
   Dialog,
   DialogContent,
@@ -193,19 +194,24 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
     setItems(newItems);
   }, []);
   
-  // Versione minimale senza side effects che potrebbero causare rerender
+  // Versione migliorata che include manodopera nei totali
   function calculateTotals(quoteItems: QuoteItem[]) {
-    // Semplice calcolo di base
+    // Utilizziamo la funzione helper per calcolare i totali dei singoli item
     let subtotal = 0;
     
-    // Sommiamo solo i prezzi dei ricambi
     for (const item of quoteItems) {
-      if (item && typeof item.totalPrice === 'number') {
-        subtotal += item.totalPrice;
+      // Usa la funzione helper che somma ricambi + manodopera
+      const itemTotal = calculateItemTotal(item);
+      subtotal += itemTotal;
+      
+      // Aggiorniamo il totalPrice dell'item (utile per la visualizzazione)
+      if (item && item.totalPrice !== itemTotal) {
+        console.log(`Aggiornato totale per ${item.serviceType.name}: da ${item.totalPrice} a ${itemTotal}`);
+        item.totalPrice = itemTotal;
       }
     }
     
-    // Teniamo i calcoli dell'IVA ma non modifichiamo nulla
+    // Calcoli dell'IVA
     const taxRate = 22; // Valore fisso per evitare form.getValues()
     const taxAmount = (subtotal * taxRate) / 100;
     const total = subtotal + taxAmount;
@@ -629,6 +635,38 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                 <div className="flex justify-between items-center">
                   <h2 className="text-xl font-semibold">Inserimento Ricambi</h2>
                   <div className="text-sm text-muted-foreground">Passo 3 di 4</div>
+                </div>
+                
+                {/* Componente per la gestione dei ricambi */}
+                <div className="mb-4">
+                  <FormField
+                    control={form.control}
+                    name="laborPrice"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Costo orario manodopera (€)</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            type="number"
+                            min={0}
+                            onChange={(e) => {
+                              const value = parseFloat(e.target.value);
+                              field.onChange(isNaN(value) ? 0 : value);
+                              
+                              // Aggiorna tutti gli item con il nuovo costo orario
+                              const newItems = items.map(item => ({
+                                ...item,
+                                laborPrice: isNaN(value) ? 0 : value
+                              }));
+                              setItems(newItems);
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </div>
                 
                 <StaticSparePartsForm
