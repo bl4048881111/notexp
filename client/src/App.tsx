@@ -12,6 +12,7 @@ import DashboardPage from "./pages/DashboardPage";
 import ClientsPage from "./pages/ClientsPage";
 import AppointmentsPage from "./pages/AppointmentsPage";
 import QuotesPage from "./pages/QuotesPage";
+import ServiceManagementPage from "./pages/ServiceManagementPage";
 import NotFound from "@/pages/not-found";
 import { useAuth } from "./hooks/useAuth";
 

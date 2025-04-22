@@ -267,7 +267,7 @@ export default function SparePartsEntryForm({
                     </thead>
                     <tbody>
                       {activeService.parts.map((part, index) => (
-                        <tr key={part.id} className={`border-b ${index % 2 === 0 ? 'bg-white' : 'bg-primary/5'}`}>
+                        <tr key={part.id} className={`border-b ${index % 2 === 0 ? 'bg-zinc-100' : 'bg-primary/10'}`}>
                           <td className="p-2 font-medium">{part.code}</td>
                           <td className="p-2">
                             {part.name}
