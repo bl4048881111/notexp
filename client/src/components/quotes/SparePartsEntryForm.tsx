@@ -23,10 +23,17 @@ export default function SparePartsEntryForm({
   
   // Aggiorna il tab attivo quando cambia initialActiveTab
   useEffect(() => {
+    console.log("initialActiveTab:", initialActiveTab);
     if (initialActiveTab) {
       setActiveTab(initialActiveTab);
+      
+      // Assicurati che un tab sia selezionato se ci sono servizi disponibili
+      if (!activeTab && items.length > 0) {
+        setActiveTab(items[0].id);
+        if (onActiveTabChange) onActiveTabChange(items[0].id);
+      }
     }
-  }, [initialActiveTab]);
+  }, [initialActiveTab, items, activeTab, onActiveTabChange]);
   const [articleCode, setArticleCode] = useState<string>("");
   const [articleDescription, setArticleDescription] = useState<string>("");
   const [articleBrand, setArticleBrand] = useState<string>("");
@@ -86,6 +93,7 @@ export default function SparePartsEntryForm({
   // Salva le modifiche al ricambio o ne aggiunge uno nuovo
   const handleSavePartChanges = useCallback(() => {
     if (!activeService || !articleCode || articlePrice === "" || articleQuantity === "") {
+      console.warn("Dati ricambio incompleti:", { activeService, articleCode, articlePrice, articleQuantity });
       return;
     }
     
@@ -95,6 +103,10 @@ export default function SparePartsEntryForm({
     
     // Determina se è un'aggiunta o una modifica
     const isEditing = editingPartId !== null;
+    
+    // Debug
+    console.log(`${isEditing ? 'Modifica' : 'Aggiunta'} ricambio nel servizio:`, activeService.serviceType.name);
+    console.log(`Dati del ricambio: Codice=${articleCode}, Desc=${articleDescription}, Prezzo=${price}, Qtà=${quantity}`);
     
     let updatedItems;
     

@@ -284,6 +284,14 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
   // Stato per tenere traccia del tab attivo nella sezione ricambi
   const [activeTab, setActiveTab] = useState<string>(items.length > 0 ? items[0].id : "");
   
+  // Debug per vedere cosa succede con i ricambi
+  useEffect(() => {
+    console.log("Items aggiornati:", items);
+    items.forEach(item => {
+      console.log(`Servizio ${item.serviceType.name} ha ${item.parts?.length || 0} ricambi`);
+    });
+  }, [items]);
+  
   // Funzione per andare al passaggio successivo
   const goToNextStep = () => {
     setCurrentStep(prev => Math.min(prev + 1, totalSteps));
