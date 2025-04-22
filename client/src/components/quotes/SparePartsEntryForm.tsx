@@ -35,6 +35,7 @@ export default function SparePartsEntryForm({
   
   // Seleziona il primo servizio senza ricambi se non c'è un servizio corrente selezionato
   useEffect(() => {
+    // Eseguiamo questa logica solo una volta all'inizializzazione
     if (currentServiceIndex === null && items.length > 0) {
       // Trova il primo elemento che non ha ricambi
       const firstWithoutParts = items.findIndex(item => item.parts.length === 0);
@@ -45,7 +46,7 @@ export default function SparePartsEntryForm({
         setCurrentServiceIndex(0);
       }
     }
-  }, [items, currentServiceIndex]);
+  }, [items]);
   
   // Reset dei campi del form
   const resetForm = () => {
@@ -68,6 +69,13 @@ export default function SparePartsEntryForm({
       return;
     }
     
+    // Converti i valori in numeri
+    const price = typeof articlePrice === "string" ? parseFloat(articlePrice) || 0 : articlePrice;
+    const quantity = typeof articleQuantity === "string" ? parseFloat(articleQuantity) || 1 : articleQuantity;
+    const laborHoursNum = typeof laborHours === "string" ? 
+                         (parseFloat(laborHours) || currentItem.laborHours) : 
+                         (laborHours || currentItem.laborHours);
+    
     // Crea la parte manuale
     const manualPart: SparePart = {
       id: uuidv4(),
@@ -75,31 +83,28 @@ export default function SparePartsEntryForm({
       name: articleDescription || `${currentItem.serviceType.name} - Codice: ${articleCode}`,
       brand: articleBrand || undefined,
       category: currentItem.serviceType.category.toLowerCase(),
-      quantity: typeof articleQuantity === "string" ? parseFloat(articleQuantity) || 1 : articleQuantity,
-      unitPrice: typeof articlePrice === "string" ? parseFloat(articlePrice) || 0 : articlePrice,
-      finalPrice: (typeof articlePrice === "string" ? parseFloat(articlePrice) || 0 : articlePrice) * 
-                 (typeof articleQuantity === "string" ? parseFloat(articleQuantity) || 1 : articleQuantity)
+      quantity: quantity,
+      unitPrice: price,
+      finalPrice: price * quantity
     };
-    
-    // Aggiorna il prezzo della manodopera
-    const laborHoursNum = typeof laborHours === "string" ? 
-                         (parseFloat(laborHours) || currentItem.laborHours) : 
-                         (laborHours || currentItem.laborHours);
     
     // Calcola il prezzo totale
     const partsPrice = currentItem.parts.reduce((sum, part) => sum + part.finalPrice, 0) + manualPart.finalPrice;
     const laborCost = laborPrice * laborHoursNum;
     const totalPrice = laborCost + partsPrice;
     
-    // Aggiorna l'elemento corrente
-    const updatedItems = [...items];
-    updatedItems[currentServiceIndex] = {
+    // Crea una copia profonda dell'elemento corrente per evitare modifiche dirette
+    const updatedItem = {
       ...currentItem,
       laborPrice,
       laborHours: laborHoursNum,
       parts: [...currentItem.parts, manualPart],
       totalPrice
     };
+    
+    // Aggiorna l'elemento corrente
+    const updatedItems = [...items];
+    updatedItems[currentServiceIndex] = updatedItem;
     
     // Aggiorna lo stato
     onChange(updatedItems);
@@ -120,13 +125,17 @@ export default function SparePartsEntryForm({
     const laborCost = currentItem.laborPrice * currentItem.laborHours;
     const totalPrice = laborCost + partsPrice;
     
-    // Aggiorna l'elemento
-    const updatedItems = [...items];
-    updatedItems[itemIndex] = {
+    // Crea un nuovo oggetto aggiornato
+    const updatedItem = {
       ...currentItem,
       parts: updatedParts,
       totalPrice
     };
+    
+    // Aggiorna tutti gli elementi con una copia completa
+    const updatedItems = items.map((item, idx) => 
+      idx === itemIndex ? updatedItem : item
+    );
     
     // Aggiorna lo stato
     onChange(updatedItems);
@@ -134,6 +143,11 @@ export default function SparePartsEntryForm({
   
   // Seleziona un servizio per l'inserimento ricambi
   const handleSelectService = (index: number) => {
+    // Preveniamo cambiamenti inutili se è già selezionato
+    if (index === currentServiceIndex) {
+      return;
+    }
+    
     setCurrentServiceIndex(index);
     resetForm();
     
