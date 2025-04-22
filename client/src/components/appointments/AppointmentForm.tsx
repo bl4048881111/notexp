@@ -302,48 +302,64 @@ export default function AppointmentForm({
                 ) : (
                   <div className="space-y-4">
                     <div>
-                      <Label className="mb-2 block">Cerca cliente</Label>
+                      <Label className="mb-2 block flex items-center gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        Cerca cliente
+                      </Label>
                       <div className="relative">
-                        <Input
-                          placeholder="Cerca per nome, targa o telefono (ricerca case-sensitive)"
-                          value={searchQuery}
-                          onChange={(e) => {
-                            setSearchQuery(e.target.value);
-                            setIsSearching(e.target.value.length > 0);
-                            setSelectedIndex(-1); // Reset selected index when typing
-                          }}
-                          onKeyDown={(e) => {
-                            if (isSearching && filteredClients.length > 0) {
-                              // Freccia giù
-                              if (e.key === 'ArrowDown') {
-                                e.preventDefault();
-                                setSelectedIndex(prev => 
-                                  prev < filteredClients.length - 1 ? prev + 1 : prev
-                                );
+                        <div className="relative rounded-md shadow-sm">
+                          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-primary/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                          </div>
+                          <Input
+                            placeholder="Cerca per nome, targa o telefono (ricerca case-sensitive)"
+                            value={searchQuery}
+                            onChange={(e) => {
+                              setSearchQuery(e.target.value);
+                              setIsSearching(e.target.value.length > 0);
+                              setSelectedIndex(-1); // Reset selected index when typing
+                            }}
+                            onKeyDown={(e) => {
+                              if (isSearching && filteredClients.length > 0) {
+                                // Freccia giù
+                                if (e.key === 'ArrowDown') {
+                                  e.preventDefault();
+                                  setSelectedIndex(prev => 
+                                    prev < filteredClients.length - 1 ? prev + 1 : prev
+                                  );
+                                }
+                                // Freccia su
+                                else if (e.key === 'ArrowUp') {
+                                  e.preventDefault();
+                                  setSelectedIndex(prev => prev > 0 ? prev - 1 : 0);
+                                }
+                                // Invio per selezionare
+                                else if (e.key === 'Enter' && selectedIndex >= 0) {
+                                  e.preventDefault();
+                                  handleSelectClient(filteredClients[selectedIndex]);
+                                }
+                                // Esc per chiudere
+                                else if (e.key === 'Escape') {
+                                  e.preventDefault();
+                                  setIsSearching(false);
+                                }
                               }
-                              // Freccia su
-                              else if (e.key === 'ArrowUp') {
-                                e.preventDefault();
-                                setSelectedIndex(prev => prev > 0 ? prev - 1 : 0);
-                              }
-                              // Invio per selezionare
-                              else if (e.key === 'Enter' && selectedIndex >= 0) {
-                                e.preventDefault();
-                                handleSelectClient(filteredClients[selectedIndex]);
-                              }
-                              // Esc per chiudere
-                              else if (e.key === 'Escape') {
-                                e.preventDefault();
-                                setIsSearching(false);
-                              }
-                            }
-                          }}
-                          className="w-full"
-                        />
+                            }}
+                            className="pl-10 border-primary/20 focus-visible:ring-primary/30"
+                          />
+                        </div>
+                        
                         {isSearching && (
-                          <div className="absolute top-full mt-1 left-0 right-0 border rounded-md bg-background shadow-md z-10 max-h-52 overflow-y-auto">
+                          <div className="absolute top-full mt-1 left-0 right-0 border border-primary/20 rounded-md bg-background shadow-md z-10 max-h-52 overflow-y-auto">
                             {filteredClients.length === 0 ? (
-                              <div className="p-2 text-center text-sm text-muted-foreground">
+                              <div className="p-4 text-center text-sm text-muted-foreground">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M12 13h.01M12 18a6 6 0 100-12 6 6 0 000 12z" />
+                                </svg>
                                 Nessun cliente trovato
                               </div>
                             ) : (
@@ -351,15 +367,32 @@ export default function AppointmentForm({
                                 {filteredClients.map((client, index) => (
                                   <div
                                     key={client.id}
-                                    className={`p-2 cursor-pointer hover:bg-accent ${
-                                      index === selectedIndex ? "bg-accent" : ""
-                                    } ${index !== filteredClients.length - 1 ? "border-b" : ""}`}
+                                    className={`p-3 cursor-pointer transition-colors ${
+                                      index === selectedIndex ? "bg-primary/10" : "hover:bg-accent"
+                                    } ${index !== filteredClients.length - 1 ? "border-b border-primary/10" : ""}`}
                                     onClick={() => handleSelectClient(client)}
                                   >
-                                    <div className="font-medium">{client.name} {client.surname}</div>
-                                    <div className="text-xs text-muted-foreground flex justify-between">
-                                      <span>{client.phone}</span>
-                                      <span>{client.plate} - {client.model}</span>
+                                    <div className="flex justify-between items-start">
+                                      <div>
+                                        <div className="font-medium">{client.name} {client.surname}</div>
+                                        <div className="text-xs text-muted-foreground flex flex-col gap-1 mt-1">
+                                          <span className="flex items-center gap-1">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                            </svg>
+                                            {client.phone}
+                                          </span>
+                                        </div>
+                                      </div>
+                                      <div className="text-xs text-right">
+                                        <span className="inline-flex items-center bg-primary/5 border border-primary/10 rounded px-2 py-1">
+                                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1 text-primary/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                          </svg>
+                                          {client.plate}
+                                        </span>
+                                        <div className="mt-1">{client.model}</div>
+                                      </div>
                                     </div>
                                   </div>
                                 ))}
@@ -368,6 +401,9 @@ export default function AppointmentForm({
                           </div>
                         )}
                       </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Puoi cercare per nome cliente, numero di telefono o targa
+                      </p>
                     </div>
                   </div>
                 )}
@@ -543,11 +579,16 @@ export default function AppointmentForm({
                     name="notes"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Note (opzionale)</FormLabel>
+                        <FormLabel className="flex items-center gap-1.5">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                          Note (opzionale)
+                        </FormLabel>
                         <FormControl>
                           <Textarea 
-                            placeholder="Note aggiuntive..." 
-                            className="resize-none" 
+                            placeholder="Aggiungi informazioni importanti riguardo l'appuntamento..." 
+                            className="resize-none border-primary/20 focus-visible:ring-primary/30 min-h-[100px]" 
                             {...field} 
                           />
                         </FormControl>
@@ -558,14 +599,35 @@ export default function AppointmentForm({
                 </div>
               )}
               
-              <DialogFooter className="pt-4">
-                <Button type="button" variant="outline" onClick={onClose}>
+              <DialogFooter className="pt-4 border-t mt-6">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={onClose}
+                  className="gap-1"
+                >
+                  <XCircle className="h-4 w-4" />
                   Annulla
                 </Button>
-                <Button type="submit" disabled={isSubmitting || !selectedClient}>
-                  {isSubmitting 
-                    ? "Salvataggio in corso..." 
-                    : appointment ? "Aggiorna Appuntamento" : "Salva Appuntamento"}
+                <Button 
+                  type="submit" 
+                  disabled={isSubmitting || !selectedClient}
+                  className="gap-2 bg-primary"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Salvataggio in corso...
+                    </>
+                  ) : (
+                    <>
+                      <Calendar className="h-4 w-4" />
+                      {appointment ? "Aggiorna Appuntamento" : "Salva Appuntamento"}
+                    </>
+                  )}
                 </Button>
               </DialogFooter>
             </form>
