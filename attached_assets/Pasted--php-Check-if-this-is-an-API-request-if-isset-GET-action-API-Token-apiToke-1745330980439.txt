@@ -1,0 +1,757 @@
+<?php
+// Check if this is an API request
+if (isset($_GET['action'])) {
+    // API Token
+    $apiToken = "cec4d64fe1564b9ea9c98ab4b0bc914c";
+    
+    header('Content-Type: application/json');
+    
+    // Get parameters from request
+    $action = $_GET['action'];
+    $identifier = isset($_GET['identifier']) ? $_GET['identifier'] : '';
+    $country = isset($_GET['country']) ? $_GET['country'] : 'it';
+    $vehicleNumber = isset($_GET['vehicleNumber']) ? $_GET['vehicleNumber'] : '';
+    
+    // Validate input
+    if ($action === 'lookupPlate' && empty($identifier)) {
+        echo json_encode(['error' => 'Identifier is required']);
+        exit;
+    }
+    
+    if ($action === 'getVehicleDetails' && empty($vehicleNumber)) {
+        echo json_encode(['error' => 'Vehicle number is required']);
+        exit;
+    }
+    
+    // Process the request based on action
+    switch ($action) {
+        case 'lookupPlate':
+            // First API call to get vehicle number from license plate
+            $url = "https://api.sagcloud.net/vrmlookupservice?identifier=" . urlencode($identifier) . "&country=" . urlencode($country);
+            
+            $curl = curl_init();
+            curl_setopt_array($curl, [
+                CURLOPT_URL => $url,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_ENCODING => "",
+                CURLOPT_MAXREDIRS => 10,
+                CURLOPT_TIMEOUT => 30,
+                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                CURLOPT_CUSTOMREQUEST => "GET",
+                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_HTTPHEADER => [
+                    "Token: " . $apiToken,
+                    "User-Agent: VehicleLookupSystem/1.0"
+                ],
+            ]);
+            
+            $response = curl_exec($curl);
+            $err = curl_error($curl);
+            
+            curl_close($curl);
+            
+            if ($err) {
+                echo json_encode(['error' => 'cURL Error: ' . $err]);
+            } else {
+                echo $response;
+            }
+            exit;
+            
+        case 'getVehicleDetails':
+            // Second API call to get vehicle details from vehicle number
+            $curl = curl_init();
+            
+            $postFields = json_encode([
+                "operationName" => "GetVehicleByVehicleNumber",
+                "variables" => [
+                    "vehicleNumber" => $vehicleNumber,
+                    "language" => strtoupper($country)
+                ],
+                "query" => "query GetVehicleByVehicleNumber(\$language: String, \$vehicleNumber: String!) {
+                    getVehicleByVehicleNumber(language: \$language, vehicle_number: \$vehicleNumber) {
+                        id_vehicle
+                        make_id
+                        model_id
+                        make {
+                            name
+                            __typename
+                        }
+                        model {
+                            descriptions {
+                                value
+                                __typename
+                            }
+                            __typename
+                        }
+                        vehicle_type
+                        vehicle_number
+                        names {
+                            country
+                            value
+                            __typename
+                        }
+                        built_year_from
+                        built_year_till
+                        power_kw
+                        power_hp
+                        __typename
+                    }
+                }"
+            ]);
+            
+            curl_setopt_array($curl, [
+                CURLOPT_URL => "https://api.sagcloud.net/vehicleservice",
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_ENCODING => "",
+                CURLOPT_MAXREDIRS => 10,
+                CURLOPT_TIMEOUT => 30,
+                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+                CURLOPT_CUSTOMREQUEST => "POST",
+                CURLOPT_POSTFIELDS => $postFields,
+                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_HTTPHEADER => [
+                    "Content-Type: application/json",
+                    "Token: " . $apiToken,
+                    "User-Agent: VehicleLookupSystem/1.0"
+                ],
+            ]);
+            
+            $response = curl_exec($curl);
+            $err = curl_error($curl);
+            
+            curl_close($curl);
+            
+            if ($err) {
+                echo json_encode(['error' => 'cURL Error: ' . $err]);
+            } else {
+                echo $response;
+            }
+            exit;
+            
+        default:
+            echo json_encode(['error' => 'Invalid action']);
+            exit;
+    }
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TARGA</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 650px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+        .container {
+            background-color: #fff;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            position: relative;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #f1f1f1;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+        .subtitle {
+            color: #7f8c8d;
+            font-size: 15px;
+        }
+        .form-group {
+            margin-bottom: 25px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #34495e;
+        }
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border 0.3s;
+            box-sizing: border-box;
+        }
+        input:focus, select:focus {
+            border-color: #3498db;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 14px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+            font-weight: 500;
+            transition: all 0.3s;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .result {
+            margin-top: 30px;
+            background-color: #fff;
+            border: 1px solid #e1e1e1;
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+            box-shadow: 0 3px 15px rgba(0,0,0,0.08);
+            animation: fadeIn 0.5s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 2s linear infinite;
+            margin: 20px auto;
+            display: none;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error {
+            color: #e74c3c;
+            font-weight: 600;
+            margin-top: 15px;
+            padding: 10px;
+            background-color: rgba(231, 76, 60, 0.1);
+            border-radius: 4px;
+            display: none;
+        }
+        .vehicle-detail {
+            margin-bottom: 15px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .vehicle-detail span {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        .plate-container {
+            position: relative;
+            width: 300px;
+            height: 70px;
+            margin: 0 auto 30px;
+            background-color: #fff;
+            border: 2px solid #34495e;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            overflow: hidden;
+            cursor: text;
+            background-image: linear-gradient(to bottom, #f8f8f8, #fff);
+            transition: all 0.2s;
+        }
+        .plate-container:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .plate-container:active {
+            transform: scale(0.98);
+        }
+        .plate-container::after {
+            content: 'Clicca per scrivere';
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 12px;
+            color: #7f8c8d;
+            white-space: nowrap;
+            opacity: 0.8;
+            transition: opacity 0.3s;
+        }
+        .plate-container:hover::after {
+            opacity: 1;
+        }
+        .plate-container.plate-focus::after {
+            opacity: 0;
+        }
+        .eu-band {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 45px;
+            height: 100%;
+            background-color: #003399;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            padding: 5px 0;
+            box-shadow: inset -2px 0 3px rgba(0,0,0,0.1);
+        }
+        .eu-stars {
+            position: relative;
+            width: 30px;
+            height: 20px;
+            margin-top: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .eu-stars::before {
+            content: "";
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 24" width="30" height="20"><circle cx="18" cy="12" r="9" fill="transparent"/><path fill="%23FFCC00" d="M18,4 l1.1,3.4h3.5l-2.8,2.1l1.1,3.4L18,10.8l-2.9,2.1l1.1-3.4l-2.8-2.1h3.5L18,4z M11,7 l1,2h2.2l-1.7,1.3l0.7,2L11,11l-1.7,1.3l0.6-2l-1.7-1.3h2.2L11,7z M25,7 l1,2h2.2l-1.7,1.3l0.7,2L25,11l-1.7,1.3l0.6-2l-1.7-1.3h2.2L25,7z M8,12 l1,2h2.2l-1.7,1.3l0.7,2L8,16l-1.7,1.3l0.6-2l-1.7-1.3h2.2L8,12z M28,12 l1,2h2.2l-1.7,1.3l0.7,2L28,16l-1.7,1.3l0.6-2l-1.7-1.3h2.2L28,12z M11,17 l1,2h2.2l-1.7,1.3l0.7,2L11,21l-1.7,1.3l0.6-2l-1.7-1.3h2.2L11,17z M25,17 l1,2h2.2l-1.7,1.3l0.7,2L25,21l-1.7,1.3l0.6-2l-1.7-1.3h2.2L25,17z"/></svg>');
+            width: 30px;
+            height: 20px;
+            display: block;
+            position: absolute;
+        }
+        .country-code {
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 30px;
+            width: 30px;
+            filter: drop-shadow(0 0 1px rgba(0,0,0,0.2));
+        }
+        .plate-number {
+            font-family: 'Courier New', monospace;
+            font-size: 32px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            color: #000;
+            margin-left: 60px;
+            position: relative;
+            text-shadow: 0 1px 1px rgba(0,0,0,0.1);
+            display: inline-block;
+            min-width: 150px;
+            text-align: center;
+        }
+        .plate-number::after {
+            content: '';
+            position: absolute;
+            right: -12px;
+            top: 5px;
+            height: 80%;
+            width: 2px;
+            background-color: #000;
+            animation: blink 1s infinite;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .plate-container:focus-within .plate-number::after {
+            opacity: 1;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 1; }
+        }
+        .plate-focus {
+            box-shadow: 0 0 10px rgba(52, 152, 219, 0.5), 0 4px 12px rgba(0,0,0,0.15);
+            border-color: #3498db;
+        }
+        .plate-input {
+            position: absolute;
+            opacity: 0;
+            width: 1px;
+            height: 1px;
+        }
+        .demo-plate {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        .result-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        .result-title {
+            color: #2c3e50;
+            margin: 0;
+            display: flex;
+            align-items: center;
+        }
+        .result-title i {
+            margin-right: 10px;
+            color: #3498db;
+        }
+        .country-flag {
+            display: flex;
+            align-items: center;
+            font-size: 22px;
+        }
+        .country-flag span {
+            margin-left: 10px;
+            font-size: 16px;
+            color: #7f8c8d;
+        }
+        .info-section {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .info-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .info-item {
+            background-color: #f9f9f9;
+            padding: 18px;
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .info-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+        }
+        .info-label {
+            font-weight: 600;
+            color: #7f8c8d;
+            font-size: 14px;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+        }
+        .info-label i {
+            margin-right: 7px;
+            color:rgb(255, 255, 255);
+            font-size: 16px;
+        }
+        .info-value {
+            font-size: 16px;
+            color: #2c3e50;
+            font-weight: 500;
+        }
+        .flags-container {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .flag-option {
+            cursor: pointer;
+            font-size: 22px;
+            opacity: 0.6;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .flag-option:hover {
+            opacity: 0.9;
+            transform: scale(1.1);
+        }
+        .flag-option.active {
+            opacity: 1;
+            border-color: #3498db;
+            transform: scale(1.1);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>AutoeXpress</h1>
+            <p class="subtitle"><i>Cerca subito la tua targa</i></p>
+        </div>
+        
+        <div class="plate-container" id="plateDisplay">
+            <div class="eu-band">
+                <div class="eu-stars"></div>
+                <div class="country-code" id="countryBadge">🇮🇹</div>
+            </div>
+            <div class="plate-number" id="platePreview"></div>
+            <input type="text" class="plate-input" id="plateInput" maxlength="8" aria-label="Inserisci targa">
+        </div>
+        
+        <div class="flags-container">
+            <div class="flag-option active" data-country="it">🇮🇹</div>
+            <div class="flag-option" data-country="de">🇩🇪</div>
+            <div class="flag-option" data-country="fr">🇫🇷</div>
+            <div class="flag-option" data-country="es">🇪🇸</div>
+            <div class="flag-option" data-country="uk">🇬🇧</div>
+        </div>
+        
+        <button onclick="lookupVehicle()">Cerca</button>
+        
+        <div class="loader" id="loader"></div>
+        <div class="error" id="error"></div>
+        
+        <div class="result" id="result">
+            <div class="result-header">
+                <h2 class="result-title"><i class="icon">🚗</i> Informazioni Veicolo</h2>
+                <div class="country-flag" id="resultCountryFlag">
+                    🇮🇹
+                </div>
+            </div>
+            <div id="vehicleInfo" class="info-section"></div>
+        </div>
+    </div>
+
+    <script>
+        // Update plate preview as user types
+        const platePreview = document.getElementById('platePreview');
+        const countryBadge = document.getElementById('countryBadge');
+        const plateDisplay = document.getElementById('plateDisplay');
+        const plateInput = document.getElementById('plateInput');
+        const flagOptions = document.querySelectorAll('.flag-option');
+        
+        // Country code mapping (emoji flags)
+        const countryCodes = {
+            'it': '🇮🇹',
+            'de': '🇩🇪',
+            'fr': '🇫🇷',
+            'es': '🇪🇸',
+            'uk': '🇬🇧'
+        };
+        
+        let selectedCountry = 'it';
+        
+        // Country names mapping
+        const countryNames = {
+            'it': 'Italia',
+            'de': 'Germania',
+            'fr': 'Francia',
+            'es': 'Spagna',
+            'uk': 'Regno Unito'
+        };
+        
+        plateInput.addEventListener('input', function() {
+            const value = this.value.toUpperCase();
+            this.value = value;
+            updatePlatePreview(value);
+        });
+        
+        // Make the plate container clickable
+        plateDisplay.addEventListener('click', function() {
+            plateInput.focus();
+        });
+        
+        // Focus/blur effects
+        plateInput.addEventListener('focus', function() {
+            plateDisplay.classList.add('plate-focus');
+        });
+        
+        plateInput.addEventListener('blur', function() {
+            plateDisplay.classList.remove('plate-focus');
+        });
+        
+        // Flag selection
+        flagOptions.forEach(flag => {
+            flag.addEventListener('click', function() {
+                // Remove active class from all
+                flagOptions.forEach(f => f.classList.remove('active'));
+                
+                // Add active class to selected
+                this.classList.add('active');
+                
+                // Update selected country
+                selectedCountry = this.getAttribute('data-country');
+                
+                // Update country badge on plate
+                countryBadge.textContent = countryCodes[selectedCountry];
+            });
+        });
+        
+        function updatePlatePreview(value) {
+            platePreview.textContent = value.toUpperCase() || 'AB123CD';
+        }
+        
+        async function lookupVehicle() {
+            const identifier = platePreview.textContent.trim();
+            const country = selectedCountry;
+            
+            if (!identifier || identifier === 'AB123CD') {
+                showError("Inserisci una targa");
+                return;
+            }
+            
+            showLoader(true);
+            clearResults();
+            clearError();
+            
+            try {
+                // First API call to get vehicle number
+                const response = await fetch(`?action=lookupPlate&identifier=${encodeURIComponent(identifier)}&country=${country}`);
+                const vehicleNumberResponse = await response.json();
+                
+                if (vehicleNumberResponse.error) {
+                    throw new Error(vehicleNumberResponse.error);
+                }
+                
+                if (!vehicleNumberResponse.data || vehicleNumberResponse.data.length === 0) {
+                    throw new Error("Nessun veicolo trovato con la targa fornita");
+                }
+                
+                const vehicleNumber = vehicleNumberResponse.data[0];
+                
+                // Second API call to get vehicle details
+                const detailsResponse = await fetch(`?action=getVehicleDetails&vehicleNumber=${vehicleNumber}&country=${country}`);
+                const vehicleDetails = await detailsResponse.json();
+                
+                if (vehicleDetails.error) {
+                    throw new Error(vehicleDetails.error);
+                }
+                
+                displayResults(vehicleDetails);
+            } catch (error) {
+                showError(error.message || "Si è verificato un errore durante la ricerca");
+            } finally {
+                showLoader(false);
+            }
+        }
+        
+        function displayResults(response) {
+            const resultDiv = document.getElementById('result');
+            const vehicleInfoDiv = document.getElementById('vehicleInfo');
+            const resultCountryFlag = document.getElementById('resultCountryFlag');
+            
+            // Update country flag in results
+            resultCountryFlag.textContent = countryCodes[selectedCountry];
+            
+            if (response && response.data && response.data.getVehicleByVehicleNumber) {
+                const vehicle = response.data.getVehicleByVehicleNumber;
+                
+                let html = '';
+                
+                // Make & Model in one card
+                html += `<div class="info-item">
+                    <div class="info-header">
+                        <div>
+                            <div class="info-label"><i></i> Marca</div>
+                            <div class="info-value">${vehicle.make.name || "N/A"}</div>
+                        </div>
+                        <div>
+                            <div class="info-label"><i></i> Modello</div>
+                            <div class="info-value">${getModelName(vehicle)}</div>
+                        </div>
+                    </div>
+                </div>`;
+                
+                // Full Name
+                html += `<div class="info-item">
+                    <div class="info-label"><i></i> Nome Completo</div>
+                    <div class="info-value">${getFullName(vehicle)}</div>
+                </div>`;
+                
+                // Vehicle Type
+                html += `<div class="info-item">
+                    <div class="info-label"><i></i> Tipo Veicolo</div>
+                    <div class="info-value">${vehicle.vehicle_type || "N/A"}</div>
+                </div>`;
+                
+                // Year Range & Power in one card
+                html += `<div class="info-item">
+                    <div class="info-header">
+                        <div>
+                            <div class="info-label"><i></i> Anno di Produzione</div>
+                            <div class="info-value">${vehicle.built_year_from || 'N/A'} - ${vehicle.built_year_till || 'N/A'}</div>
+                        </div>
+                        <div>
+                            <div class="info-label"><i></i> Potenza</div>
+                            <div class="info-value">${vehicle.power_kw || 'N/A'} kW (${vehicle.power_hp || 'N/A'} HP)</div>
+                        </div>
+                    </div>
+                </div>`;
+                
+                // Vehicle ID
+                html += `<div class="info-item">
+                    <div class="info-label"><i></i> ID Veicolo</div>
+                    <div class="info-value">${vehicle.id_vehicle || "N/A"}</div>
+                </div>`;
+                
+                vehicleInfoDiv.innerHTML = html;
+                resultDiv.style.display = "block";
+            } else {
+                showError("Impossibile recuperare i dettagli del veicolo");
+            }
+        }
+        
+        function getModelName(vehicle) {
+            if (vehicle.model && vehicle.model.descriptions && vehicle.model.descriptions.length > 0) {
+                return vehicle.model.descriptions[0].value;
+            }
+            return "N/A";
+        }
+        
+        function getFullName(vehicle) {
+            if (vehicle.names && vehicle.names.length > 0) {
+                return vehicle.names[0].value;
+            }
+            return "N/A";
+        }
+        
+        function showLoader(show) {
+            document.getElementById('loader').style.display = show ? 'block' : 'none';
+        }
+        
+        function showError(message) {
+            const errorElement = document.getElementById('error');
+            errorElement.textContent = message;
+            errorElement.style.display = 'block';
+        }
+        
+        function clearError() {
+            const errorElement = document.getElementById('error');
+            errorElement.textContent = '';
+            errorElement.style.display = 'none';
+        }
+        
+        function clearResults() {
+            document.getElementById('result').style.display = 'none';
+            document.getElementById('vehicleInfo').innerHTML = '';
+        }
+        
+        // Automatically focus the plate input on page load
+        window.addEventListener('load', function() {
+            // Short delay to ensure everything is loaded
+            setTimeout(() => {
+                const plateInput = document.getElementById('plateInput');
+                plateInput.focus();
+            }, 500);
+        });
+    </script>
+</body>
+</html>

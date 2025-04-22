@@ -235,8 +235,11 @@ export default function AppointmentForm({
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{appointment ? "Modifica Appuntamento" : "Nuovo Appuntamento"}</DialogTitle>
+          <DialogHeader className="pb-4 border-b">
+            <DialogTitle className="text-xl flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-primary" />
+              {appointment ? "Modifica Appuntamento" : "Nuovo Appuntamento"}
+            </DialogTitle>
             <DialogDescription>
               {appointment 
                 ? "Modifica i dettagli dell'appuntamento"
@@ -250,23 +253,47 @@ export default function AppointmentForm({
               {/* Sezione Cliente */}
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <h2 className="text-lg font-semibold">Cliente</h2>
+                  <h2 className="text-lg font-semibold flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1.5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                      <circle cx="12" cy="7" r="4"></circle>
+                    </svg>
+                    Cliente
+                  </h2>
                 </div>
                 
                 {selectedClient ? (
-                  <div className="flex justify-between items-center border p-4 rounded-md bg-muted/40">
-                    <div>
-                      <h3 className="font-medium">{selectedClient.name} {selectedClient.surname}</h3>
-                      <div className="text-sm text-muted-foreground mt-1 space-y-1">
-                        <p>Tel: {selectedClient.phone}</p>
-                        <p>Veicolo: {selectedClient.model} ({selectedClient.plate})</p>
+                  <div className="flex justify-between items-center p-4 rounded-md bg-primary/5 border border-primary/20 shadow-sm">
+                    <div className="flex items-start gap-3">
+                      <div className="bg-primary/10 rounded-full p-2 text-primary">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <div>
+                        <h3 className="font-medium text-base">{selectedClient.name} {selectedClient.surname}</h3>
+                        <div className="text-sm text-muted-foreground mt-1 space-y-1">
+                          <p className="flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                            </svg>
+                            {selectedClient.phone}
+                          </p>
+                          <p className="flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            {selectedClient.model} ({selectedClient.plate})
+                          </p>
+                        </div>
                       </div>
                     </div>
                     <Button 
                       type="button" 
-                      variant="ghost" 
+                      variant="outline" 
                       size="sm"
                       onClick={handleClearSelectedClient}
+                      className="border-primary/20 text-primary hover:bg-primary/10 hover:text-primary"
                     >
                       <XCircle className="h-4 w-4 mr-1" />
                       <span>Cambia</span>
@@ -350,7 +377,10 @@ export default function AppointmentForm({
               {selectedClient && (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
-                    <h2 className="text-lg font-semibold">Preventivo</h2>
+                    <h2 className="text-lg font-semibold flex items-center">
+                      <FileText className="h-5 w-5 mr-1.5 text-primary" />
+                      Preventivo
+                    </h2>
                   </div>
                   
                   {isLoadingQuotes ? (
@@ -454,7 +484,10 @@ export default function AppointmentForm({
               {selectedClient && (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
-                    <h2 className="text-lg font-semibold">Data e Note</h2>
+                    <h2 className="text-lg font-semibold flex items-center">
+                      <Calendar className="h-5 w-5 mr-1.5 text-primary" />
+                      Data e Note
+                    </h2>
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -463,9 +496,18 @@ export default function AppointmentForm({
                       name="date"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Data</FormLabel>
+                          <FormLabel className="flex items-center gap-1.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            Data
+                          </FormLabel>
                           <FormControl>
-                            <Input type="date" {...field} />
+                            <Input 
+                              type="date" 
+                              {...field} 
+                              className="border-primary/20 focus-visible:ring-primary/30" 
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -477,9 +519,18 @@ export default function AppointmentForm({
                       name="time"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Ora</FormLabel>
+                          <FormLabel className="flex items-center gap-1.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Ora
+                          </FormLabel>
                           <FormControl>
-                            <Input type="time" {...field} />
+                            <Input 
+                              type="time" 
+                              {...field} 
+                              className="border-primary/20 focus-visible:ring-primary/30" 
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
