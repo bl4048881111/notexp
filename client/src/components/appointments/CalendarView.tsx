@@ -33,7 +33,7 @@ export default function CalendarView({
 }: CalendarViewProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [calendarDays, setCalendarDays] = useState<Date[]>([]);
-  const [view, setView] = useState<string>('month');
+  const [view, setView] = useState<"day" | "week" | "month">("month");
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   // Generate calendar days array
@@ -121,7 +121,7 @@ export default function CalendarView({
   }
 
   // Rendering della vista giornaliera
-  if (view === 'day' && selectedDate) {
+  if (view === "day" && selectedDate) {
     return (
       <div className="bg-card rounded-lg shadow-md overflow-hidden border border-border">
         <div className="p-4 border-b border-border flex justify-between items-center">
@@ -227,7 +227,7 @@ export default function CalendarView({
   }
 
   // Rendering vista settimanale (implementazione semplificata)
-  if (view === 'week' && selectedDate) {
+  if (view === "week" && selectedDate) {
     // TODO: Implementazione completa della vista settimanale
     return (
       <div className="bg-card rounded-lg shadow-md overflow-hidden border border-border">

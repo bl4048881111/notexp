@@ -169,7 +169,9 @@ export default function AppointmentForm({
     if (selectedQuote) {
       // Estraiamo i servizi dal preventivo
       const quoteServices = selectedQuote.items.map(item => item.serviceType.name);
-      setServices([...new Set([...services, ...quoteServices])]);
+      // Utilizziamo un array con valori unici
+      const uniqueServices = Array.from(new Set([...services, ...quoteServices]));
+      setServices(uniqueServices);
     }
   }, [selectedQuote]);
   
@@ -190,7 +192,9 @@ export default function AppointmentForm({
     setSelectedQuote(quote);
     // Aggiungiamo i servizi del preventivo
     const quoteServices = quote.items.map(item => item.serviceType.name);
-    setServices([...new Set([...services, ...quoteServices])]);
+    // Utilizziamo un array con valori unici
+    const uniqueServices = Array.from(new Set([...services, ...quoteServices]));
+    setServices(uniqueServices);
     
     // Passiamo al passo successivo
     setActiveTab("appuntamento");
