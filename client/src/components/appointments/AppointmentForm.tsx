@@ -78,7 +78,7 @@ export default function AppointmentForm({
       date: appointment?.date || selectedDate || "",
       time: appointment?.time || "09:00",
       notes: appointment?.notes || "",
-      status: appointment?.status || "scheduled",
+      status: appointment?.status || "programmato",
     },
   });
   
@@ -262,7 +262,7 @@ export default function AppointmentForm({
                    "Specifica data, ora e note"}
                 </DialogDescription>
               </div>
-              <div className="flex items-center gap-1.5 text-sm bg-primary/10 p-2 rounded-full">
+              <div className="flex justify-center gap-2 mt-2">
                 <div className={`w-3 h-3 rounded-full ${currentStep >= 1 ? "bg-primary" : "bg-gray-300"}`}></div>
                 <div className={`w-3 h-3 rounded-full ${currentStep >= 2 ? "bg-primary" : "bg-gray-300"}`}></div>
                 <div className={`w-3 h-3 rounded-full ${currentStep >= 3 ? "bg-primary" : "bg-gray-300"}`}></div>
