@@ -107,6 +107,11 @@ export default function SparePartsEntryForm({
     // Debug
     console.log(`${isEditing ? 'Modifica' : 'Aggiunta'} ricambio nel servizio:`, activeService.serviceType.name);
     console.log(`Dati del ricambio: Codice=${articleCode}, Desc=${articleDescription}, Prezzo=${price}, Qtà=${quantity}`);
+    console.log("Items prima dell'aggiornamento:", JSON.stringify(items.map(i => ({ 
+      id: i.id, 
+      service: i.serviceType.name, 
+      partsCount: i.parts?.length || 0 
+    }))));
     
     let updatedItems;
     
@@ -169,6 +174,18 @@ export default function SparePartsEntryForm({
       });
     }
     
+    console.log("Dopo l'aggiornamento - updatedItems:", JSON.stringify(updatedItems.map(i => ({ 
+      id: i.id, 
+      service: i.serviceType.name, 
+      partsCount: i.parts?.length || 0 
+    }))));
+    
+    // Controllo che parts sia un array valido in tutti gli item
+    const allValid = updatedItems.every(item => Array.isArray(item.parts));
+    console.log("Tutti gli item hanno parts come array valido?", allValid);
+    
+    // Tracciamento quando i dati vengono inviati al parent component
+    console.log("Invio dati aggiornati al parent con onChange()");
     onChange(updatedItems);
     resetForm();
   }, [activeService, articleCode, articlePrice, articleQuantity, 

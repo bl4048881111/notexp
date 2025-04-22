@@ -213,21 +213,65 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
   
   // Gestisce l'aggiornamento degli elementi del preventivo
   const handleItemsChange = (newItems: QuoteItem[]) => {
-    setItems(newItems);
+    console.log("QuoteForm - handleItemsChange chiamato");
+    console.log("QuoteForm - newItems ricevuti:", JSON.stringify(newItems.map(i => ({ 
+      id: i.id, 
+      service: i.serviceType.name, 
+      partsCount: i.parts?.length || 0 
+    }))));
+    
+    // Assicuriamoci che tutti gli elementi abbiano parts come array valido
+    const cleanedItems = newItems.map(item => ({
+      ...item,
+      parts: Array.isArray(item.parts) ? item.parts : []
+    }));
+    
+    console.log("QuoteForm - dopo pulizia item - nuovo parts count:", 
+      cleanedItems.map(i => `${i.serviceType.name}: ${i.parts.length}`).join(", "));
+    
+    setItems(cleanedItems);
     // Non impostiamo il valore del form qui perché causerebbe una ricorsione
     // form.setValue("items", newItems); 
-    calculateTotals(newItems);
+    calculateTotals(cleanedItems);
   };
   
   // Calcola i totali del preventivo
   const calculateTotals = (quoteItems: QuoteItem[]) => {
+    console.log("QuoteForm - calculateTotals chiamato");
+    
     // Utilizziamo un setTimeout per evitare un aggiornamento di stato a cascata
     // che potrebbe portare a un errore di "Maximum update depth exceeded"
     setTimeout(() => {
+      // Log dettagliato dei servizi e ricambi per debugging
+      console.log("Calcolo totali per i seguenti servizi:");
+      quoteItems.forEach(item => {
+        console.log(`- ${item.serviceType.name}: ${item.totalPrice}€`);
+        console.log(`  Manodopera: ${item.laborPrice || 0}€/h × ${item.laborHours || 0}h = ${(item.laborPrice || 0) * (item.laborHours || 0)}€`);
+        
+        // Verifica che l'array parts sia valido
+        if (!Array.isArray(item.parts)) {
+          console.warn(`⚠️ Servizio ${item.serviceType.name} non ha un array parts valido!`);
+          return;
+        }
+        
+        console.log(`  Ricambi (${item.parts.length}):`);
+        item.parts.forEach(part => {
+          if (!part) {
+            console.warn("  ⚠️ Ricambio non valido (null/undefined)");
+            return;
+          }
+          console.log(`    ${part.code}: ${part.unitPrice || 0}€ × ${part.quantity || 1} = ${part.finalPrice || 0}€`);
+        });
+      });
+      
       const subtotal = quoteItems.reduce((sum, item) => sum + item.totalPrice, 0);
       const taxRate = form.getValues("taxRate") || 22;
       const taxAmount = (subtotal * taxRate) / 100;
       const total = subtotal + taxAmount;
+      
+      console.log(`Subtotale: ${subtotal}€`);
+      console.log(`IVA (${taxRate}%): ${taxAmount}€`);
+      console.log(`Totale: ${total}€`);
       
       form.setValue("subtotal", subtotal);
       form.setValue("taxAmount", taxAmount);
@@ -251,8 +295,17 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
       // Assicuriamoci che tutti gli item.parts siano array validi (non undefined o null)
       const cleanedItems = items.map(item => ({
         ...item,
-        parts: item.parts || [] // Se parts è undefined o null, impostiamo un array vuoto
+        parts: Array.isArray(item.parts) ? item.parts : [] // Se parts è undefined o null, impostiamo un array vuoto
       }));
+      
+      // Log dettagliato prima del salvataggio
+      console.log("Items prima del salvataggio:");
+      cleanedItems.forEach(item => {
+        console.log(`- Servizio ${item.serviceType.name} ha ${item.parts.length} ricambi`);
+        item.parts.forEach((part, idx) => {
+          console.log(`  ${idx+1}. ${part.code} - ${part.name}, ${part.quantity} × ${part.unitPrice}€ = ${part.finalPrice}€`);
+        });
+      });
       
       // Aggiorna i dati del form con gli items aggiornati
       const quoteData = {
@@ -753,7 +806,10 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                                     console.log("Modifica ricambi per", item.serviceType.name);
                                   }}
                                 >
-                                  {item.parts?.length ? `Modifica ricambi (${item.parts.length})` : 'Aggiungi ricambi'}
+                                  {Array.isArray(item.parts) && item.parts.length > 0 ? 
+                                    `Modifica ricambi (${item.parts.length})` : 
+                                    'Aggiungi ricambi'
+                                }
                                 </Button>
                               </div>
                             </td>

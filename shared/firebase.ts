@@ -248,10 +248,32 @@ export const deleteQuote = async (id: string): Promise<void> => {
 
 // Helper function to calculate quote totals
 export const calculateQuoteTotals = (quote: Quote): Quote => {
+  console.log("calculateQuoteTotals chiamato per il preventivo", quote.id || "nuovo");
+  
   // Ensure quote has items array
   if (!quote.items || !Array.isArray(quote.items)) {
+    console.warn("Il preventivo non ha un array 'items' valido, inizializzando array vuoto");
     quote.items = [];
   }
+  
+  // Log dettagliato degli items
+  console.log(`Il preventivo ha ${quote.items.length} servizi:`);
+  quote.items.forEach(item => {
+    console.log(`- Servizio: ${item.serviceType.name}`);
+    
+    if (!item.parts || !Array.isArray(item.parts)) {
+      console.warn(`  ⚠️ Servizio ${item.serviceType.name} non ha un array 'parts' valido!`);
+    } else {
+      console.log(`  Ha ${item.parts.length} ricambi:`);
+      item.parts.forEach(part => {
+        if (!part) {
+          console.warn("    ⚠️ Ricambio non valido (null/undefined)");
+        } else {
+          console.log(`    ${part.code}: ${part.name}, ${part.quantity || 1} × ${part.unitPrice || 0}€ = ${part.finalPrice || 0}€`);
+        }
+      });
+    }
+  });
   
   // Calculate total for each item
   const items = quote.items.map(item => {
