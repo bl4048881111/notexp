@@ -401,10 +401,12 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote }: QuoteFo
                                 </div>
                               ) : (
                                 <div>
-                                  {filteredClients.map((client) => (
+                                  {filteredClients.map((client, index) => (
                                     <div
                                       key={client.id}
-                                      className="p-2 cursor-pointer hover:bg-accent flex justify-between items-center"
+                                      className={`p-2 cursor-pointer flex justify-between items-center ${
+                                        selectedIndex === index ? "bg-accent" : "hover:bg-accent/50"
+                                      }`}
                                       onClick={() => handleSelectClient(client)}
                                     >
                                       <div>

@@ -22,23 +22,28 @@ interface SparePartFormProps {
 
 export default function SparePartForm({ parts, onChange }: SparePartFormProps) {
   const [code, setCode] = useState("");
+  const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [unitPrice, setUnitPrice] = useState<number | string>("");
   const [netPrice, setNetPrice] = useState<number | string>("");
   const [markup, setMarkup] = useState<number>(30); // 30% di default
   const [quantity, setQuantity] = useState<number>(1);
   
   const handleAddPart = () => {
-    if (!code || !netPrice) return;
+    if (!code || !name) return;
     
-    const netPriceNum = typeof netPrice === "string" ? parseFloat(netPrice) : netPrice;
+    const netPriceNum = typeof netPrice === "string" ? parseFloat(netPrice) : netPrice || 0;
+    const unitPriceNum = typeof unitPrice === "string" ? parseFloat(unitPrice) : unitPrice || netPriceNum;
     const margin = (netPriceNum * markup) / 100;
     const finalPrice = (netPriceNum + margin) * quantity;
     
     const newPart: SparePart = {
       id: uuidv4(),
+      name,
       code,
       description: description || undefined,
       netPrice: netPriceNum,
+      unitPrice: unitPriceNum,
       markup,
       margin,
       quantity,
@@ -49,8 +54,10 @@ export default function SparePartForm({ parts, onChange }: SparePartFormProps) {
     
     // Resetta i campi
     setCode("");
+    setName("");
     setDescription("");
     setNetPrice("");
+    setUnitPrice("");
     setQuantity(1);
   };
   
@@ -67,7 +74,7 @@ export default function SparePartForm({ parts, onChange }: SparePartFormProps) {
   
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <Label htmlFor="code">Codice</Label>
           <Input
@@ -79,6 +86,18 @@ export default function SparePartForm({ parts, onChange }: SparePartFormProps) {
         </div>
         
         <div>
+          <Label htmlFor="name">Nome articolo</Label>
+          <Input
+            id="name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Nome del ricambio"
+          />
+        </div>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
           <Label htmlFor="netPrice">Prezzo netto</Label>
           <div className="flex items-center space-x-2">
             <Input
@@ -86,6 +105,22 @@ export default function SparePartForm({ parts, onChange }: SparePartFormProps) {
               type="number"
               value={netPrice}
               onChange={(e) => setNetPrice(e.target.value ? parseFloat(e.target.value) : "")}
+              placeholder="0.00"
+              min={0}
+              step={0.01}
+            />
+            <span>€</span>
+          </div>
+        </div>
+        
+        <div>
+          <Label htmlFor="unitPrice">Prezzo unitario</Label>
+          <div className="flex items-center space-x-2">
+            <Input
+              id="unitPrice"
+              type="number"
+              value={unitPrice}
+              onChange={(e) => setUnitPrice(e.target.value ? parseFloat(e.target.value) : "")}
               placeholder="0.00"
               min={0}
               step={0.01}
@@ -138,7 +173,7 @@ export default function SparePartForm({ parts, onChange }: SparePartFormProps) {
               type="button" 
               onClick={handleAddPart}
               className="gap-1"
-              disabled={!code || !netPrice}
+              disabled={!code || !name}
             >
               <Plus size={16} />
               <span>Aggiungi</span>
@@ -154,11 +189,12 @@ export default function SparePartForm({ parts, onChange }: SparePartFormProps) {
               <TableHeader>
                 <TableRow>
                   <TableHead>Codice</TableHead>
+                  <TableHead>Nome</TableHead>
                   <TableHead>Descrizione</TableHead>
                   <TableHead className="text-right">Quantità</TableHead>
-                  <TableHead className="text-right">Prezzo Netto</TableHead>
+                  <TableHead className="text-right">Prezzo Unitario</TableHead>
                   <TableHead className="text-right">Ricarico</TableHead>
-                  <TableHead className="text-right">Prezzo Finale</TableHead>
+                  <TableHead className="text-right">Totale</TableHead>
                   <TableHead className="w-[80px]"></TableHead>
                 </TableRow>
               </TableHeader>
@@ -166,10 +202,11 @@ export default function SparePartForm({ parts, onChange }: SparePartFormProps) {
                 {parts.map((part) => (
                   <TableRow key={part.id}>
                     <TableCell>{part.code}</TableCell>
+                    <TableCell>{part.name}</TableCell>
                     <TableCell>{part.description || "-"}</TableCell>
                     <TableCell className="text-right">{part.quantity}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(part.netPrice)}</TableCell>
-                    <TableCell className="text-right">{`${part.markup}% (${formatCurrency(part.margin)})`}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(part.unitPrice)}</TableCell>
+                    <TableCell className="text-right">{`${part.markup || 0}% (${formatCurrency(part.margin || 0)})`}</TableCell>
                     <TableCell className="text-right font-medium">
                       {formatCurrency(part.finalPrice)}
                     </TableCell>
@@ -186,7 +223,7 @@ export default function SparePartForm({ parts, onChange }: SparePartFormProps) {
                   </TableRow>
                 ))}
                 <TableRow>
-                  <TableCell colSpan={5} className="text-right font-medium">
+                  <TableCell colSpan={6} className="text-right font-medium">
                     Totale Ricambi:
                   </TableCell>
                   <TableCell className="text-right font-bold">
