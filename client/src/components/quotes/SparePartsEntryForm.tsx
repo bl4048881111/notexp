@@ -1,19 +1,10 @@
-import { useState, useEffect } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { QuoteItem, SparePart } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
 
 interface SparePartsEntryFormProps {
   items: QuoteItem[];
@@ -24,60 +15,67 @@ export default function SparePartsEntryForm({
   items, 
   onChange 
 }: SparePartsEntryFormProps) {
-  // Stati per la maschera di inserimento articoli manuali
-  const [currentServiceIndex, setCurrentServiceIndex] = useState<number | null>(null);
+  // Stati locali
+  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const [articleCode, setArticleCode] = useState<string>("");
   const [articleDescription, setArticleDescription] = useState<string>("");
   const [articleBrand, setArticleBrand] = useState<string>("");
   const [articleQuantity, setArticleQuantity] = useState<number | "">(1);
   const [articlePrice, setArticlePrice] = useState<number | "">(0);
-  const [laborHours, setLaborHours] = useState<number | "">("");
+  const [laborHours, setLaborHours] = useState<number | "">(1);
   const [laborPrice, setLaborPrice] = useState<number>(45);
   
-  // Seleziona il primo servizio senza ricambi se non c'è un servizio corrente selezionato
-  useEffect(() => {
-    // Eseguiamo questa logica solo se cambia la lunghezza di items e non abbiamo un servizio selezionato
-    if (currentServiceIndex === null && items.length > 0) {
-      // Usa una reference per evitare aggiornamenti ciclici
-      let indexToSelect = -1;
-      
-      // Trova il primo elemento che non ha ricambi
-      const firstWithoutParts = items.findIndex(item => item.parts.length === 0);
-      
-      if (firstWithoutParts !== -1) {
-        indexToSelect = firstWithoutParts;
-      } else if (items.length > 0) {
-        // Se tutti hanno ricambi, seleziona il primo
-        indexToSelect = 0;
-      }
-      
-      // Aggiorna solo se abbiamo trovato un indice valido
-      if (indexToSelect >= 0) {
-        setCurrentServiceIndex(indexToSelect);
-        
-        // Imposta i valori di manodopera dal servizio selezionato
-        const selectedItem = items[indexToSelect];
-        setLaborHours(selectedItem.laborHours);
-        setLaborPrice(selectedItem.laborPrice);
-      }
-    }
-  // Dipende solo dalla lunghezza di items, non dal contenuto, per evitare cicli infiniti
-  }, [items.length, currentServiceIndex]);
+  // Utilizza useMemo per la categorizzazione dei servizi
+  const servicesByCategory = useMemo(() => {
+    return items.reduce((acc, item) => {
+      const category = item.serviceType.category;
+      if (!acc[category]) acc[category] = [];
+      acc[category].push(item);
+      return acc;
+    }, {} as Record<string, QuoteItem[]>);
+  }, [items]);
   
-  // Reset dei campi del form
-  const resetForm = () => {
+  // Trova il servizio corrente utilizzando useMemo per evitare ricalcoli eccessivi
+  const currentService = useMemo(() => {
+    if (!selectedServiceId) return null;
+    return items.find(item => item.id === selectedServiceId) || null;
+  }, [items, selectedServiceId]);
+  
+  // Reset form con useCallback per stabilità
+  const resetForm = useCallback(() => {
     setArticleCode("");
     setArticleDescription("");
     setArticleBrand("");
     setArticleQuantity(1);
     setArticlePrice(0);
-  };
+  }, []);
   
-  // Aggiunge un articolo manuale al servizio corrente
-  const handleAddSparePart = () => {
-    if (currentServiceIndex === null) return;
-    
-    const currentItem = items[currentServiceIndex];
+  // Seleziona servizio in modo stabile
+  const handleSelectService = useCallback((item: QuoteItem) => {
+    setSelectedServiceId(item.id);
+    setLaborHours(item.laborHours);
+    setLaborPrice(item.laborPrice);
+    resetForm();
+  }, [resetForm]);
+  
+  // Formatta valuta in modo stabile
+  const formatCurrency = useCallback((amount: number): string => {
+    if (isNaN(amount)) return "€0,00";
+    return new Intl.NumberFormat('it-IT', {
+      style: 'currency',
+      currency: 'EUR'
+    }).format(amount);
+  }, []);
+  
+  // Calcola totale manodopera in modo stabile
+  const totalLaborCost = useMemo(() => {
+    if (typeof laborPrice !== "number" || typeof laborHours !== "number") return 0;
+    return laborPrice * laborHours;
+  }, [laborPrice, laborHours]);
+
+  // Aggiunge ricambio
+  const handleAddSparePart = useCallback(() => {
+    if (!currentService) return;
     
     // Validazione
     if (!articleCode || articlePrice === "" || articleQuantity === "") {
@@ -89,187 +87,128 @@ export default function SparePartsEntryForm({
     const price = typeof articlePrice === "string" ? parseFloat(articlePrice) || 0 : articlePrice;
     const quantity = typeof articleQuantity === "string" ? parseFloat(articleQuantity) || 1 : articleQuantity;
     const laborHoursNum = typeof laborHours === "string" ? 
-                         (parseFloat(laborHours) || currentItem.laborHours) : 
-                         (laborHours || currentItem.laborHours);
+                         (parseFloat(laborHours) || currentService.laborHours) : 
+                         (laborHours || currentService.laborHours);
     
-    // Crea la parte manuale
-    const manualPart: SparePart = {
+    // Crea il ricambio
+    const sparePart: SparePart = {
       id: uuidv4(),
       code: articleCode,
-      name: articleDescription || `${currentItem.serviceType.name} - Codice: ${articleCode}`,
+      name: articleDescription || `${currentService.serviceType.name} - Codice: ${articleCode}`,
       brand: articleBrand || undefined,
-      category: currentItem.serviceType.category.toLowerCase(),
-      quantity: quantity,
+      category: currentService.serviceType.category.toLowerCase(),
+      quantity,
       unitPrice: price,
       finalPrice: price * quantity
     };
     
-    // Calcola il prezzo totale
-    const partsPrice = currentItem.parts.reduce((sum, part) => sum + part.finalPrice, 0) + manualPart.finalPrice;
+    // Calcola il nuovo prezzo totale
+    const partsPrice = currentService.parts.reduce((sum, part) => sum + part.finalPrice, 0) + sparePart.finalPrice;
     const laborCost = laborPrice * laborHoursNum;
-    const totalPrice = laborCost + partsPrice;
     
-    // Crea una copia profonda dell'elemento corrente per evitare modifiche dirette
-    const updatedItem = {
-      ...currentItem,
-      laborPrice,
-      laborHours: laborHoursNum,
-      parts: [...currentItem.parts, manualPart],
-      totalPrice
-    };
+    // Aggiorna la lista degli items
+    const updatedItems = items.map(item => {
+      if (item.id === currentService.id) {
+        return {
+          ...item,
+          laborHours: laborHoursNum,
+          laborPrice,
+          parts: [...item.parts, sparePart],
+          totalPrice: laborCost + partsPrice
+        };
+      }
+      return item;
+    });
     
-    // Aggiorna l'elemento corrente
-    const updatedItems = [...items];
-    updatedItems[currentServiceIndex] = updatedItem;
-    
-    // Aggiorna lo stato
     onChange(updatedItems);
-    
-    // Reset del form
     resetForm();
-  };
+  }, [currentService, articleCode, articlePrice, articleQuantity, laborHours, laborPrice, 
+      articleDescription, articleBrand, items, onChange, resetForm]);
   
-  // Rimuove un ricambio dall'elemento corrente
-  const handleRemoveSparePart = (itemIndex: number, partId: string) => {
-    const currentItem = items[itemIndex];
+  // Rimuove servizio
+  const handleRemoveService = useCallback((serviceId: string) => {
+    const newItems = items.filter(item => item.id !== serviceId);
+    onChange(newItems);
     
-    // Rimuove il ricambio
-    const updatedParts = currentItem.parts.filter(part => part.id !== partId);
-    
-    // Ricalcola il prezzo totale
-    const partsPrice = updatedParts.reduce((sum, part) => sum + part.finalPrice, 0);
-    const laborCost = currentItem.laborPrice * currentItem.laborHours;
-    const totalPrice = laborCost + partsPrice;
-    
-    // Crea un nuovo oggetto aggiornato
-    const updatedItem = {
-      ...currentItem,
-      parts: updatedParts,
-      totalPrice
-    };
-    
-    // Aggiorna tutti gli elementi con una copia completa
-    const updatedItems = items.map((item, idx) => 
-      idx === itemIndex ? updatedItem : item
-    );
-    
-    // Aggiorna lo stato
-    onChange(updatedItems);
-  };
-  
-  // Seleziona un servizio per l'inserimento ricambi
-  const handleSelectService = (index: number) => {
-    // Preveniamo cambiamenti inutili se è già selezionato
-    if (index === currentServiceIndex) {
-      return;
+    if (selectedServiceId === serviceId) {
+      setSelectedServiceId(newItems.length > 0 ? newItems[0].id : null);
     }
-    
-    setCurrentServiceIndex(index);
-    resetForm();
-    
-    // Imposta i valori di manodopera dal servizio selezionato
-    const selectedItem = items[index];
-    setLaborHours(selectedItem.laborHours);
-    setLaborPrice(selectedItem.laborPrice);
-  };
+  }, [items, onChange, selectedServiceId]);
   
-  // Formatta i numeri come valuta - memoizzata per evitare ricorsioni
-  const formatCurrency = (amount: number): string => {
-    if (isNaN(amount)) return "€0,00";
-    return new Intl.NumberFormat('it-IT', {
-      style: 'currency',
-      currency: 'EUR'
-    }).format(amount);
-  };
-  
+  // Struttura del rendering principali ed elementi memoizzati
   return (
     <div className="space-y-6">
       <h3 className="text-lg font-medium">Inserimento Ricambi</h3>
       
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {/* Colonna di sinistra - Menu categorie e servizi */}
+        {/* Colonna sinistra - Menu servizi */}
         <div className="md:col-span-1">
-          {Object.entries(
-            items.reduce((acc, item) => {
-              const category = item.serviceType.category;
-              if (!acc[category]) acc[category] = [];
-              acc[category].push(item);
-              return acc;
-            }, {} as Record<string, QuoteItem[]>)
-          ).map(([category, categoryItems]) => (
+          {Object.entries(servicesByCategory).map(([category, categoryItems]) => (
             <div key={category} className="mb-4">
               <div className="bg-primary/10 font-medium p-2 rounded-t-lg text-primary">{category}</div>
               <div className="border rounded-b-lg">
-                {categoryItems.map((item, itemIndex) => {
-                  // Trova l'indice globale di questo item nel array items completo
-                  const index = items.findIndex(i => i.id === item.id);
-                  return (
-                    <div 
-                      key={item.id}
-                      className={`p-2.5 cursor-pointer transition-all border-b last:border-b-0 ${
-                        currentServiceIndex === index ? 'bg-primary/10 border-l-4 border-l-primary' : 'hover:bg-muted/40'
-                      }`}
-                      onClick={() => handleSelectService(index)}
-                    >
-                      <div className="flex justify-between items-center gap-1">
-                        <div className="font-medium flex items-center truncate">
-                          {currentServiceIndex === index ? (
-                            <span className="material-icons text-primary mr-1 text-sm">check_circle</span>
-                          ) : (
-                            <span className="material-icons text-muted-foreground mr-1 text-sm">radio_button_unchecked</span>
-                          )}
-                          <span className="truncate">{item.serviceType.name}</span>
-                        </div>
-                        {item.parts.length > 0 && (
-                          <span className="flex-shrink-0 text-xs bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">
-                            {item.parts.length}
-                          </span>
+                {categoryItems.map(item => (
+                  <div 
+                    key={item.id}
+                    className={`p-2.5 cursor-pointer transition-all border-b last:border-b-0 ${
+                      selectedServiceId === item.id ? 'bg-primary/10 border-l-4 border-l-primary' : 'hover:bg-muted/40'
+                    }`}
+                    onClick={() => handleSelectService(item)}
+                  >
+                    <div className="flex justify-between items-center gap-1">
+                      <div className="font-medium flex items-center truncate">
+                        {selectedServiceId === item.id ? (
+                          <span className="material-icons text-primary mr-1 text-sm">check_circle</span>
+                        ) : (
+                          <span className="material-icons text-muted-foreground mr-1 text-sm">radio_button_unchecked</span>
                         )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            // Se stiamo eliminando l'elemento attivo, resetta l'indice
-                            if (index === currentServiceIndex) {
-                              setCurrentServiceIndex(null);
-                            } 
-                            // Se stiamo eliminando un elemento con indice inferiore a quello attuale, aggiorna l'indice
-                            else if (currentServiceIndex !== null && index < currentServiceIndex) {
-                              setCurrentServiceIndex(currentServiceIndex - 1);
-                            }
-                            
-                            // Rimuovi l'elemento dall'array
-                            const newItems = items.filter((_, i) => i !== index);
-                            onChange(newItems);
-                          }}
-                          className="h-6 w-6 flex-shrink-0"
-                        >
-                          <span className="material-icons text-destructive text-xs">close</span>
-                        </Button>
+                        <span className="truncate">{item.serviceType.name}</span>
                       </div>
+                      {item.parts.length > 0 && (
+                        <span className="flex-shrink-0 text-xs bg-primary/20 text-primary px-1.5 py-0.5 rounded-full">
+                          {item.parts.length}
+                        </span>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveService(item.id);
+                        }}
+                        className="h-6 w-6 flex-shrink-0"
+                      >
+                        <span className="material-icons text-destructive text-xs">close</span>
+                      </Button>
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
             </div>
           ))}
+          
+          {Object.keys(servicesByCategory).length === 0 && (
+            <div className="border rounded-lg p-4 text-center text-muted-foreground">
+              <p>Nessun servizio selezionato</p>
+              <p className="text-sm mt-1">Torna al passo precedente per selezionare servizi</p>
+            </div>
+          )}
         </div>
         
-        {/* Colonna di destra - Form per l'inserimento ricambi */}
+        {/* Colonna destra - Form ricambi */}
         <div className="md:col-span-3">
-          {currentServiceIndex !== null ? (
+          {currentService ? (
             <div className="border rounded-lg p-4">
               <div className="flex justify-between items-center border-b pb-3 mb-4">
                 <h4 className="font-medium">
-                  Aggiungi Ricambi per: <span className="text-primary font-bold">{items[currentServiceIndex].serviceType.name}</span>
+                  Aggiungi Ricambi per: <span className="text-primary font-bold">{currentService.serviceType.name}</span>
                 </h4>
                 <div className="bg-muted/30 px-3 py-1 rounded-full text-xs">
-                  Categoria: <span className="font-medium text-primary">{items[currentServiceIndex].serviceType.category}</span>
+                  Categoria: <span className="font-medium text-primary">{currentService.serviceType.category}</span>
                 </div>
               </div>
               
-              {/* Campi manodopera - solo una volta per servizio */}
+              {/* Manodopera per servizio */}
               <div className="mb-6 bg-muted/10 p-3 rounded-lg border border-dashed">
                 <h5 className="font-medium text-sm mb-3">Manodopera per questo servizio</h5>
                 <div className="flex items-center gap-4">
@@ -303,11 +242,7 @@ export default function SparePartsEntryForm({
                   
                   <div className="ml-4 text-sm text-muted-foreground">
                     Totale manodopera: <span className="font-medium text-foreground">
-                      {formatCurrency(
-                        typeof laborPrice === "number" && 
-                        typeof laborHours === "number" ? 
-                        laborPrice * laborHours : 0
-                      )}
+                      {formatCurrency(totalLaborCost)}
                     </span>
                   </div>
                 </div>
@@ -324,7 +259,6 @@ export default function SparePartsEntryForm({
                       value={articleCode}
                       onChange={(e) => setArticleCode(e.target.value)}
                       placeholder="Inserisci il codice"
-                      autoFocus
                       className="mt-1"
                     />
                   </div>
@@ -392,6 +326,59 @@ export default function SparePartsEntryForm({
                   </Button>
                 </div>
               </div>
+              
+              {/* Elenco ricambi aggiunti */}
+              {currentService.parts.length > 0 && (
+                <div className="mt-6 border-t pt-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <h5 className="font-medium">Ricambi aggiunti</h5>
+                    <div className="text-sm text-muted-foreground">
+                      {currentService.parts.length} ricambi
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    {currentService.parts.map(part => (
+                      <div key={part.id} className="flex justify-between items-center bg-muted/10 p-2 rounded-lg">
+                        <div className="flex-1">
+                          <div className="font-medium">{part.code}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {part.name} {part.brand && `(${part.brand})`}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div>{formatCurrency(part.finalPrice)}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {part.quantity} x {formatCurrency(part.unitPrice)}
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            const newItems = items.map(item => {
+                              if (item.id === currentService.id) {
+                                const newParts = item.parts.filter(p => p.id !== part.id);
+                                const partsPrice = newParts.reduce((sum, p) => sum + p.finalPrice, 0);
+                                return {
+                                  ...item,
+                                  parts: newParts,
+                                  totalPrice: (item.laborPrice * item.laborHours) + partsPrice
+                                };
+                              }
+                              return item;
+                            });
+                            onChange(newItems);
+                          }}
+                          className="h-8 w-8 ml-2"
+                        >
+                          <span className="material-icons text-destructive">delete</span>
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="border rounded-lg p-8 text-center text-muted-foreground h-full flex items-center justify-center">
