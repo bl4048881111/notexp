@@ -37,7 +37,8 @@ export const sparePartSchema = z.object({
   code: z.string().min(1, "Codice articolo è obbligatorio"),
   description: z.string().optional(),
   netPrice: z.number().min(0, "Il prezzo deve essere maggiore o uguale a 0"),
-  markupPercentage: z.number().min(0, "La percentuale deve essere maggiore o uguale a 0"),
+  markup: z.number().min(0, "La percentuale deve essere maggiore o uguale a 0"),
+  margin: z.number().min(0, "Il margine deve essere maggiore o uguale a 0"),
   finalPrice: z.number().min(0, "Il prezzo finale deve essere maggiore o uguale a 0")
 });
 

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
-import { Edit, Trash, FileText, FileDown, CheckCircle, X } from "lucide-react";
 import { Quote } from "@shared/schema";
 import { deleteQuote, updateQuote } from "@shared/firebase";
 import { useToast } from "@/hooks/use-toast";
@@ -15,6 +14,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -25,8 +32,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { MoreHorizontal, FileEdit, Trash2, FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 
 interface QuoteTableProps {
   quotes: Quote[];
@@ -41,11 +48,10 @@ export default function QuoteTable({
   isLoading, 
   onEdit, 
   onExportPDF,
-  onDeleteSuccess
+  onDeleteSuccess 
 }: QuoteTableProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [quoteToDelete, setQuoteToDelete] = useState<Quote | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
   
   const handleDeleteClick = (quote: Quote) => {
@@ -56,22 +62,20 @@ export default function QuoteTable({
   const handleConfirmDelete = async () => {
     if (!quoteToDelete) return;
     
-    setIsDeleting(true);
     try {
       await deleteQuote(quoteToDelete.id);
       toast({
         title: "Preventivo eliminato",
-        description: "Il preventivo è stato eliminato con successo",
+        description: `Il preventivo ${quoteToDelete.id} è stato eliminato con successo`,
       });
       onDeleteSuccess();
     } catch (error) {
       toast({
-        title: "Errore di eliminazione",
+        title: "Errore",
         description: "Si è verificato un errore durante l'eliminazione del preventivo",
         variant: "destructive",
       });
     } finally {
-      setIsDeleting(false);
       setDeleteDialogOpen(false);
       setQuoteToDelete(null);
     }
@@ -81,36 +85,19 @@ export default function QuoteTable({
     try {
       await updateQuote(quote.id, { status: newStatus });
       toast({
-        title: `Preventivo ${newStatus === "accettato" ? "accettato" : "rifiutato"}`,
-        description: `Lo stato del preventivo è stato aggiornato a ${newStatus}`,
+        title: "Stato aggiornato",
+        description: `Il preventivo è stato contrassegnato come ${newStatus}`,
       });
-      onDeleteSuccess(); // Per aggiornare la lista
+      onDeleteSuccess(); // Actually refreshes the list
     } catch (error) {
       toast({
-        title: "Errore di aggiornamento",
+        title: "Errore",
         description: "Si è verificato un errore durante l'aggiornamento dello stato",
         variant: "destructive",
       });
     }
   };
   
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "bozza":
-        return <Badge variant="outline" className="bg-blue-950/50 text-blue-200 border-blue-700">Bozza</Badge>;
-      case "inviato":
-        return <Badge variant="outline" className="bg-yellow-950/50 text-yellow-200 border-yellow-700">Inviato</Badge>;
-      case "accettato":
-        return <Badge variant="outline" className="bg-green-950/50 text-green-200 border-green-700">Accettato</Badge>;
-      case "rifiutato":
-        return <Badge variant="outline" className="bg-red-950/50 text-red-200 border-red-700">Rifiutato</Badge>;
-      case "scaduto":
-        return <Badge variant="outline" className="bg-gray-950/50 text-gray-200 border-gray-700">Scaduto</Badge>;
-      default:
-        return <Badge>{status}</Badge>;
-    }
-  };
-
   const formatCurrency = (amount: number): string => {
     return new Intl.NumberFormat('it-IT', {
       style: 'currency',
@@ -118,51 +105,61 @@ export default function QuoteTable({
     }).format(amount);
   };
   
-  if (isLoading) {
-    return (
-      <div className="p-4">
-        <Skeleton className="h-10 w-full mb-4" />
-        <Skeleton className="h-10 w-full mb-4" />
-        <Skeleton className="h-10 w-full mb-4" />
-      </div>
-    );
-  }
-  
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "bozza":
+        return <Badge variant="outline">Bozza</Badge>;
+      case "inviato":
+        return <Badge variant="secondary">Inviato</Badge>;
+      case "accettato":
+        return <Badge variant="default" className="bg-green-500 hover:bg-green-600">Accettato</Badge>;
+      case "rifiutato":
+        return <Badge variant="destructive">Rifiutato</Badge>;
+      case "scaduto":
+        return <Badge variant="outline" className="bg-gray-200 hover:bg-gray-300">Scaduto</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
   return (
     <>
-      <div className="overflow-x-auto">
+      <div className="rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>ID</TableHead>
+              <TableHead>N°</TableHead>
               <TableHead>Data</TableHead>
               <TableHead>Cliente</TableHead>
               <TableHead>Veicolo</TableHead>
-              <TableHead>Importo</TableHead>
+              <TableHead>Servizi</TableHead>
+              <TableHead className="text-right">Totale</TableHead>
               <TableHead>Stato</TableHead>
-              <TableHead>Azioni</TableHead>
+              <TableHead className="text-right"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {quotes.length === 0 ? (
+            {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center p-4 text-muted-foreground">
-                  Nessun preventivo trovato
+                <TableCell colSpan={8} className="text-center py-10">
+                  <div className="flex justify-center">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                  </div>
+                  <div className="mt-2 text-sm text-muted-foreground">Caricamento preventivi...</div>
+                </TableCell>
+              </TableRow>
+            ) : quotes.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={8} className="text-center py-10">
+                  <div className="text-muted-foreground">Nessun preventivo trovato</div>
                 </TableCell>
               </TableRow>
             ) : (
               quotes.map((quote) => (
-                <TableRow key={quote.id} className="hover:bg-accent/50">
-                  <TableCell className="font-medium text-primary">{quote.id}</TableCell>
+                <TableRow key={quote.id}>
+                  <TableCell className="font-medium">#{quote.id.substring(0, 8)}</TableCell>
                   <TableCell>
-                    <div className="font-medium">
-                      {format(new Date(quote.createdAt), 'dd/MM/yyyy')}
-                    </div>
-                    {quote.validUntil && (
-                      <div className="text-xs text-muted-foreground">
-                        Valido fino al: {format(new Date(quote.validUntil), 'dd/MM/yyyy')}
-                      </div>
-                    )}
+                    {format(new Date(quote.createdAt), "dd/MM/yyyy", { locale: it })}
                   </TableCell>
                   <TableCell>
                     <div>{quote.clientName}</div>
@@ -172,62 +169,58 @@ export default function QuoteTable({
                     <div>{quote.model}</div>
                     <div className="text-xs text-muted-foreground">{quote.plate}</div>
                   </TableCell>
-                  <TableCell>
-                    <div className="font-medium">{formatCurrency(quote.total)}</div>
-                    <div className="text-xs text-muted-foreground">
-                      Subtotale: {formatCurrency(quote.subtotal)}
-                    </div>
+                  <TableCell>{quote.items.length} servizi</TableCell>
+                  <TableCell className="text-right font-medium">
+                    {formatCurrency(quote.total)}
                   </TableCell>
-                  <TableCell>
-                    {getStatusBadge(quote.status)}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex space-x-1">
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={() => onEdit(quote)}
-                        title="Modifica"
-                      >
-                        <Edit className="h-4 w-4 text-primary" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={() => handleDeleteClick(quote)}
-                        title="Elimina"
-                      >
-                        <Trash className="h-4 w-4 text-primary" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={() => onExportPDF(quote.id)}
-                        title="Esporta PDF"
-                      >
-                        <FileDown className="h-4 w-4 text-primary" />
-                      </Button>
-                      {quote.status === "inviato" && (
-                        <>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            onClick={() => handleUpdateStatus(quote, "accettato")}
-                            title="Accetta"
-                          >
-                            <CheckCircle className="h-4 w-4 text-green-500" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            onClick={() => handleUpdateStatus(quote, "rifiutato")}
-                            title="Rifiuta"
-                          >
-                            <X className="h-4 w-4 text-red-500" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
+                  <TableCell>{getStatusBadge(quote.status)}</TableCell>
+                  <TableCell className="text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <MoreHorizontal className="h-4 w-4" />
+                          <span className="sr-only">Apri menu</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Azioni</DropdownMenuLabel>
+                        <DropdownMenuItem onClick={() => onEdit(quote)}>
+                          <FileEdit className="mr-2 h-4 w-4" />
+                          Modifica
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onExportPDF(quote.id)}>
+                          <FileText className="mr-2 h-4 w-4" />
+                          Esporta PDF
+                        </DropdownMenuItem>
+                        
+                        {quote.status === "inviato" && (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              onClick={() => handleUpdateStatus(quote, "accettato")}
+                              className="text-green-600"
+                            >
+                              Segna come accettato
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handleUpdateStatus(quote, "rifiutato")}
+                              className="text-destructive"
+                            >
+                              Segna come rifiutato
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                        
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          onClick={() => handleDeleteClick(quote)}
+                          className="text-destructive"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Elimina
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))
@@ -236,28 +229,21 @@ export default function QuoteTable({
         </Table>
       </div>
       
-      <div className="px-6 py-3 flex items-center justify-between border-t border-border">
-        <div className="text-sm text-muted-foreground">
-          Mostrando <span className="font-medium">{quotes.length}</span> preventivi
-        </div>
-      </div>
-      
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Sei sicuro di voler eliminare questo preventivo?</AlertDialogTitle>
+            <AlertDialogTitle>Conferma eliminazione</AlertDialogTitle>
             <AlertDialogDescription>
-              Questa azione non può essere annullata.
+              Sei sicuro di voler eliminare questo preventivo? Questa azione non può essere annullata.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Annulla</AlertDialogCancel>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
             <AlertDialogAction 
-              onClick={handleConfirmDelete} 
-              disabled={isDeleting}
-              className="bg-destructive text-destructive-foreground"
+              onClick={handleConfirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {isDeleting ? "Eliminazione in corso..." : "Elimina"}
+              Elimina
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
