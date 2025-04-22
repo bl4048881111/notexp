@@ -75,6 +75,7 @@ export default function ServiceItemForm({ items, onChange }: ServiceItemFormProp
   const [showArticleForm, setShowArticleForm] = useState<boolean>(false);
   const [articleCode, setArticleCode] = useState<string>("");
   const [articleDescription, setArticleDescription] = useState<string>("");
+  const [articleBrand, setArticleBrand] = useState<string>("");
   const [articleQuantity, setArticleQuantity] = useState<number | "">(1);
   const [articlePrice, setArticlePrice] = useState<number | "">(0);
   const [currentService, setCurrentService] = useState<{id: string, name: string, price?: number} | null>(null);
@@ -109,6 +110,7 @@ export default function ServiceItemForm({ items, onChange }: ServiceItemFormProp
       id: uuidv4(),
       code: articleCode,
       name: articleDescription || `${currentService.name} - Codice: ${articleCode}`,
+      brand: articleBrand || undefined,
       category: isValidCategory ? activeCategory.toLowerCase() : "altro",
       quantity: typeof articleQuantity === "string" ? parseFloat(articleQuantity) || 1 : articleQuantity,
       unitPrice: typeof articlePrice === "string" ? parseFloat(articlePrice) || 0 : articlePrice,
@@ -138,6 +140,7 @@ export default function ServiceItemForm({ items, onChange }: ServiceItemFormProp
     // Reset dei campi
     setArticleCode("");
     setArticleDescription("");
+    setArticleBrand("");
     setArticleQuantity(1);
     setArticlePrice(0);
     setLaborHours("");
@@ -309,15 +312,28 @@ export default function ServiceItemForm({ items, onChange }: ServiceItemFormProp
               </div>
             </div>
             
-            <div className="mb-4">
-              <Label htmlFor="articleDescription">Descrizione (opzionale)</Label>
-              <Input
-                id="articleDescription"
-                value={articleDescription}
-                onChange={(e) => setArticleDescription(e.target.value)}
-                placeholder="Inserisci la descrizione dell'articolo"
-                className="mt-1"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <Label htmlFor="articleDescription">Descrizione (opzionale)</Label>
+                <Input
+                  id="articleDescription"
+                  value={articleDescription}
+                  onChange={(e) => setArticleDescription(e.target.value)}
+                  placeholder="Inserisci la descrizione"
+                  className="mt-1"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="articleBrand">Brand (opzionale)</Label>
+                <Input
+                  id="articleBrand"
+                  value={articleBrand}
+                  onChange={(e) => setArticleBrand(e.target.value)}
+                  placeholder="Inserisci il brand"
+                  className="mt-1"
+                />
+              </div>
             </div>
             
             <div className="flex items-center justify-between p-3 bg-muted/20 rounded-lg mb-4">
