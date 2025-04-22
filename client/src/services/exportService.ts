@@ -1,5 +1,5 @@
 import { utils, writeFile } from 'xlsx';
-import { jsPDF } from 'jspdf';
+import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Client, Appointment, Quote } from '@shared/schema';
 import { format } from 'date-fns';
@@ -192,10 +192,10 @@ export const exportQuoteToPDF = async (quote: Quote): Promise<void> => {
     // Format the parts data for PDF table
     const partsData = allParts.map(part => [
       part.code,
-      part.description || '',
+      part.name,
       part.quantity,
-      `€${(part.netPrice || 0).toFixed(2)}`,
-      `${part.markup || 0}%`,
+      `€${part.unitPrice.toFixed(2)}`,
+      part.brand || '',
       `€${part.finalPrice.toFixed(2)}`,
     ]);
     

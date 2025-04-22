@@ -274,89 +274,67 @@ export default function QuoteTable({
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      {quote.status !== 'accettato' && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 gap-1 border-green-500 text-green-500 hover:bg-green-500/10"
-                          onClick={() => handleStatusChange(quote, 'accettato')}
-                          title="Accetta preventivo"
-                        >
-                          <CheckCircle className="h-4 w-4" />
-                          <span className="hidden sm:inline">Accetta</span>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                          <span className="sr-only">Apri menu</span>
+                          <MoreHorizontal className="h-4 w-4" />
                         </Button>
-                      )}
-
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8 gap-1 border-orange-500 text-orange-500 hover:bg-orange-500/10"
-                        onClick={() => handleExportToPDF(quote)}
-                        title="Esporta PDF"
-                      >
-                        <FileDown className="h-4 w-4" />
-                        <span className="hidden sm:inline">PDF</span>
-                      </Button>
-
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Apri menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Azioni</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => onEdit(quote)}>
-                            <Pencil className="mr-2 h-4 w-4" />
-                            <span>Modifica</span>
-                          </DropdownMenuItem>
-                          
-                          <DropdownMenuSeparator />
-                          
-                          <DropdownMenuLabel>Cambia stato</DropdownMenuLabel>
-                          <DropdownMenuItem 
-                            onClick={() => handleStatusChange(quote, 'bozza')}
-                            disabled={quote.status === 'bozza'}
-                          >
-                            <Clock className="mr-2 h-4 w-4" />
-                            <span>Bozza</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleStatusChange(quote, 'inviato')}
-                            disabled={quote.status === 'inviato'}
-                          >
-                            <Send className="mr-2 h-4 w-4" />
-                            <span>Inviato</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleStatusChange(quote, 'accettato')}
-                            disabled={quote.status === 'accettato'}
-                          >
-                            <CheckCircle className="mr-2 h-4 w-4" />
-                            <span>Accettato</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleStatusChange(quote, 'rifiutato')}
-                            disabled={quote.status === 'rifiutato'}
-                          >
-                            <XCircle className="mr-2 h-4 w-4" />
-                            <span>Rifiutato</span>
-                          </DropdownMenuItem>
-                          
-                          <DropdownMenuSeparator />
-                          
-                          <DropdownMenuItem 
-                            onClick={() => handleDeleteClick(quote)}
-                            className="text-destructive"
-                          >
-                            <Trash className="mr-2 h-4 w-4" />
-                            <span>Elimina</span>
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Azioni</DropdownMenuLabel>
+                        <DropdownMenuItem onClick={() => onEdit(quote)}>
+                          <Pencil className="mr-2 h-4 w-4" />
+                          <span>Modifica</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleExportToPDF(quote)}>
+                          <FileDown className="mr-2 h-4 w-4" />
+                          <span>Esporta PDF</span>
+                        </DropdownMenuItem>
+                        
+                        <DropdownMenuSeparator />
+                        
+                        <DropdownMenuLabel>Cambia stato</DropdownMenuLabel>
+                        <DropdownMenuItem 
+                          onClick={() => handleStatusChange(quote, 'bozza')}
+                          disabled={quote.status === 'bozza'}
+                        >
+                          <Clock className="mr-2 h-4 w-4" />
+                          <span>Bozza</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => handleStatusChange(quote, 'inviato')}
+                          disabled={quote.status === 'inviato'}
+                        >
+                          <Send className="mr-2 h-4 w-4" />
+                          <span>Inviato</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => handleStatusChange(quote, 'accettato')}
+                          disabled={quote.status === 'accettato'}
+                        >
+                          <CheckCircle className="mr-2 h-4 w-4" />
+                          <span>Accettato</span>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => handleStatusChange(quote, 'rifiutato')}
+                          disabled={quote.status === 'rifiutato'}
+                        >
+                          <XCircle className="mr-2 h-4 w-4" />
+                          <span>Rifiutato</span>
+                        </DropdownMenuItem>
+                        
+                        <DropdownMenuSeparator />
+                        
+                        <DropdownMenuItem 
+                          onClick={() => handleDeleteClick(quote)}
+                          className="text-destructive"
+                        >
+                          <Trash className="mr-2 h-4 w-4" />
+                          <span>Elimina</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))
