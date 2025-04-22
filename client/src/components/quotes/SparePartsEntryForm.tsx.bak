@@ -13,7 +13,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
 
 interface SparePartsEntryFormProps {
   items: QuoteItem[];
@@ -382,6 +381,10 @@ export default function SparePartsEntryForm({
           )}
         </div>
       </div>
+      
+      {/* Sezione rimossa come richiesto */}
+      
+
     </div>
   );
 }
