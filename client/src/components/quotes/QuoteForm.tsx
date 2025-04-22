@@ -212,28 +212,21 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
   };
   
   // Gestisce l'aggiornamento degli elementi del preventivo
-  const handleItemsChange = (newItems: QuoteItem[]) => {
+  const handleItemsChange = useCallback((newItems: QuoteItem[]) => {
     console.log("QuoteForm - handleItemsChange chiamato");
-    console.log("QuoteForm - newItems ricevuti:", JSON.stringify(newItems.map(i => ({ 
-      id: i.id, 
-      service: i.serviceType.name, 
-      partsCount: i.parts?.length || 0 
-    }))));
     
-    // Assicuriamoci che tutti gli elementi abbiano parts come array valido
+    // Puliamo gli items (assicuriamoci che abbiano arrays di parts validi)
     const cleanedItems = newItems.map(item => ({
       ...item,
       parts: Array.isArray(item.parts) ? item.parts : []
     }));
     
-    console.log("QuoteForm - dopo pulizia item - nuovo parts count:", 
-      cleanedItems.map(i => `${i.serviceType.name}: ${i.parts.length}`).join(", "));
-    
+    // Impostiamo lo stato degli items senza calcolare i totali
     setItems(cleanedItems);
-    // Non impostiamo il valore del form qui perché causerebbe una ricorsione
-    // form.setValue("items", newItems); 
-    calculateTotals(cleanedItems);
-  };
+    
+    // Calcoliamo i totali solo per log, senza aggiornare il form
+    console.log("Totali calcolati (solo log):", calculateTotals(cleanedItems));
+  }, []);
   
   // Calcola i totali del preventivo
   const calculateTotals = (quoteItems: QuoteItem[]) => {
