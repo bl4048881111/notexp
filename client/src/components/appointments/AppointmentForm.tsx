@@ -248,7 +248,7 @@ export default function AppointmentForm({
   return (
     <>
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-        <DialogContent className="max-w-[800px] h-[90vh] md:max-w-[90%] sm:max-w-[95%] max-h-[95vh] overflow-hidden p-0 flex flex-col">
+        <DialogContent className="max-w-[600px] w-[95%] h-auto max-h-[85vh] md:max-h-[85vh] sm:max-h-[90vh] overflow-hidden p-0 flex flex-col">
           <DialogHeader className="px-6 py-4 border-b">
             <div className="flex items-center justify-between">
               <div>
