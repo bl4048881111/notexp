@@ -128,11 +128,16 @@ export default function QuoteTable({
   // Gestisce il cambio di stato
   const handleStatusChange = async (quote: Quote, newStatus: Quote['status']) => {
     try {
-      await updateQuote(quote.id, { status: newStatus });
+      console.log(`Tentativo di aggiornamento preventivo ${quote.id} - Da ${quote.status} a ${newStatus}`);
+      const updatedQuote = await updateQuote(quote.id, { status: newStatus });
+      console.log("Preventivo aggiornato:", updatedQuote);
+      
       toast({
         title: "Stato aggiornato",
         description: `Lo stato del preventivo è stato aggiornato in "${getStatusLabel(newStatus)}".`,
       });
+      
+      // Forza un refresh dei dati
       onStatusChange();
     } catch (error) {
       console.error("Errore durante l'aggiornamento dello stato:", error);

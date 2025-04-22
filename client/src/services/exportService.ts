@@ -200,7 +200,7 @@ export const exportQuoteToPDF = async (quote: Quote): Promise<void> => {
     ]);
     
     autoTable(doc, {
-      head: [['Codice', 'Descrizione', 'Quantità', 'Prezzo Netto', 'Ricarico', 'Prezzo Finale']],
+      head: [['Codice', 'Descrizione', 'Quantità', 'Prezzo Unitario', 'Brand', 'Prezzo Finale']],
       body: partsData,
       startY: finalY + 4,
       styles: { fontSize: 8, cellPadding: 2 },
