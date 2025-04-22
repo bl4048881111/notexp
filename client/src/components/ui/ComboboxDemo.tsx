@@ -1,5 +1,6 @@
-import { useState } from "react"
+import * as React from "react"
 import { Check, ChevronsUpDown } from "lucide-react"
+
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -15,22 +16,16 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 
-interface ComboboxItem {
-  value: string
-  label: string
-}
-
 interface ComboboxDemoProps {
-  items: ComboboxItem[]
+  items: { value: string; label: string }[]
   value: string
   onChange: (value: string) => void
   placeholder?: string
 }
 
 export function ComboboxDemo({ items, value, onChange, placeholder = "Seleziona..." }: ComboboxDemoProps) {
-  const [open, setOpen] = useState(false)
-  
-  // Trova l'etichetta dell'elemento selezionato
+  const [open, setOpen] = React.useState(false)
+
   const selectedItem = items.find((item) => item.value === value)
 
   return (
@@ -42,23 +37,21 @@ export function ComboboxDemo({ items, value, onChange, placeholder = "Seleziona.
           aria-expanded={open}
           className="w-full justify-between"
         >
-          {value && selectedItem
-            ? selectedItem.label
-            : placeholder}
+          {selectedItem ? selectedItem.label : placeholder}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+      <PopoverContent className="w-full p-0">
         <Command>
-          <CommandInput placeholder={placeholder} />
+          <CommandInput placeholder={`Cerca ${placeholder.toLowerCase()}...`} />
           <CommandEmpty>Nessun risultato trovato.</CommandEmpty>
-          <CommandGroup className="max-h-[300px] overflow-y-auto">
+          <CommandGroup className="max-h-60 overflow-y-auto">
             {items.map((item) => (
               <CommandItem
                 key={item.value}
-                value={item.value}
-                onSelect={(currentValue) => {
-                  onChange(currentValue === value ? "" : currentValue)
+                value={item.label}
+                onSelect={() => {
+                  onChange(item.value)
                   setOpen(false)
                 }}
               >
