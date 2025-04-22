@@ -374,19 +374,21 @@ export default function SparePartsEntryForm({
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleEditPart(part)}
-                                className="h-7 w-7 p-0 text-primary hover:text-primary"
+                                className="h-7 px-2 py-0 text-primary hover:text-primary flex items-center"
                                 title="Modifica ricambio"
                               >
-                                <span className="material-icons" style={{fontSize: "16px"}}>edit</span>
+                                <span className="material-icons mr-1" style={{fontSize: "14px"}}>edit</span>
+                                <span className="text-xs">Modifica</span>
                               </Button>
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleRemovePart(part.id)}
-                                className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                                className="h-7 px-2 py-0 text-destructive hover:text-destructive/80 flex items-center"
                                 title="Elimina ricambio"
                               >
-                                <span className="material-icons" style={{fontSize: "16px"}}>delete</span>
+                                <span className="material-icons mr-1" style={{fontSize: "14px"}}>delete</span>
+                                <span className="text-xs">Elimina</span>
                               </Button>
                             </div>
                           </td>

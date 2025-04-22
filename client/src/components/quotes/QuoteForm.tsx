@@ -243,15 +243,27 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
       const laborPrice = form.getValues("laborPrice");
       const laborHours = form.getValues("laborHours");
       
+      console.log("Salvataggio preventivo - items:", items);
+      items.forEach(item => {
+        console.log(`Servizio ${item.serviceType.name} ha ${item.parts?.length || 0} ricambi:`, item.parts);
+      });
+      
+      // Assicuriamoci che tutti gli item.parts siano array validi (non undefined o null)
+      const cleanedItems = items.map(item => ({
+        ...item,
+        parts: item.parts || [] // Se parts è undefined o null, impostiamo un array vuoto
+      }));
+      
       // Aggiorna i dati del form con gli items aggiornati
       const quoteData = {
         ...data,
-        items,
+        items: cleanedItems,
         laborPrice,
         laborHours
       };
       
       // Calcola i totali finali
+      console.log("QuoteData prima di salvare:", quoteData);
       const finalQuote = calculateQuoteTotals(quoteData as Quote);
       
       // Salva il preventivo
@@ -704,12 +716,27 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                               <div className="flex flex-col items-end">
                                 {/* Mostra la lista dei ricambi se presenti */}
                                 {item.parts && item.parts.length > 0 ? (
-                                  <div className="mb-1 text-sm text-right">
-                                    {item.parts.map((part, idx) => (
-                                      <div key={idx} className="text-muted-foreground">
-                                        {part.code} - {part.quantity}x {formatCurrency(part.unitPrice)}
-                                      </div>
-                                    ))}
+                                  <div className="mb-1 text-sm text-left">
+                                    <table className="w-full text-xs">
+                                      <thead className="bg-muted text-muted-foreground">
+                                        <tr>
+                                          <th className="px-1 py-0.5 text-left">Codice</th>
+                                          <th className="px-1 py-0.5 text-center">Qtà</th>
+                                          <th className="px-1 py-0.5 text-right">Prezzo</th>
+                                          <th className="px-1 py-0.5 text-right">Totale</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {item.parts.map((part, idx) => (
+                                          <tr key={idx} className={idx % 2 === 0 ? 'bg-primary/5' : ''}>
+                                            <td className="px-1 py-0.5 text-left font-medium">{part.code}</td>
+                                            <td className="px-1 py-0.5 text-center">{part.quantity}</td>
+                                            <td className="px-1 py-0.5 text-right">{formatCurrency(part.unitPrice)}</td>
+                                            <td className="px-1 py-0.5 text-right font-medium">{formatCurrency(part.finalPrice)}</td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
                                   </div>
                                 ) : (
                                   <div className="text-sm text-muted-foreground mb-1">Nessun ricambio</div>

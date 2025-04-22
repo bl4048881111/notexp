@@ -179,31 +179,49 @@ export const exportQuoteToPDF = async (quote: Quote): Promise<void> => {
     headStyles: { fillColor: [236, 107, 0] }, // Orange header
   });
   
-  // Add spare parts table if there are any
-  const allParts = quote.items.flatMap(item => item.parts);
-  if (allParts.length > 0) {
-    // Get the y position after the services table
-    const finalY = (doc as any).lastAutoTable.finalY + 10;
-    
-    doc.setFontSize(12);
-    doc.text('Ricambi', 14, finalY);
-    
-    // Format the parts data for PDF table
-    const partsData = allParts.filter(part => part && part.code).map(part => [
-      part.code || 'N/D',
-      part.brand ? `${part.name || 'Ricambio'} (${part.brand})` : (part.name || 'Ricambio'),
-      part.quantity || 1,
-      `€${(part.unitPrice || 0).toFixed(2)}`,
-      `€${(part.finalPrice || 0).toFixed(2)}`,
-    ]);
-    
-    autoTable(doc, {
-      head: [['Codice', 'Descrizione', 'Quantità', 'Prezzo Unitario', 'Prezzo Finale']],
-      body: partsData,
-      startY: finalY + 4,
-      styles: { fontSize: 8, cellPadding: 2 },
-      headStyles: { fillColor: [236, 107, 0] }, // Orange header
-    });
+  // Add spare parts table grouped by services
+  let hasAnyParts = false;
+  let lastY = (doc as any).lastAutoTable.finalY + 10;
+  
+  // Per ogni servizio, crea una tabella di ricambi se ne ha
+  quote.items.forEach((item, index) => {
+    if (item.parts && item.parts.length > 0) {
+      hasAnyParts = true;
+      
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Ricambi per ${item.serviceType.name}`, 14, lastY);
+      doc.setFont('helvetica', 'normal');
+      
+      // Format the parts data for PDF table
+      const partsData = item.parts
+        .filter(part => part && part.code)
+        .map(part => [
+          part.code || 'N/D',
+          part.brand ? `${part.name || 'Ricambio'} (${part.brand})` : (part.name || 'Ricambio'),
+          part.quantity || 1,
+          `€${(part.unitPrice || 0).toFixed(2)}`,
+          `€${(part.finalPrice || 0).toFixed(2)}`,
+        ]);
+      
+      autoTable(doc, {
+        head: [['Codice', 'Descrizione', 'Quantità', 'Prezzo Unitario', 'Prezzo Finale']],
+        body: partsData,
+        startY: lastY + 4,
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [236, 107, 0] }, // Orange header
+      });
+      
+      // Update the Y position for the next table
+      lastY = (doc as any).lastAutoTable.finalY + 10;
+    }
+  });
+  
+  // Se non ci sono ricambi, mostra un messaggio
+  if (!hasAnyParts) {
+    doc.setFontSize(10);
+    doc.text('Nessun ricambio incluso nel preventivo', 14, lastY);
+    lastY += 10;
   }
   
   // Add totals
