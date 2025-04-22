@@ -58,8 +58,8 @@ import { cn } from "@/lib/utils";
 import { it } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { ComboboxDemo } from "@/components/ui/ComboboxDemo";
-import ServiceItemForm from "./ServiceItemForm";
-import SparePartForm from "./SparePartForm";
+import ServiceSelectionForm from "./ServiceSelectionForm";
+import SparePartsEntryForm from "./SparePartsEntryForm";
 
 interface QuoteFormProps {
   isOpen: boolean;
@@ -559,7 +559,7 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote }: QuoteFo
                   <div className="text-sm text-muted-foreground">Passo 2 di 4</div>
                 </div>
                 
-                <ServiceItemForm
+                <ServiceSelectionForm
                   items={items}
                   onChange={handleItemsChange}
                 />
@@ -591,18 +591,9 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote }: QuoteFo
                   <div className="text-sm text-muted-foreground">Passo 3 di 4</div>
                 </div>
                 
-                <SparePartForm
-                  parts={items
-                    .filter(item => item.parts && item.parts.length > 0)
-                    .flatMap(item => item.parts || [])
-                  }
-                  onChange={(parts) => {
-                    // Qui inseriamo la logica per aggiornare i ricambi
-                    const updatedItems = [...items];
-                    // Aggiorna i parts nei quote items
-                    calculateTotals(updatedItems);
-                    setItems(updatedItems);
-                  }}
+                <SparePartsEntryForm
+                  items={items}
+                  onChange={handleItemsChange}
                 />
                 
                 <div className="flex justify-between space-x-2 pt-4">
