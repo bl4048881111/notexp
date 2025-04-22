@@ -21,6 +21,7 @@ export default function SparePartsEntryForm({
   const [articleBrand, setArticleBrand] = useState<string>("");
   const [articleQuantity, setArticleQuantity] = useState<number | "">(1);
   const [articlePrice, setArticlePrice] = useState<number | "">(0);
+  const [editingPartId, setEditingPartId] = useState<string | null>(null);
   
   // Raggruppo i servizi per categoria
   const servicesByCategory = useMemo(() => {
@@ -45,6 +46,7 @@ export default function SparePartsEntryForm({
     setArticleBrand("");
     setArticleQuantity(1);
     setArticlePrice(0);
+    setEditingPartId(null);
   }, []);
   
   // Formatta numeri come valuta
