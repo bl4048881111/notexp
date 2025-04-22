@@ -226,46 +226,50 @@ export default function ServiceManagementPage() {
     <div className="container mx-auto py-8">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Gestione Servizi</h1>
-          <p className="text-muted-foreground">Gestisci i tipi di servizi offerti dalla tua officina</p>
+          <h1 className="text-3xl font-bold text-white">Gestione <span className="text-orange-500">Servizi</span></h1>
+          <p className="text-gray-300">Gestisci i tipi di servizi offerti dalla tua officina</p>
         </div>
-        <Button onClick={() => setIsDialogOpen(true)} className="gap-2">
+        <Button onClick={() => setIsDialogOpen(true)} className="gap-2 bg-orange-600 hover:bg-orange-700">
           <PlusCircle className="h-4 w-4" />
           Nuovo Servizio
         </Button>
       </div>
       
       {/* Filtri */}
-      <Card className="mb-6">
-        <CardHeader className="pb-3">
+      <Card className="mb-6 bg-gray-900 border-gray-800 text-white">
+        <CardHeader className="pb-3 border-b border-gray-800">
           <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-primary" />
+            <Filter className="h-4 w-4 text-orange-500" />
             <CardTitle className="text-lg">Filtra Servizi</CardTitle>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label className="mb-2 block">Cerca per nome o descrizione</Label>
-              <Input
-                placeholder="Cerca servizio..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+              <Label className="mb-2 block text-gray-300">Cerca per nome o descrizione</Label>
+              <div className="relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Cerca servizio..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8 bg-gray-800 border-gray-700 text-white"
+                />
+              </div>
             </div>
             <div>
-              <Label className="mb-2 block">Filtra per categoria</Label>
+              <Label className="mb-2 block text-gray-300">Filtra per categoria</Label>
               <Select
                 value={categoryFilter || "all"}
                 onValueChange={(value) => setCategoryFilter(value === "all" ? null : value)}
               >
-                <SelectTrigger>
+                <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
                   <SelectValue placeholder="Tutte le categorie" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tutte le categorie</SelectItem>
+                <SelectContent className="bg-gray-900 border-gray-800 text-white">
+                  <SelectItem value="all" className="text-white focus:bg-orange-500 focus:text-white">Tutte le categorie</SelectItem>
                   {serviceCategories.map((category) => (
-                    <SelectItem key={category} value={category}>
+                    <SelectItem key={category} value={category} className="text-white focus:bg-orange-500 focus:text-white">
                       {category}
                     </SelectItem>
                   ))}
@@ -277,23 +281,23 @@ export default function ServiceManagementPage() {
       </Card>
       
       {/* Tabella Servizi */}
-      <div className="bg-gray-50 rounded-md border shadow-sm">
-        <div className="p-4 border-b">
-          <h2 className="text-xl font-semibold flex items-center gap-2">
-            <Settings className="h-5 w-5 text-primary" />
+      <div className="bg-gray-900 rounded-md border border-gray-800 shadow-sm">
+        <div className="p-4 border-b border-gray-800">
+          <h2 className="text-xl font-semibold flex items-center gap-2 text-white">
+            <Settings className="h-5 w-5 text-orange-500" />
             Servizi Disponibili
           </h2>
         </div>
         
         {/* Mostra avviso se non ci sono servizi */}
         {filteredServices.length === 0 ? (
-          <div className="p-8 text-center text-muted-foreground">
+          <div className="p-8 text-center">
             {isLoading ? (
-              <p>Caricamento servizi in corso...</p>
+              <p className="text-gray-300">Caricamento servizi in corso...</p>
             ) : (
               <>
-                <p className="text-lg font-medium">Nessun servizio trovato</p>
-                <p className="text-sm mt-1">Aggiungi un nuovo servizio o modifica i filtri di ricerca.</p>
+                <p className="text-lg font-medium text-orange-500">Nessun servizio trovato</p>
+                <p className="text-sm mt-1 text-gray-300">Aggiungi un nuovo servizio o modifica i filtri di ricerca.</p>
               </>
             )}
           </div>
@@ -311,19 +315,7 @@ export default function ServiceManagementPage() {
             ).map(([category, services]) => (
               <div key={category} className="mb-6">
                 {/* Intestazione categoria */}
-                <div className={`mb-3 px-4 py-2 rounded-md font-semibold text-white ${
-                  category === "Frenante" ? "bg-red-600" :
-                  category === "Sospensioni" ? "bg-blue-600" :
-                  category === "Accessori" ? "bg-purple-600" :
-                  category === "Manutenzione" ? "bg-green-600" :
-                  category === "Riparazione" ? "bg-yellow-600" :
-                  category === "Carrozzeria" ? "bg-pink-600" :
-                  category === "Motore" ? "bg-orange-600" :
-                  category === "Elettronica" ? "bg-indigo-600" :
-                  category === "Altro" ? "bg-gray-600" :
-                  category === "Personalizzato" ? "bg-teal-600" :
-                  "bg-gray-800"
-                }`}>
+                <div className="mb-3 px-4 py-2 rounded-md font-semibold text-white bg-orange-600">
                   <h3 className="text-lg flex items-center">
                     {category === "Frenante" && <Settings className="h-5 w-5 mr-2" />}
                     {category === "Sospensioni" && <Settings className="h-5 w-5 mr-2" />}
@@ -341,15 +333,15 @@ export default function ServiceManagementPage() {
                 {/* Elenco servizi per categoria */}
                 <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                   {services.map((service) => (
-                    <div key={service.id} className="bg-gray-100 border rounded-md p-4 relative">
+                    <div key={service.id} className="bg-gray-900 border border-gray-800 rounded-md p-4 relative">
                       <div className="flex justify-between items-start">
                         <div>
-                          <h4 className="font-medium mb-1">{service.name}</h4>
-                          <p className="text-sm text-gray-600 mb-2">
+                          <h4 className="font-medium mb-1 text-white">{service.name}</h4>
+                          <p className="text-sm text-gray-300 mb-2">
                             {service.description || "Nessuna descrizione"}
                           </p>
                           <div className="text-sm font-medium">
-                            <span className="inline-block bg-gray-200 text-gray-800 rounded-full px-3 py-1">
+                            <span className="inline-block bg-orange-500 text-white rounded-full px-3 py-1">
                               {service.laborPrice} €/ora
                             </span>
                           </div>
@@ -358,7 +350,7 @@ export default function ServiceManagementPage() {
                           <Button 
                             variant="outline" 
                             size="sm" 
-                            className="h-8 w-8 p-0"
+                            className="h-8 w-8 p-0 text-orange-500 border-orange-500 hover:bg-orange-500/10"
                             onClick={() => handleEditService(service)}
                           >
                             <Pencil className="h-4 w-4" />
@@ -384,12 +376,12 @@ export default function ServiceManagementPage() {
       
       {/* Dialog per creare/modificare servizio */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[550px]">
+        <DialogContent className="sm:max-w-[550px] bg-gray-900 border-gray-800 text-white">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="text-white">
               {editingService ? "Modifica Servizio" : "Nuovo Servizio"}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-gray-300">
               {editingService 
                 ? "Modifica i dettagli del servizio selezionato." 
                 : "Aggiungi un nuovo tipo di servizio alla tua officina."}
