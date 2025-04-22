@@ -53,6 +53,9 @@ function Router() {
       <Route path="/quotes">
         {() => <ProtectedRoute component={QuotesPage} path="/quotes" />}
       </Route>
+      <Route path="/services">
+        {() => <ProtectedRoute component={ServiceManagementPage} path="/services" />}
+      </Route>
       <Route path="/">
         {() => {
           const { isAuthenticated } = useAuth();

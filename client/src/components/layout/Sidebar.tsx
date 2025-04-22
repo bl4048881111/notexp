@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { LogOut, LayoutDashboard, Users, Calendar, FileText } from "lucide-react";
+import { LogOut, LayoutDashboard, Users, Calendar, FileText, Settings } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import autoExpressLogo from "../../assets/autoexpress-logo.png";
 
