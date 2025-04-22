@@ -139,6 +139,13 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
     }
   }, [quote]);
   
+  // Effetto per caricare il cliente quando viene fornito un defaultClientId
+  useEffect(() => {
+    if (defaultClientId && !selectedClient) {
+      fetchClientById(defaultClientId);
+    }
+  }, [defaultClientId, selectedClient]);
+  
   // Funzione per recuperare un client specifico
   const fetchClientById = async (id: string) => {
     try {
