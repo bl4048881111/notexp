@@ -4,8 +4,9 @@ import { getAllQuotes } from "@shared/firebase";
 import { Heading } from "@/components/ui/heading";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FilePlus, FileDown } from "lucide-react";
+import { FilePlus, FileDown, Zap } from "lucide-react";
 import QuoteForm from "@/components/quotes/QuoteForm";
+import QuickCreateQuote from "@/components/quotes/QuickCreateQuote";
 import QuoteTable from "@/components/quotes/QuoteTable";
 import { exportQuotesToExcel } from "@/services/exportService";
 import { useToast } from "@/hooks/use-toast";
@@ -15,6 +16,7 @@ export default function QuotesPage() {
   const [filteredQuotes, setFilteredQuotes] = useState<Quote[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isFormOpen, setIsFormOpen] = useState<boolean>(false);
+  const [isQuickCreateOpen, setIsQuickCreateOpen] = useState<boolean>(false);
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
   const [activeTab, setActiveTab] = useState<string>("all");
   const { toast } = useToast();
@@ -105,6 +107,15 @@ export default function QuotesPage() {
             <span>Esporta Excel</span>
           </Button>
           
+          <Button 
+            onClick={() => setIsQuickCreateOpen(true)} 
+            variant="outline" 
+            className="gap-1 bg-primary/10"
+          >
+            <Zap className="h-4 w-4" />
+            <span>Creazione Rapida</span>
+          </Button>
+          
           <Button onClick={handleCreateQuote} className="gap-1">
             <FilePlus className="h-4 w-4" />
             <span>Nuovo Preventivo</span>
@@ -180,6 +191,12 @@ export default function QuotesPage() {
           quote={selectedQuote}
         />
       )}
+      
+      <QuickCreateQuote
+        isOpen={isQuickCreateOpen}
+        onClose={() => setIsQuickCreateOpen(false)}
+        onSuccess={fetchQuotes}
+      />
     </div>
   );
 }
