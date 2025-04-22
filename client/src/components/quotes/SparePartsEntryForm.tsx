@@ -60,14 +60,16 @@ export default function SparePartsEntryForm({
   
   // Carica un ricambio nel form per la modifica
   const handleEditPart = useCallback((part: SparePart) => {
-    if (!activeService) return;
+    if (!activeService || !part) return;
+    
+    console.log('Modifica ricambio:', part);
     
     setEditingPartId(part.id);
-    setArticleCode(part.code);
-    setArticleDescription(part.name);
-    setArticleBrand(part.brand || "");
-    setArticleQuantity(part.quantity);
-    setArticlePrice(part.unitPrice);
+    setArticleCode(part.code || '');
+    setArticleDescription(part.name || '');
+    setArticleBrand(part.brand || '');
+    setArticleQuantity(part.quantity || 1);
+    setArticlePrice(part.unitPrice || 0);
   }, [activeService]);
 
   // Salva le modifiche al ricambio o ne aggiunge uno nuovo
@@ -198,7 +200,7 @@ export default function SparePartsEntryForm({
                   `}
                 >
                   <span>{service.serviceType.name}</span>
-                  {service.parts.length > 0 && (
+                  {service.parts && service.parts.length > 0 && (
                     <span className={`
                       ml-1 px-1.5 py-0.5 rounded-full text-xs
                       ${activeTab === service.id 
@@ -318,7 +320,7 @@ export default function SparePartsEntryForm({
             <div>
               <h5 className="font-medium">Ricambi aggiunti</h5>
               
-              {activeService.parts.length > 0 ? (
+              {activeService.parts && activeService.parts.length > 0 ? (
                 <div className="mt-2">
                   <table className="w-full border-collapse border rounded-md overflow-hidden">
                     <thead>
@@ -369,7 +371,8 @@ export default function SparePartsEntryForm({
                       <tr className="border-t font-medium bg-primary/10">
                         <td colSpan={4} className="p-2 text-right font-bold">Totale ricambi:</td>
                         <td className="p-2 text-right text-primary font-bold">
-                          {formatCurrency(activeService.parts.reduce((sum, part) => sum + part.finalPrice, 0))}
+                          {formatCurrency(activeService.parts && Array.isArray(activeService.parts) ? 
+                            activeService.parts.reduce((sum, part) => sum + (part?.finalPrice || 0), 0) : 0)}
                         </td>
                         <td></td>
                       </tr>

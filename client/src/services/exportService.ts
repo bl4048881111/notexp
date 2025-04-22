@@ -168,12 +168,11 @@ export const exportQuoteToPDF = async (quote: Quote): Promise<void> => {
     item.serviceType.name,
     item.serviceType.category,
     `€${item.serviceType.laborPrice.toFixed(2)}`,
-    `${item.laborHours}h × €${item.laborPrice.toFixed(2)}`,
     `€${item.totalPrice.toFixed(2)}`,
   ]);
   
   autoTable(doc, {
-    head: [['#', 'Servizio', 'Categoria', 'Prezzo', 'Manodopera', 'Totale']],
+    head: [['#', 'Servizio', 'Categoria', 'Prezzo Base', 'Totale']],
     body: servicesData,
     startY: 108,
     styles: { fontSize: 8, cellPadding: 2 },
@@ -192,15 +191,14 @@ export const exportQuoteToPDF = async (quote: Quote): Promise<void> => {
     // Format the parts data for PDF table
     const partsData = allParts.filter(part => part && part.code).map(part => [
       part.code || 'N/D',
-      part.name || 'Ricambio',
+      part.brand ? `${part.name || 'Ricambio'} (${part.brand})` : (part.name || 'Ricambio'),
       part.quantity || 1,
       `€${(part.unitPrice || 0).toFixed(2)}`,
-      part.brand || '',
       `€${(part.finalPrice || 0).toFixed(2)}`,
     ]);
     
     autoTable(doc, {
-      head: [['Codice', 'Descrizione', 'Quantità', 'Prezzo Unitario', 'Brand', 'Prezzo Finale']],
+      head: [['Codice', 'Descrizione', 'Quantità', 'Prezzo Unitario', 'Prezzo Finale']],
       body: partsData,
       startY: finalY + 4,
       styles: { fontSize: 8, cellPadding: 2 },
