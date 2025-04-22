@@ -61,6 +61,14 @@ export default function Sidebar() {
                 Preventivi
             </Link>
           </li>
+          <li>
+            <Link href="/services" className={`flex items-center px-4 py-3 text-foreground hover:bg-accent/50 ${
+                isActive("/services") ? "border-l-2 border-primary bg-accent/50" : ""
+              }`}>
+                <Settings className="mr-3 h-5 w-5" />
+                Gestione Servizi
+            </Link>
+          </li>
         </ul>
       </nav>
       

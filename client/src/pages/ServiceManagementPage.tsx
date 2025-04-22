@@ -50,7 +50,7 @@ import {
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PlusCircle, Pencil, Trash2, Wrench, Filter, CheckCircle, XCircle } from "lucide-react";
+import { PlusCircle, Pencil, Trash2, Settings, Filter, CheckCircle, XCircle } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
 export default function ServiceManagementPage() {
@@ -270,7 +270,7 @@ export default function ServiceManagementPage() {
       <div className="bg-white rounded-md border shadow-sm">
         <div className="p-4 border-b">
           <h2 className="text-xl font-semibold flex items-center gap-2">
-            <Wrench className="h-5 w-5 text-primary" />
+            <Settings className="h-5 w-5 text-primary" />
             Servizi Disponibili
           </h2>
         </div>

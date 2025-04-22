@@ -32,6 +32,12 @@ export default function AppLayout({ children }: AppLayoutProps) {
       case "/appointments":
         setPageTitle("Gestione Appuntamenti");
         break;
+      case "/quotes":
+        setPageTitle("Gestione Preventivi");
+        break;
+      case "/services":
+        setPageTitle("Gestione Servizi");
+        break;
       default:
         setPageTitle("La Mia Officina");
     }
