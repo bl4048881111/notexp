@@ -347,7 +347,7 @@ export default function AppointmentForm({
       
       {/* Dialog principale dell'appuntamento */}
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
           <DialogHeader className="pb-4 border-b">
             <DialogTitle className="text-xl flex items-center gap-2">
               <Calendar className="h-5 w-5 text-primary" />
@@ -454,7 +454,7 @@ export default function AppointmentForm({
                           </svg>
                         </div>
                         <div>
-                          <h3 className="font-medium text-base">{selectedClient.name} {selectedClient.surname}</h3>
+                          <h3 className="font-medium text-base">{selectedClient.name} <span className="text-primary">|</span> {selectedClient.surname}</h3>
                           <div className="text-sm text-muted-foreground mt-1 space-y-1">
                             <p className="flex items-center">
                               <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -546,12 +546,12 @@ export default function AppointmentForm({
                                       key={client.id}
                                       className={`p-4 cursor-pointer transition-colors ${
                                         index === selectedIndex ? "bg-primary/30 border border-primary/60" : "hover:bg-primary/10"
-                                      } rounded-md mb-2.5 shadow-sm`}
+                                      } rounded-md mb-3 shadow-sm border-b-2 border-primary/20`}
                                       onClick={() => handleSelectClient(client)}
                                     >
                                       <div className="flex justify-between items-start">
                                         <div>
-                                          <div className="font-semibold text-lg text-foreground">{client.name} {client.surname}</div>
+                                          <div className="font-semibold text-lg text-foreground">{client.name} <span className="text-primary">|</span> {client.surname}</div>
                                           <div className="text-base text-foreground flex flex-col gap-1 mt-2">
                                             <span className="flex items-center gap-2">
                                               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
