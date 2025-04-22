@@ -220,7 +220,9 @@ export default function SparePartsEntryForm({
                   key={service.id}
                   onClick={() => {
                     setActiveTab(service.id);
-                    // Rimuoviamo la chiamata a onActiveTabChange
+                    if (onActiveTabChange) {
+                      onActiveTabChange(service.id);
+                    }
                     resetForm();
                   }}
                   className={`
