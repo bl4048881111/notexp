@@ -678,6 +678,23 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                 
                 <StaticSparePartsForm
                   items={items}
+                  onEditService={(serviceId, updates) => {
+                    // Aggiorna l'item con gli update ricevuti
+                    const newItems = items.map(item => {
+                      if (item.id === serviceId) {
+                        const updatedItem = {
+                          ...item,
+                          ...updates
+                        };
+                        console.log(`Servizio ${item.serviceType.name} aggiornato con`, updates);
+                        return updatedItem;
+                      }
+                      return item;
+                    });
+                    
+                    // Aggiorna gli item con i totali ricalcolati
+                    handleItemsChange(newItems);
+                  }}
                   onAddPart={(serviceId, partData) => {
                     // Crea un nuovo array di servizi con il nuovo ricambio
                     const newItems = items.map(item => {
