@@ -58,8 +58,20 @@ export default function SparePartsEntryForm({
     }).format(amount);
   }, []);
   
-  // Aggiunge un ricambio
-  const handleAddSparePart = useCallback(() => {
+  // Carica un ricambio nel form per la modifica
+  const handleEditPart = useCallback((part: SparePart) => {
+    if (!activeService) return;
+    
+    setEditingPartId(part.id);
+    setArticleCode(part.code);
+    setArticleDescription(part.name);
+    setArticleBrand(part.brand || "");
+    setArticleQuantity(part.quantity);
+    setArticlePrice(part.unitPrice);
+  }, [activeService]);
+
+  // Salva le modifiche al ricambio o ne aggiunge uno nuovo
+  const handleSavePartChanges = useCallback(() => {
     if (!activeService || !articleCode || articlePrice === "" || articleQuantity === "") {
       return;
     }
@@ -68,38 +80,74 @@ export default function SparePartsEntryForm({
     const price = typeof articlePrice === "string" ? parseFloat(articlePrice) || 0 : articlePrice;
     const quantity = typeof articleQuantity === "string" ? parseFloat(articleQuantity) || 1 : articleQuantity;
     
-    // Crea il nuovo ricambio
-    const newPart: SparePart = {
-      id: uuidv4(),
-      code: articleCode,
-      name: articleDescription || `${activeService.serviceType.name} - Codice: ${articleCode}`,
-      brand: articleBrand || undefined,
-      category: activeService.serviceType.category.toLowerCase(),
-      quantity,
-      unitPrice: price,
-      finalPrice: price * quantity
-    };
+    // Determina se è un'aggiunta o una modifica
+    const isEditing = editingPartId !== null;
     
-    // Aggiorna gli elementi
-    const updatedItems = items.map(item => {
-      if (item.id === activeService.id) {
-        // Calcola il prezzo totale dei ricambi
-        const partsPrice = item.parts.reduce((sum, part) => sum + part.finalPrice, 0) + newPart.finalPrice;
-        
-        return {
-          ...item,
-          parts: [...item.parts, newPart],
-          // Mantiene il calcolo della manodopera per compatibilità
-          totalPrice: (item.laborPrice * item.laborHours) + partsPrice
-        };
-      }
-      return item;
-    });
+    let updatedItems;
+    
+    if (isEditing) {
+      // Modifica un ricambio esistente
+      updatedItems = items.map(item => {
+        if (item.id === activeService.id) {
+          // Aggiorna il ricambio specifico
+          const updatedParts = item.parts.map(part => {
+            if (part.id === editingPartId) {
+              return {
+                ...part,
+                code: articleCode,
+                name: articleDescription || `${activeService.serviceType.name} - Codice: ${articleCode}`,
+                brand: articleBrand || undefined,
+                quantity,
+                unitPrice: price,
+                finalPrice: price * quantity
+              };
+            }
+            return part;
+          });
+          
+          // Ricalcola il prezzo totale
+          const partsPrice = updatedParts.reduce((sum, part) => sum + part.finalPrice, 0);
+          
+          return {
+            ...item,
+            parts: updatedParts,
+            totalPrice: (item.laborPrice * item.laborHours) + partsPrice
+          };
+        }
+        return item;
+      });
+    } else {
+      // Aggiunge un nuovo ricambio
+      const newPart: SparePart = {
+        id: uuidv4(),
+        code: articleCode,
+        name: articleDescription || `${activeService.serviceType.name} - Codice: ${articleCode}`,
+        brand: articleBrand || undefined,
+        category: activeService.serviceType.category.toLowerCase(),
+        quantity,
+        unitPrice: price,
+        finalPrice: price * quantity
+      };
+      
+      updatedItems = items.map(item => {
+        if (item.id === activeService.id) {
+          // Calcola il prezzo totale dei ricambi
+          const partsPrice = item.parts.reduce((sum, part) => sum + part.finalPrice, 0) + newPart.finalPrice;
+          
+          return {
+            ...item,
+            parts: [...item.parts, newPart],
+            totalPrice: (item.laborPrice * item.laborHours) + partsPrice
+          };
+        }
+        return item;
+      });
+    }
     
     onChange(updatedItems);
     resetForm();
   }, [activeService, articleCode, articlePrice, articleQuantity, 
-      articleDescription, articleBrand, items, onChange, resetForm]);
+      articleDescription, articleBrand, items, onChange, resetForm, editingPartId]);
   
   // Rimuove un ricambio
   const handleRemovePart = useCallback((partId: string) => {
@@ -182,6 +230,22 @@ export default function SparePartsEntryForm({
             
             {/* Form semplice per inserimento ricambi */}
             <div className="bg-muted/20 p-4 rounded-lg mb-4">
+              <div className="flex items-center justify-between mb-3">
+                <h5 className="font-medium">
+                  {editingPartId ? 'Modifica ricambio' : 'Aggiungi nuovo ricambio'}
+                </h5>
+                {editingPartId && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={resetForm}
+                    className="h-8 px-2 text-muted-foreground"
+                  >
+                    <span className="material-icons mr-1" style={{fontSize: "16px"}}>cancel</span>
+                    Annulla modifica
+                  </Button>
+                )}
+              </div>
               <div className="grid grid-cols-12 gap-4">
                 <div className="col-span-3">
                   <Label htmlFor="articleCode">Codice*</Label>
@@ -240,11 +304,11 @@ export default function SparePartsEntryForm({
                 
                 <div className="col-span-1 flex items-end">
                   <Button
-                    onClick={handleAddSparePart}
+                    onClick={handleSavePartChanges}
                     disabled={!articleCode || articlePrice === ""}
                     className="w-full"
                   >
-                    <span className="material-icons">add</span>
+                    <span className="material-icons">{editingPartId ? 'save' : 'add'}</span>
                   </Button>
                 </div>
               </div>
@@ -269,7 +333,7 @@ export default function SparePartsEntryForm({
                     </thead>
                     <tbody>
                       {activeService.parts.map((part, index) => (
-                        <tr key={part.id} className={`border-b ${index % 2 === 0 ? 'bg-zinc-100' : 'bg-primary/10'}`}>
+                        <tr key={part.id} className={`border-b ${index % 2 === 0 ? 'bg-zinc-100' : 'bg-primary/10'} ${editingPartId === part.id ? 'bg-primary/5 outline outline-1 outline-primary' : ''}`}>
                           <td className="p-2 font-medium">{part.code}</td>
                           <td className="p-2">
                             {part.name}
@@ -279,14 +343,26 @@ export default function SparePartsEntryForm({
                           <td className="p-2 text-right">{formatCurrency(part.unitPrice)}</td>
                           <td className="p-2 text-right font-medium">{formatCurrency(part.finalPrice)}</td>
                           <td className="p-2 text-right">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleRemovePart(part.id)}
-                              className="h-7 w-7 p-0"
-                            >
-                              <span className="material-icons text-destructive" style={{fontSize: "16px"}}>delete</span>
-                            </Button>
+                            <div className="flex justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleEditPart(part)}
+                                className="h-7 w-7 p-0 text-primary hover:text-primary"
+                                title="Modifica ricambio"
+                              >
+                                <span className="material-icons" style={{fontSize: "16px"}}>edit</span>
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRemovePart(part.id)}
+                                className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                                title="Elimina ricambio"
+                              >
+                                <span className="material-icons" style={{fontSize: "16px"}}>delete</span>
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       ))}
