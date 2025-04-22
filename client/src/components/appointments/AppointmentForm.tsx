@@ -530,7 +530,7 @@ export default function AppointmentForm({
                           </div>
                           
                           {isSearching && (
-                            <div className="absolute top-full mt-2 left-0 right-0 border-2 border-primary/60 rounded-md bg-background shadow-xl z-10 max-h-[450px] overflow-y-auto">
+                            <div className="absolute top-full mt-2 left-0 right-0 border-2 border-primary/60 rounded-lg bg-background shadow-xl z-10 max-h-[450px] overflow-auto scrollbar-hide">
                               {filteredClients.length === 0 ? (
                                 <div className="p-4 text-center text-sm text-foreground">
                                   <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mx-auto mb-2 text-primary/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
