@@ -250,25 +250,26 @@ export default function AppointmentForm({
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
         <DialogContent className="max-w-[600px] w-[95%] h-auto max-h-[85vh] md:max-h-[85vh] sm:max-h-[90vh] overflow-hidden p-0 flex flex-col">
           <DialogHeader className="px-6 py-4 border-b">
-            <div className="flex items-center justify-between">
-              <div>
-                <DialogTitle className="text-2xl font-bold mb-1 flex items-center gap-2">
-                  <Calendar className="h-5 w-5 text-primary" />
-                  {appointment ? "Modifica Appuntamento" : "Nuovo Appuntamento"}
-                </DialogTitle>
-                <DialogDescription>
-                  {currentStep === 1 ? "Seleziona o cerca un cliente" :
-                   currentStep === 2 ? "Associa un preventivo all'appuntamento" :
-                   "Specifica data, ora e note"}
-                </DialogDescription>
-              </div>
-              <div className="flex justify-center gap-2 mt-2">
-                <div className={`w-3 h-3 rounded-full ${currentStep >= 1 ? "bg-primary" : "bg-gray-300"}`}></div>
-                <div className={`w-3 h-3 rounded-full ${currentStep >= 2 ? "bg-primary" : "bg-gray-300"}`}></div>
-                <div className={`w-3 h-3 rounded-full ${currentStep >= 3 ? "bg-primary" : "bg-gray-300"}`}></div>
-              </div>
+            <div className="flex flex-col items-center">
+              <DialogTitle className="text-2xl font-bold mb-1 flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-primary" />
+                {appointment ? "Modifica Appuntamento" : "Nuovo Appuntamento"}
+              </DialogTitle>
+              <DialogDescription className="text-center">
+                {currentStep === 1 ? "Seleziona o cerca un cliente" :
+                 currentStep === 2 ? "Associa un preventivo all'appuntamento" :
+                 "Specifica data, ora e note"}
+              </DialogDescription>
             </div>
           </DialogHeader>
+          
+          <div className="flex justify-center -mt-3 mb-2 z-10 relative">
+            <div className="bg-background px-3 py-1 rounded-full border shadow-sm flex items-center gap-2">
+              <div className={`w-3 h-3 rounded-full ${currentStep >= 1 ? "bg-primary" : "bg-gray-300"}`}></div>
+              <div className={`w-3 h-3 rounded-full ${currentStep >= 2 ? "bg-primary" : "bg-gray-300"}`}></div>
+              <div className={`w-3 h-3 rounded-full ${currentStep >= 3 ? "bg-primary" : "bg-gray-300"}`}></div>
+            </div>
+          </div>
           
           {/* Form con pulsanti di navigazione separati */}
           <div className="flex flex-col h-full">
