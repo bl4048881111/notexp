@@ -141,7 +141,7 @@ export default function SparePartsEntryForm({
           return {
             ...item,
             parts: updatedParts,
-            totalPrice: (item.laborPrice * item.laborHours) + partsPrice
+            totalPrice: partsPrice // Rimuovo il calcolo della manodopera qui, verrà aggiunta solo alla fine
           };
         }
         return item;
@@ -167,7 +167,7 @@ export default function SparePartsEntryForm({
           return {
             ...item,
             parts: [...item.parts, newPart],
-            totalPrice: (item.laborPrice * item.laborHours) + partsPrice
+            totalPrice: partsPrice // Rimuovo il calcolo della manodopera qui, verrà aggiunta solo alla fine
           };
         }
         return item;
@@ -205,7 +205,7 @@ export default function SparePartsEntryForm({
         return {
           ...item,
           parts: updatedParts,
-          totalPrice: (item.laborPrice * item.laborHours) + partsPrice
+          totalPrice: partsPrice // Rimuovo il calcolo della manodopera qui, verrà aggiunta solo alla fine
         };
       }
       return item;

@@ -295,12 +295,13 @@ export const calculateQuoteTotals = (quote: Quote): Quote => {
     }, 0);
     
     // Calculate labor cost: price per hour * hours
+    // La manodopera è solo per l'intero servizio, non per ogni ricambio
     const laborPrice = item.laborPrice || 0;
     const laborHours = item.laborHours || 0;
     const laborTotal = laborPrice * laborHours;
     
-    // Total price for this item
-    const itemTotal = partsTotal + laborTotal;
+    // Total price for this item è solo la somma dei ricambi (la manodopera viene aggiunta al totale finale)
+    const itemTotal = partsTotal;
     
     return {
       ...item,
