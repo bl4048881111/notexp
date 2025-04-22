@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Pencil, Plus } from "lucide-react";
 
 interface StaticSparePartsFormProps {
   items: QuoteItem[];
@@ -130,25 +130,23 @@ export default function StaticSparePartsForm({
                             <td className="p-2 text-right">{formatCurrency(part.unitPrice)}</td>
                             <td className="p-2 text-right font-medium">{formatCurrency(part.finalPrice)}</td>
                             <td className="p-2 text-right">
-                              <div className="flex justify-end gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-7 text-primary"
-                                  onClick={() => {
-                                    // Apri il dialog per modificare il ricambio
-                                    setActiveServiceId(service.id);
-                                    setPartCode(part.code);
-                                    setPartDescription(part.name);
-                                    setPartQuantity(part.quantity);
-                                    setPartPrice(part.unitPrice);
-                                    setEditingPartId(part.id); // Imposta l'ID del ricambio che stiamo modificando
-                                    setIsDialogOpen(true);
-                                  }}
-                                >
-                                  Modifica
-                                </Button>
-                              </div>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-primary"
+                                onClick={() => {
+                                  // Apri il dialog per modificare il ricambio
+                                  setActiveServiceId(service.id);
+                                  setPartCode(part.code);
+                                  setPartDescription(part.name);
+                                  setPartQuantity(part.quantity);
+                                  setPartPrice(part.unitPrice);
+                                  setEditingPartId(part.id); // Imposta l'ID del ricambio che stiamo modificando
+                                  setIsDialogOpen(true);
+                                }}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
                             </td>
                           </tr>
                         ))}
@@ -173,10 +171,11 @@ export default function StaticSparePartsForm({
                 <div className="text-right">
                   <Button 
                     variant="outline" 
-                    size="sm"
+                    size="icon"
+                    className="h-8 w-8"
                     onClick={() => openPartDialog(service.id)}
                   >
-                    Aggiungi ricambio
+                    <Plus className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
