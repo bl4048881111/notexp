@@ -681,19 +681,34 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                             <td className="p-2">{item.serviceType.category}</td>
                             <td className="p-2 text-right">{formatCurrency(item.serviceType.laborPrice || 0)}</td>
                             <td className="p-2 text-right">
-                              <Button 
-                                variant="link" 
-                                size="sm" 
-                                className="p-0 h-auto font-normal underline-offset-4 text-primary"
-                                onClick={() => {
-                                  // Imposta lo step 3 (ricambi) e seleziona questo servizio
-                                  setCurrentStep(3);
-                                  setActiveTab(item.id);
-                                  console.log("Modifica ricambi per", item.serviceType.name);
-                                }}
-                              >
-                                {item.parts?.length ? `${item.parts.length} ricambi (modifica)` : 'Aggiungi ricambi'}
-                              </Button>
+                              <div className="flex flex-col items-end">
+                                {/* Mostra la lista dei ricambi se presenti */}
+                                {item.parts && item.parts.length > 0 ? (
+                                  <div className="mb-1 text-sm text-right">
+                                    {item.parts.map((part, idx) => (
+                                      <div key={idx} className="text-muted-foreground">
+                                        {part.code} - {part.quantity}x {formatCurrency(part.unitPrice)}
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="text-sm text-muted-foreground mb-1">Nessun ricambio</div>
+                                )}
+                                
+                                <Button 
+                                  variant="link" 
+                                  size="sm" 
+                                  className="p-0 h-auto font-normal underline-offset-4 text-primary"
+                                  onClick={() => {
+                                    // Imposta lo step 3 (ricambi) e seleziona questo servizio
+                                    setCurrentStep(3);
+                                    setActiveTab(item.id);
+                                    console.log("Modifica ricambi per", item.serviceType.name);
+                                  }}
+                                >
+                                  {item.parts?.length ? `Modifica ricambi (${item.parts.length})` : 'Aggiungi ricambi'}
+                                </Button>
+                              </div>
                             </td>
                             <td className="p-2 text-right font-medium">{formatCurrency(item.totalPrice)}</td>
                           </tr>
