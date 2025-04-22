@@ -384,7 +384,7 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote }: QuoteFo
                                 <Calendar
                                   mode="single"
                                   selected={field.value ? new Date(field.value) : undefined}
-                                  onSelect={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                                  onSelect={(date) => date ? field.onChange(format(date, "yyyy-MM-dd")) : field.onChange(undefined)}
                                   disabled={(date) => date < new Date()}
                                   initialFocus
                                 />
@@ -513,7 +513,7 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote }: QuoteFo
                         
                         <div>Valido fino a:</div>
                         <div className="font-medium">
-                          {format(new Date(form.getValues("validUntil")), "dd/MM/yyyy")}
+                          {form.getValues("validUntil") ? format(new Date(form.getValues("validUntil")), "dd/MM/yyyy") : "N/A"}
                         </div>
                         
                         <div>Stato:</div>
