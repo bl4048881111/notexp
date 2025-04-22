@@ -207,16 +207,26 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
     let subtotal = 0;
     
     for (const item of quoteItems) {
-      // Usa la funzione helper che somma ricambi + manodopera
-      const itemTotal = calculateItemTotal(item);
-      subtotal += itemTotal;
-      
+      // Calcola il totale dei ricambi per questo item
+      const partsTotal = Array.isArray(item.parts) 
+        ? item.parts.reduce((sum, part) => sum + (part.finalPrice || 0), 0) 
+        : 0;
+        
       // Aggiorniamo il totalPrice dell'item (utile per la visualizzazione)
+      const itemTotal = partsTotal;
       if (item && item.totalPrice !== itemTotal) {
         console.log(`Aggiornato totale per ${item.serviceType.name}: da ${item.totalPrice} a ${itemTotal}`);
         item.totalPrice = itemTotal;
       }
+      
+      subtotal += itemTotal;
     }
+    
+    // Aggiungi la manodopera extra
+    const laborPrice = form.getValues('laborPrice') || 0;
+    const laborHours = form.getValues('laborHours') || 0;
+    const laborTotal = laborPrice * laborHours;
+    subtotal += laborTotal;
     
     // Calcoli dell'IVA
     const taxRate = 22; // Valore fisso per evitare form.getValues()
