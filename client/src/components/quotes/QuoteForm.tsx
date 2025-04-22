@@ -277,8 +277,8 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
     );
   });
   
-  // Stato per il passaggio corrente
-  const [currentStep, setCurrentStep] = useState<number>(1);
+  // Stato per il passaggio corrente - se è una modifica, andiamo direttamente allo step 4 (ricambi)
+  const [currentStep, setCurrentStep] = useState<number>(quote ? 4 : 1);
   const totalSteps = 4;
   
   // Funzione per andare al passaggio successivo
