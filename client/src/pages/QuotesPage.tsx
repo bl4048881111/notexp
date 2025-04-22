@@ -3,7 +3,7 @@ import { Quote } from "@shared/schema";
 import { getAllQuotes } from "@shared/firebase";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
-import { Heading } from "@/components/ui/heading";
+import { Heading } from "../components/ui/heading";
 import QuoteForm from "../components/quotes/QuoteForm";
 import QuoteTable from "../components/quotes/QuoteTable";
 

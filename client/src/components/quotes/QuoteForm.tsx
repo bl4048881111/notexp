@@ -4,7 +4,7 @@ import { it } from "date-fns/locale";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Quote, CreateQuoteInput, createQuoteSchema, Client, QuoteItem } from "@shared/schema";
-import { getAllClients } from "@shared/firebase";
+import { getAllClients, createQuote, updateQuote } from "@shared/firebase";
 
 import {
   Form,
@@ -44,7 +44,7 @@ import ServiceItemForm from "./ServiceItemForm";
 import SparePartForm from "./SparePartForm";
 import { useIsMobile } from "../../hooks/use-mobile";
 import { CalendarIcon, Car, FileEdit, Settings, Wrench, User } from "lucide-react";
-import { ComboboxDemo } from "../ui/ComboboxDemo";
+import { ComboboxDemo } from "../../components/ui/ComboboxDemo";
 
 interface QuoteFormProps {
   isOpen: boolean;
@@ -147,28 +147,31 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote }: QuoteFo
     }
   };
   
-  const onSubmit = async (data: Quote) => {
+  const onSubmit = async (formData: any) => {
     try {
       // Assicurati che il preventivo abbia tutti i dati calcolati
       const finalData = {
-        ...data,
+        ...(quote ? { id: quote.id } : {}), // Include l'id se è un aggiornamento
+        ...formData,
         items,
         subtotal: items.reduce((sum, item) => sum + item.totalPrice, 0),
-        taxAmount: (data.subtotal * data.taxRate) / 100,
-        total: data.subtotal + data.taxAmount,
-        createdAt: data.createdAt || Date.now()
+        taxAmount: (formData.subtotal * formData.taxRate) / 100,
+        total: formData.subtotal + formData.taxAmount,
+        createdAt: formData.createdAt || Date.now()
       };
       
       if (quote) {
         // Aggiorna il preventivo esistente
-        await onSuccess();
+        await updateQuote(quote.id, finalData);
+        onSuccess();
         toast({
           title: "Preventivo aggiornato",
           description: "Il preventivo è stato aggiornato con successo.",
         });
       } else {
         // Crea un nuovo preventivo
-        await onSuccess();
+        await createQuote(finalData);
+        onSuccess();
         toast({
           title: "Preventivo creato",
           description: "Il preventivo è stato creato con successo.",

@@ -70,12 +70,17 @@ export default function ServiceItemForm({ items, onChange }: ServiceItemFormProp
   
   const handleAddService = (categoryId: string, service: { id: string, name: string, price: number }) => {
     // Crea un nuovo servizio da aggiungere al preventivo
+    // Verifica che la categoria sia valida secondo lo schema
+    const isValidCategory = ["Tagliando", "Frenante", "Sospensioni", "Accessori", 
+                           "Manutenzione", "Riparazione", "Carrozzeria", 
+                           "Motore", "Elettronica", "Altro", "Personalizzato"].includes(categoryId);
+    
     const serviceType: ServiceType = {
       id: service.id,
       name: service.name,
-      category: categoryId,
+      category: isValidCategory ? categoryId as any : "Altro",
       description: `${categoryId} - ${service.name}`,
-      price: service.price,
+      laborPrice: service.price,
     };
     
     const laborHoursNum = typeof laborHours === "string" ? parseFloat(laborHours) || 1 : laborHours;
@@ -237,7 +242,7 @@ export default function ServiceItemForm({ items, onChange }: ServiceItemFormProp
                       )}
                     </TableCell>
                     <TableCell>{item.serviceType.category}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(item.serviceType.price)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(item.serviceType.laborPrice)}</TableCell>
                     <TableCell className="text-right">
                       {formatCurrency(item.laborPrice * item.laborHours)}
                       <div className="text-xs text-muted-foreground">
