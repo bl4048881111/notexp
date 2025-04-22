@@ -185,7 +185,8 @@ export const exportQuoteToPDF = async (quote: Quote): Promise<void> => {
   
   // Per ogni servizio, crea una tabella di ricambi se ne ha
   quote.items.forEach((item, index) => {
-    if (item.parts && item.parts.length > 0) {
+    // Verifica che l'array parts sia valido
+    if (Array.isArray(item.parts) && item.parts.length > 0) {
       hasAnyParts = true;
       
       doc.setFontSize(10);
@@ -193,27 +194,49 @@ export const exportQuoteToPDF = async (quote: Quote): Promise<void> => {
       doc.text(`Ricambi per ${item.serviceType.name}`, 14, lastY);
       doc.setFont('helvetica', 'normal');
       
-      // Format the parts data for PDF table
-      const partsData = item.parts
-        .filter(part => part && part.code)
-        .map(part => [
-          part.code || 'N/D',
-          part.brand ? `${part.name || 'Ricambio'} (${part.brand})` : (part.name || 'Ricambio'),
-          part.quantity || 1,
-          `€${(part.unitPrice || 0).toFixed(2)}`,
-          `€${(part.finalPrice || 0).toFixed(2)}`,
-        ]);
-      
-      autoTable(doc, {
-        head: [['Codice', 'Descrizione', 'Quantità', 'Prezzo Unitario', 'Prezzo Finale']],
-        body: partsData,
-        startY: lastY + 4,
-        styles: { fontSize: 8, cellPadding: 2 },
-        headStyles: { fillColor: [236, 107, 0] }, // Orange header
-      });
-      
-      // Update the Y position for the next table
-      lastY = (doc as any).lastAutoTable.finalY + 10;
+      try {
+        // Format the parts data for PDF table
+        const partsData = item.parts
+          .filter(part => part && part.code) // Filtra via eventuali ricambi null/undefined o senza codice
+          .map(part => [
+            part.code || 'N/D',
+            part.brand ? `${part.name || 'Ricambio'} (${part.brand})` : (part.name || 'Ricambio'),
+            part.quantity || 1,
+            `€${(part.unitPrice || 0).toFixed(2)}`,
+            `€${(part.finalPrice || 0).toFixed(2)}`,
+          ]);
+        
+        // Controlla che ci siano effettivamente dati da mostrare
+        if (partsData.length > 0) {
+          autoTable(doc, {
+            head: [['Codice', 'Descrizione', 'Quantità', 'Prezzo Unitario', 'Prezzo Finale']],
+            body: partsData,
+            startY: lastY + 4,
+            styles: { fontSize: 8, cellPadding: 2 },
+            headStyles: { fillColor: [236, 107, 0] }, // Orange header
+          });
+          
+          // Update the Y position for the next table
+          lastY = (doc as any).lastAutoTable.finalY + 10;
+        } else {
+          // Se non ci sono ricambi validi, passa al prossimo servizio
+          doc.setFontSize(8);
+          doc.setTextColor(100, 100, 100); // Gray
+          doc.text('(Nessun ricambio valido per questo servizio)', 14, lastY + 4);
+          lastY += 10;
+        }
+      } catch (error) {
+        console.error(`Errore nella generazione della tabella ricambi per ${item.serviceType.name}:`, error);
+        
+        // Gestisci l'errore mostrando un messaggio nel PDF
+        doc.setFontSize(8);
+        doc.setTextColor(255, 0, 0); // Red
+        doc.text(`Errore nella visualizzazione dei ricambi per ${item.serviceType.name}`, 14, lastY + 4);
+        lastY += 10;
+        
+        // Ripristina il colore per il testo successivo
+        doc.setTextColor(0, 0, 0); // Black
+      }
     }
   });
   

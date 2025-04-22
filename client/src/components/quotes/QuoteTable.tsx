@@ -270,16 +270,20 @@ export default function QuoteTable({
                   </TableCell>
                   <TableCell>{formatDate(quote.date)}</TableCell>
                   <TableCell>
-                    {quote.items && quote.items.flatMap(item => item.parts).length > 0 ? (
+                    {quote.items && quote.items.some(item => Array.isArray(item.parts) && item.parts.length > 0) ? (
                       <div className="flex flex-col gap-1">
                         <span className="text-xs font-medium text-primary">
-                          {quote.items.flatMap(item => item.parts).length} ricambi totali
+                          {quote.items.reduce((count, item) => 
+                            count + (Array.isArray(item.parts) ? item.parts.length : 0), 0)} ricambi totali
                         </span>
                         {quote.items
-                          .filter(item => item.parts && item.parts.length > 0)
+                          .filter(item => Array.isArray(item.parts) && item.parts.length > 0)
                           .map((item, idx) => (
-                            <div key={idx} className="text-xs text-muted-foreground">
-                              {item.serviceType.name}: {item.parts.length}
+                            <div key={idx} className="text-xs flex items-center gap-1">
+                              <span className="text-muted-foreground">{item.serviceType.name}:</span>
+                              <span className="bg-primary/10 text-primary text-xs px-1.5 py-0.5 rounded-sm">
+                                {item.parts.length}
+                              </span>
                             </div>
                           ))
                         }
