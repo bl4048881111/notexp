@@ -611,6 +611,8 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                 <SparePartsEntryForm
                   items={items}
                   onChange={handleItemsChange}
+                  initialActiveTab={activeTab}
+                  onActiveTabChange={setActiveTab}
                 />
                 
                 <div className="flex justify-between space-x-2 pt-4">

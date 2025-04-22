@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { QuoteItem, SparePart } from "@shared/schema";
 import { Button } from "@/components/ui/button";
@@ -8,14 +8,25 @@ import { Input } from "@/components/ui/input";
 interface SparePartsEntryFormProps {
   items: QuoteItem[];
   onChange: (items: QuoteItem[]) => void;
+  initialActiveTab?: string | null;
+  onActiveTabChange?: (tabId: string) => void;
 }
 
 export default function SparePartsEntryForm({ 
   items, 
-  onChange 
+  onChange,
+  initialActiveTab = null,
+  onActiveTabChange
 }: SparePartsEntryFormProps) {
   // Stati locali
-  const [activeTab, setActiveTab] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<string | null>(initialActiveTab);
+  
+  // Aggiorna il tab attivo quando cambia initialActiveTab
+  useEffect(() => {
+    if (initialActiveTab) {
+      setActiveTab(initialActiveTab);
+    }
+  }, [initialActiveTab]);
   const [articleCode, setArticleCode] = useState<string>("");
   const [articleDescription, setArticleDescription] = useState<string>("");
   const [articleBrand, setArticleBrand] = useState<string>("");
@@ -189,6 +200,7 @@ export default function SparePartsEntryForm({
                   key={service.id}
                   onClick={() => {
                     setActiveTab(service.id);
+                    if (onActiveTabChange) onActiveTabChange(service.id);
                     resetForm();
                   }}
                   className={`
