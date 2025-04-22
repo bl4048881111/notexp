@@ -109,6 +109,7 @@ export default function ServiceItemForm({ items, onChange }: ServiceItemFormProp
       id: uuidv4(),
       code: articleCode,
       name: articleDescription,
+      category: isValidCategory ? activeCategory.toLowerCase() : "altro",
       quantity: typeof articleQuantity === "string" ? parseFloat(articleQuantity) || 1 : articleQuantity,
       unitPrice: typeof articlePrice === "string" ? parseFloat(articlePrice) || 0 : articlePrice,
       finalPrice: (typeof articlePrice === "string" ? parseFloat(articlePrice) || 0 : articlePrice) * 

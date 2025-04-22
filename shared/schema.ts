@@ -37,6 +37,8 @@ export const sparePartSchema = z.object({
   code: z.string().min(1, "Codice articolo è obbligatorio"),
   name: z.string().min(1, "Nome articolo è obbligatorio"),
   description: z.string().optional(),
+  brand: z.string().optional(),
+  category: z.string().default("altro"),
   quantity: z.number().min(1, "La quantità deve essere almeno 1").default(1),
   unitPrice: z.number().min(0, "Il prezzo unitario deve essere maggiore o uguale a 0"),
   finalPrice: z.number().min(0, "Il prezzo finale deve essere maggiore o uguale a 0"),

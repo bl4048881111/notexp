@@ -250,8 +250,13 @@ export const deleteQuote = async (id: string): Promise<void> => {
 export const calculateQuoteTotals = (quote: Quote): Quote => {
   // Calculate total for each item
   const items = quote.items.map(item => {
-    // Sum up parts prices
-    const partsTotal = item.parts.reduce((sum, part) => sum + part.finalPrice, 0);
+    // Sum up parts prices, assicurandoci di usare prezzo unitario × quantità
+    const partsTotal = item.parts.reduce((sum, part) => {
+      // Assicurarsi che finalPrice sia corretto (prezzo unitario × quantità)
+      const partPrice = part.unitPrice * part.quantity;
+      return sum + partPrice;
+    }, 0);
+    
     // Calculate labor cost: price per hour * hours
     const laborTotal = item.laborPrice * item.laborHours;
     // Total price for this item
