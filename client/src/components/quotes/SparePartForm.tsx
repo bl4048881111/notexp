@@ -110,35 +110,25 @@ export default function SparePartForm({ parts, onChange }: SparePartFormProps) {
       
       {/* Form di inserimento */}
       <div className="p-4 border rounded-md bg-card">
-        <h3 className="text-lg font-medium mb-4">Aggiungi ricambio - {activeCategory.charAt(0).toUpperCase() + activeCategory.slice(1)}</h3>
+        <h3 className="text-lg font-medium mb-4">
+          <span className="text-primary">{activeCategory.charAt(0).toUpperCase() + activeCategory.slice(1)}</span> - Inserimento articolo
+        </h3>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <div>
-            <Label htmlFor="code">Codice Articolo*</Label>
+            <Label htmlFor="code" className="text-primary font-medium">Codice Articolo*</Label>
             <Input
               id="code"
               value={code}
               onChange={(e) => setCode(e.target.value)}
-              placeholder="Codice ricambio"
+              placeholder="Codice articolo"
+              autoFocus
               className="mt-1"
             />
           </div>
           
           <div>
-            <Label htmlFor="brand">Brand</Label>
-            <Input
-              id="brand"
-              value={brand}
-              onChange={(e) => setBrand(e.target.value)}
-              placeholder="Brand (opzionale)"
-              className="mt-1"
-            />
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <div>
-            <Label htmlFor="price">Prezzo*</Label>
+            <Label htmlFor="price" className="text-primary font-medium">Prezzo*</Label>
             <div className="flex items-center space-x-2 mt-1">
               <Input
                 id="price"
@@ -154,7 +144,7 @@ export default function SparePartForm({ parts, onChange }: SparePartFormProps) {
           </div>
           
           <div>
-            <Label htmlFor="quantity">Quantità*</Label>
+            <Label htmlFor="quantity" className="text-primary font-medium">Quantità*</Label>
             <Input
               id="quantity"
               type="number"
@@ -168,15 +158,28 @@ export default function SparePartForm({ parts, onChange }: SparePartFormProps) {
           </div>
         </div>
         
-        <div className="mb-4">
-          <Label htmlFor="description">Descrizione</Label>
-          <Input
-            id="description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Descrizione (opzionale)"
-            className="mt-1"
-          />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <Label htmlFor="description">Descrizione (opzionale)</Label>
+            <Input
+              id="description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Descrizione dell'articolo"
+              className="mt-1"
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="brand">Brand (opzionale)</Label>
+            <Input
+              id="brand"
+              value={brand}
+              onChange={(e) => setBrand(e.target.value)}
+              placeholder="Marca dell'articolo"
+              className="mt-1"
+            />
+          </div>
         </div>
         
         <div className="flex justify-end">
@@ -187,7 +190,7 @@ export default function SparePartForm({ parts, onChange }: SparePartFormProps) {
             disabled={!code || !price}
           >
             <Plus size={16} />
-            <span>Aggiungi</span>
+            <span>Aggiungi Articolo</span>
           </Button>
         </div>
       </div>

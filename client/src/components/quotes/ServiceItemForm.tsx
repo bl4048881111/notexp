@@ -84,8 +84,8 @@ export default function ServiceItemForm({ items, onChange }: ServiceItemFormProp
     if (!currentService) return;
     
     // Validazione
-    if (!articleCode || !articleDescription || articlePrice === "" || articleQuantity === "") {
-      alert("Inserisci tutti i campi dell'articolo");
+    if (!articleCode || articlePrice === "" || articleQuantity === "") {
+      alert("Inserisci tutti i campi obbligatori: codice, prezzo e quantità");
       return;
     }
     
@@ -108,7 +108,7 @@ export default function ServiceItemForm({ items, onChange }: ServiceItemFormProp
     const manualPart: SparePart = {
       id: uuidv4(),
       code: articleCode,
-      name: articleDescription,
+      name: articleDescription || `${currentService.name} - Codice: ${articleCode}`,
       category: isValidCategory ? activeCategory.toLowerCase() : "altro",
       quantity: typeof articleQuantity === "string" ? parseFloat(articleQuantity) || 1 : articleQuantity,
       unitPrice: typeof articlePrice === "string" ? parseFloat(articlePrice) || 0 : articlePrice,
@@ -252,7 +252,9 @@ export default function ServiceItemForm({ items, onChange }: ServiceItemFormProp
         {showArticleForm && currentService && (
           <div className="mb-6 border rounded-lg p-4 bg-muted/20">
             <div className="flex justify-between items-center mb-3">
-              <h3 className="font-medium">Inserimento Articolo: {currentService.name}</h3>
+              <h3 className="font-medium text-lg">
+                <span className="text-primary font-bold">{currentService.name}</span> - Inserimento codice articolo
+              </h3>
               <Button 
                 variant="ghost" 
                 size="sm" 
@@ -265,31 +267,35 @@ export default function ServiceItemForm({ items, onChange }: ServiceItemFormProp
               </Button>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div>
-                <Label htmlFor="articleCode">Codice Articolo</Label>
+                <Label htmlFor="articleCode" className="text-primary font-medium">Codice Articolo*</Label>
                 <Input
                   id="articleCode"
                   value={articleCode}
                   onChange={(e) => setArticleCode(e.target.value)}
                   placeholder="Inserisci il codice articolo"
+                  autoFocus
                   className="mt-1"
                 />
               </div>
               
               <div>
-                <Label htmlFor="articleDescription">Descrizione</Label>
+                <Label htmlFor="articlePrice" className="text-primary font-medium">Prezzo (€)*</Label>
                 <Input
-                  id="articleDescription"
-                  value={articleDescription}
-                  onChange={(e) => setArticleDescription(e.target.value)}
-                  placeholder="Inserisci la descrizione dell'articolo"
+                  id="articlePrice"
+                  type="number"
+                  value={articlePrice}
+                  onChange={(e) => setArticlePrice(e.target.value === "" ? "" : parseFloat(e.target.value))}
+                  placeholder="Prezzo articolo"
+                  min={0}
+                  step={0.01}
                   className="mt-1"
                 />
               </div>
               
               <div>
-                <Label htmlFor="articleQuantity">Quantità</Label>
+                <Label htmlFor="articleQuantity" className="text-primary font-medium">Quantità*</Label>
                 <Input
                   id="articleQuantity"
                   type="number"
@@ -301,67 +307,71 @@ export default function ServiceItemForm({ items, onChange }: ServiceItemFormProp
                   className="mt-1"
                 />
               </div>
-              
-              <div>
-                <Label htmlFor="articlePrice">Prezzo Unitario (€)</Label>
-                <Input
-                  id="articlePrice"
-                  type="number"
-                  value={articlePrice}
-                  onChange={(e) => setArticlePrice(e.target.value === "" ? "" : parseFloat(e.target.value))}
-                  placeholder="Prezzo unitario"
-                  min={0}
-                  step={0.01}
-                  className="mt-1"
-                />
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div>
-                <Label htmlFor="laborHours">Ore di Manodopera</Label>
-                <Input
-                  id="laborHours"
-                  type="number"
-                  value={laborHours}
-                  onChange={(e) => setLaborHours(e.target.value === "" ? "" : parseFloat(e.target.value))}
-                  placeholder="Ore di manodopera"
-                  min={0}
-                  step={0.5}
-                  className="mt-1"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="laborPrice">Costo Orario Manodopera (€)</Label>
-                <Input
-                  id="laborPrice"
-                  type="number"
-                  value={laborPrice}
-                  onChange={(e) => setLaborPrice(parseFloat(e.target.value))}
-                  placeholder="Costo orario manodopera"
-                  min={0}
-                  step={0.01}
-                  className="mt-1"
-                />
-              </div>
             </div>
             
             <div className="mb-4">
-              <Label htmlFor="notes">Note</Label>
-              <Textarea
-                id="notes"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Note aggiuntive per questo servizio"
-                className="mt-1 h-20"
+              <Label htmlFor="articleDescription">Descrizione (opzionale)</Label>
+              <Input
+                id="articleDescription"
+                value={articleDescription}
+                onChange={(e) => setArticleDescription(e.target.value)}
+                placeholder="Inserisci la descrizione dell'articolo"
+                className="mt-1"
               />
             </div>
             
-            <div className="flex justify-end">
+            <div className="flex items-center justify-between p-3 bg-muted/20 rounded-lg mb-4">
+              <div>
+                <p className="font-medium text-sm">Servizio: <span className="text-primary font-bold">{currentService.name}</span></p>
+                <p className="font-medium text-sm mt-1">Categoria: <span className="text-primary">{activeCategory}</span></p>
+              </div>
+              
+              <div className="flex items-center gap-4">
+                <div>
+                  <Label htmlFor="laborHours" className="text-sm">Ore di Manodopera</Label>
+                  <Input
+                    id="laborHours"
+                    type="number"
+                    value={laborHours}
+                    onChange={(e) => setLaborHours(e.target.value === "" ? "" : parseFloat(e.target.value))}
+                    placeholder="Ore"
+                    min={0}
+                    step={0.5}
+                    className="w-20 h-8 text-sm"
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="laborPrice" className="text-sm">Costo/Ora (€)</Label>
+                  <Input
+                    id="laborPrice"
+                    type="number"
+                    value={laborPrice}
+                    onChange={(e) => setLaborPrice(parseFloat(e.target.value))}
+                    placeholder="€/ora"
+                    min={0}
+                    step={0.01}
+                    className="w-20 h-8 text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-2">
+              <Button 
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setShowArticleForm(false);
+                  setCurrentService(null);
+                }}
+              >
+                Annulla
+              </Button>
               <Button 
                 type="button" 
                 onClick={handleAddManualArticle}
+                disabled={!articleCode || articlePrice === ""}
               >
                 Aggiungi Articolo
               </Button>
