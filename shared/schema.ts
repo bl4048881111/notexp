@@ -125,6 +125,7 @@ export const quoteSchema = z.object({
   phone: z.string(),
   plate: z.string(),
   model: z.string(),
+  kilometrage: z.number().default(0),
   date: z.string(),
   items: z.array(quoteItemSchema).default([]),
   subtotal: z.number().default(0),
@@ -132,6 +133,8 @@ export const quoteSchema = z.object({
   taxAmount: z.number().default(0),
   total: z.number().default(0),
   notes: z.string().optional(),
+  laborPrice: z.number().default(45), // Tariffa oraria di manodopera extra
+  laborHours: z.number().default(0), // Ore di manodopera extra
   status: z.enum(["bozza", "inviato", "accettato", "rifiutato", "scaduto"]).default("bozza"),
   validUntil: z.string().optional(), // Data di scadenza del preventivo
   createdAt: z.number()

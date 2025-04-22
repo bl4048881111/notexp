@@ -263,10 +263,18 @@ export const calculateQuoteTotals = (quote: Quote): Quote => {
     };
   });
   
-  // Calculate quote subtotal
-  const subtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
+  // Calculate quote subtotal from service items
+  const itemsSubtotal = items.reduce((sum, item) => sum + item.totalPrice, 0);
+  
+  // Calculate extra labor cost
+  const extraLaborCost = (quote.laborPrice || 0) * (quote.laborHours || 0);
+  
+  // Calculate total subtotal (items + extra labor)
+  const subtotal = itemsSubtotal + extraLaborCost;
+  
   // Calculate tax amount
   const taxAmount = (subtotal * quote.taxRate) / 100;
+  
   // Calculate total
   const total = subtotal + taxAmount;
   
