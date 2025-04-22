@@ -33,29 +33,29 @@ import { Textarea } from "@/components/ui/textarea";
 // Definizione delle categorie e dei servizi
 type ServiceCategory = "Tagliando" | "Frenante" | "Sospensioni" | "Accessori";
 
-const services: Record<ServiceCategory, Array<{ id: string, name: string, price: number }>> = {
+const services: Record<ServiceCategory, Array<{ id: string, name: string }>> = {
   "Tagliando": [
-    { id: "filtro-aria", name: "Filtro Aria", price: 25 },
-    { id: "filtro-olio", name: "Filtro Olio", price: 20 },
-    { id: "filtro-carburante", name: "Filtro Carburante", price: 30 },
-    { id: "filtro-abitacolo", name: "Filtro Abitacolo", price: 25 },
-    { id: "olio-motore", name: "Olio Motore", price: 80 },
+    { id: "filtro-aria", name: "Filtro Aria" },
+    { id: "filtro-olio", name: "Filtro Olio" },
+    { id: "filtro-carburante", name: "Filtro Carburante" },
+    { id: "filtro-abitacolo", name: "Filtro Abitacolo" },
+    { id: "olio-motore", name: "Olio Motore" },
   ],
   "Frenante": [
-    { id: "pastiglie-anteriori", name: "Pastiglie Anteriori", price: 120 },
-    { id: "pastiglie-posteriori", name: "Pastiglie Posteriori", price: 100 },
-    { id: "dischi-anteriori", name: "Dischi Anteriori", price: 180 },
-    { id: "dischi-posteriori", name: "Dischi/Ganasce Posteriori", price: 160 },
+    { id: "pastiglie-anteriori", name: "Pastiglie Anteriori" },
+    { id: "pastiglie-posteriori", name: "Pastiglie Posteriori" },
+    { id: "dischi-anteriori", name: "Dischi Anteriori" },
+    { id: "dischi-posteriori", name: "Dischi/Ganasce Posteriori" },
   ],
   "Sospensioni": [
-    { id: "ammortizzatori-anteriori", name: "Ammortizzatori Anteriori", price: 220 },
-    { id: "ammortizzatori-posteriori", name: "Ammortizzatori Posteriori", price: 220 },
+    { id: "ammortizzatori-anteriori", name: "Ammortizzatori Anteriori" },
+    { id: "ammortizzatori-posteriori", name: "Ammortizzatori Posteriori" },
   ],
   "Accessori": [
-    { id: "spazzole", name: "Spazzole", price: 40 },
-    { id: "batteria", name: "Batteria", price: 120 },
-    { id: "additivo", name: "Additivo", price: 30 },
-    { id: "altro", name: "Altro", price: 50 },
+    { id: "spazzole", name: "Spazzole" },
+    { id: "batteria", name: "Batteria" },
+    { id: "additivo", name: "Additivo" },
+    { id: "altro", name: "Altro" },
   ]
 };
 
@@ -77,7 +77,7 @@ export default function ServiceItemForm({ items, onChange }: ServiceItemFormProp
   const [articleDescription, setArticleDescription] = useState<string>("");
   const [articleQuantity, setArticleQuantity] = useState<number | "">(1);
   const [articlePrice, setArticlePrice] = useState<number | "">(0);
-  const [currentService, setCurrentService] = useState<{id: string, name: string, price: number} | null>(null);
+  const [currentService, setCurrentService] = useState<{id: string, name: string, price?: number} | null>(null);
   
   // Gestisce l'aggiunta di un articolo manuale dopo la selezione del servizio
   const handleAddManualArticle = () => {
@@ -153,7 +153,7 @@ export default function ServiceItemForm({ items, onChange }: ServiceItemFormProp
   };
   
   // Gestisce il click su un servizio
-  const handleServiceClick = (categoryId: ServiceCategory, service: { id: string, name: string, price: number }) => {
+  const handleServiceClick = (categoryId: ServiceCategory, service: { id: string, name: string }) => {
     // Se il servizio è già selezionato, rimuovilo
     if (selectedServices[service.id]) {
       const itemId = items.find(
@@ -164,12 +164,12 @@ export default function ServiceItemForm({ items, onChange }: ServiceItemFormProp
     }
     
     // Altrimenti, imposta il servizio corrente e mostra il form
-    setCurrentService(service);
+    setCurrentService({...service, price: 0}); // Prezzo sempre zero, sarà inserito manualmente
     setShowArticleForm(true);
   };
   
   // Gestisce l'aggiunta standard di un servizio (non più usata direttamente, ma tenuta per compatibilità)
-  const handleAddService = (categoryId: ServiceCategory, service: { id: string, name: string, price: number }) => {
+  const handleAddService = (categoryId: ServiceCategory, service: { id: string, name: string }) => {
     // Crea un nuovo servizio da aggiungere al preventivo
     // Verifica che la categoria sia valida secondo lo schema
     const isValidCategory = ["Tagliando", "Frenante", "Sospensioni", "Accessori", 
@@ -181,12 +181,12 @@ export default function ServiceItemForm({ items, onChange }: ServiceItemFormProp
       name: service.name,
       category: isValidCategory ? categoryId as any : "Altro",
       description: `${categoryId} - ${service.name}`,
-      laborPrice: service.price,
+      laborPrice: 0, // Nessun prezzo predefinito
     };
     
     const laborHoursNum = typeof laborHours === "string" ? parseFloat(laborHours) || 1 : laborHours;
     
-    const totalPrice = (laborPrice * laborHoursNum) + service.price;
+    const totalPrice = (laborPrice * laborHoursNum);
     
     const newItem: QuoteItem = {
       id: uuidv4(),
@@ -412,9 +412,6 @@ export default function ServiceItemForm({ items, onChange }: ServiceItemFormProp
                         <Label htmlFor={service.id} className="cursor-pointer font-medium">
                           {service.name}
                         </Label>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Prezzo: {formatCurrency(service.price)}
-                        </p>
                       </div>
                     </div>
                   </div>
