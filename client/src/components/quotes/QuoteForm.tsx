@@ -132,12 +132,32 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
   // Effetto per impostare gli elementi del preventivo
   useEffect(() => {
     if (quote) {
-      setItems(quote.items);
+      console.log("Caricamento preventivo per modifica:", quote);
+      
+      // Assicurati che ogni servizio abbia l'array parts inizializzato
+      const itemsWithParts = quote.items.map(item => ({
+        ...item,
+        parts: item.parts || []
+      }));
+      
+      setItems(itemsWithParts);
+      
       if (quote.clientId) {
         fetchClientById(quote.clientId);
       }
+      
+      // Inizializza i valori del form con quelli del preventivo
+      form.setValue("laborPrice", quote.laborPrice || 45);
+      form.setValue("laborHours", quote.laborHours || 0);
+      form.setValue("notes", quote.notes || "");
+      form.setValue("status", quote.status || "bozza");
+      
+      // Imposta come tab attivo il primo servizio (se presente)
+      if (quote.items.length > 0) {
+        setActiveTab(quote.items[0].id);
+      }
     }
-  }, [quote]);
+  }, [quote, form]);
   
   // Effetto per caricare il cliente quando viene fornito un defaultClientId
   useEffect(() => {

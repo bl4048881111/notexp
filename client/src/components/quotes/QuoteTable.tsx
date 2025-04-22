@@ -234,6 +234,7 @@ export default function QuoteTable({
               <TableHead>Cliente</TableHead>
               <TableHead>Veicolo</TableHead>
               <TableHead>Data</TableHead>
+              <TableHead>Ricambi</TableHead>
               <TableHead>Totale</TableHead>
               <TableHead>Stato</TableHead>
               <TableHead className="text-right">Azioni</TableHead>
@@ -242,7 +243,7 @@ export default function QuoteTable({
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
+                <TableCell colSpan={7} className="h-24 text-center">
                   Caricamento preventivi...
                 </TableCell>
               </TableRow>
@@ -268,6 +269,25 @@ export default function QuoteTable({
                     </div>
                   </TableCell>
                   <TableCell>{formatDate(quote.date)}</TableCell>
+                  <TableCell>
+                    {quote.items && quote.items.flatMap(item => item.parts).length > 0 ? (
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs font-medium text-primary">
+                          {quote.items.flatMap(item => item.parts).length} ricambi totali
+                        </span>
+                        {quote.items
+                          .filter(item => item.parts && item.parts.length > 0)
+                          .map((item, idx) => (
+                            <div key={idx} className="text-xs text-muted-foreground">
+                              {item.serviceType.name}: {item.parts.length}
+                            </div>
+                          ))
+                        }
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Nessun ricambio</span>
+                    )}
+                  </TableCell>
                   <TableCell>{formatCurrency(quote.total)}</TableCell>
                   <TableCell>
                     <Badge 
