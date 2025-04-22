@@ -351,7 +351,7 @@ export default function AppointmentForm({
       
       {/* Dialog principale dell'appuntamento */}
       <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto scrollbar-hide">
           <DialogHeader className="pb-4 border-b">
             <DialogTitle className="text-xl flex items-center gap-2">
               <Calendar className="h-5 w-5 text-primary" />
@@ -458,7 +458,7 @@ export default function AppointmentForm({
                           </svg>
                         </div>
                         <div>
-                          <h3 className="font-bold text-lg text-foreground">{selectedClient.name} {selectedClient.surname}</h3>
+                          <h3 className="font-bold text-base text-foreground">{selectedClient.name} {selectedClient.surname}</h3>
                           <div className="flex items-center gap-4 mt-1.5">
                             <span className="text-sm flex items-center text-muted-foreground">
                               <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1.5 text-primary/80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -529,7 +529,7 @@ export default function AppointmentForm({
                                   }
                                 }
                               }}
-                              className="pl-11 py-6 text-lg border-2 border-primary/40 focus-visible:ring-primary/60 bg-primary/5 text-foreground font-medium rounded-lg"
+                              className="pl-11 py-5 text-base border-2 border-primary/40 focus-visible:ring-primary/60 bg-primary/5 text-foreground font-medium rounded-lg"
                             />
                           </div>
                           
@@ -561,7 +561,7 @@ export default function AppointmentForm({
                                               </svg>
                                             </div>
                                             <div>
-                                              <div className="font-bold text-lg text-foreground">{client.name} {client.surname}</div>
+                                              <div className="font-bold text-base text-foreground">{client.name} {client.surname}</div>
                                               <div className="text-sm text-muted-foreground flex items-center mt-1">
                                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1.5 text-primary/80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
@@ -663,7 +663,7 @@ export default function AppointmentForm({
                                 </div>
                               </div>
                               <div className="text-right">
-                                <div className="font-bold text-lg">{quote.total.toFixed(2)} €</div>
+                                <div className="font-bold text-base">{quote.total.toFixed(2)} €</div>
                                 <Button 
                                   size="sm" 
                                   variant="ghost"
