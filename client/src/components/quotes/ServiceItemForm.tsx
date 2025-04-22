@@ -1,111 +1,121 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { QuoteItem, ServiceType } from "@shared/schema";
-import { getAllServiceTypes, getServiceTypesByCategory } from "@shared/firebase";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { QuoteItem, SparePart, ServiceType } from "@shared/schema";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Separator } from "@/components/ui/separator";
+import { Slider } from "@/components/ui/slider";
+import { Textarea } from "@/components/ui/textarea";
 
-import SparePartForm from "./SparePartForm";
+// Definizione delle categorie e dei servizi
+const services = {
+  "Tagliando": [
+    { id: "filtro-aria", name: "Filtro Aria", price: 25 },
+    { id: "filtro-olio", name: "Filtro Olio", price: 20 },
+    { id: "filtro-carburante", name: "Filtro Carburante", price: 30 },
+    { id: "filtro-abitacolo", name: "Filtro Abitacolo", price: 25 },
+    { id: "olio-motore", name: "Olio Motore", price: 80 },
+  ],
+  "Frenante": [
+    { id: "pastiglie-anteriori", name: "Pastiglie Anteriori", price: 120 },
+    { id: "pastiglie-posteriori", name: "Pastiglie Posteriori", price: 100 },
+    { id: "dischi-anteriori", name: "Dischi Anteriori", price: 180 },
+    { id: "dischi-posteriori", name: "Dischi/Ganasce Posteriori", price: 160 },
+  ],
+  "Sospensioni": [
+    { id: "ammortizzatori-anteriori", name: "Ammortizzatori Anteriori", price: 220 },
+    { id: "ammortizzatori-posteriori", name: "Ammortizzatori Posteriori", price: 220 },
+  ],
+  "Accessori": [
+    { id: "spazzole", name: "Spazzole", price: 40 },
+    { id: "batteria", name: "Batteria", price: 120 },
+    { id: "additivo", name: "Additivo", price: 30 },
+    { id: "altro", name: "Altro", price: 50 },
+  ]
+};
 
 interface ServiceItemFormProps {
   items: QuoteItem[];
   onChange: (items: QuoteItem[]) => void;
 }
 
-type ServiceCategory = "Tagliando" | "Frenante" | "Sospensioni" | "Accessori" | "Manutenzione" | "Riparazione" | "Carrozzeria" | "Motore" | "Elettronica" | "Altro" | "Personalizzato";
-
 export default function ServiceItemForm({ items, onChange }: ServiceItemFormProps) {
-  const [serviceTypes, setServiceTypes] = useState<ServiceType[]>([]);
-  const [customServiceName, setCustomServiceName] = useState("");
+  const [laborPrice, setLaborPrice] = useState<number>(45);
+  const [laborHours, setLaborHours] = useState<number | "">("");
+  const [notes, setNotes] = useState<string>("");
+  const [selectedServices, setSelectedServices] = useState<Record<string, boolean>>({});
   
-  // Load service types on component mount
-  useEffect(() => {
-    const loadServiceTypes = async () => {
-      const types = await getAllServiceTypes();
-      setServiceTypes(types);
+  const handleAddService = (categoryId: string, service: { id: string, name: string, price: number }) => {
+    // Crea un nuovo servizio da aggiungere al preventivo
+    const serviceType: ServiceType = {
+      id: service.id,
+      name: service.name,
+      category: categoryId,
+      description: `${categoryId} - ${service.name}`,
+      price: service.price,
     };
     
-    loadServiceTypes();
-  }, []);
-  
-  const handleAddItem = (serviceType: ServiceType) => {
+    const laborHoursNum = typeof laborHours === "string" ? parseFloat(laborHours) || 1 : laborHours;
+    
+    const totalPrice = (laborPrice * laborHoursNum) + service.price;
+    
     const newItem: QuoteItem = {
       id: uuidv4(),
       serviceType,
-      description: serviceType.description || "",
-      laborPrice: serviceType.laborPrice,
-      laborHours: 1,
+      laborPrice,
+      laborHours: laborHoursNum,
       parts: [],
-      totalPrice: serviceType.laborPrice // Initial price without parts
+      notes: notes || undefined,
+      totalPrice
     };
     
     onChange([...items, newItem]);
+    
+    // Reset dei campi
+    setLaborHours("");
+    setNotes("");
+    
+    // Marca il servizio come selezionato
+    setSelectedServices({
+      ...selectedServices,
+      [service.id]: true
+    });
   };
   
   const handleRemoveItem = (id: string) => {
-    onChange(items.filter(item => item.id !== id));
-  };
-  
-  const handleItemChange = (id: string, updates: Partial<QuoteItem>) => {
-    onChange(items.map(item => {
-      if (item.id === id) {
-        const updatedItem = { ...item, ...updates };
-        
-        // Calculate the total price (labor + parts)
-        const laborTotal = updatedItem.laborPrice * updatedItem.laborHours;
-        const partsTotal = updatedItem.parts.reduce((sum, part) => sum + part.finalPrice, 0);
-        updatedItem.totalPrice = laborTotal + partsTotal;
-        
-        return updatedItem;
-      }
-      return item;
-    }));
-  };
-
-  const handleAddCustomService = () => {
-    if (!customServiceName.trim()) return;
-    
-    // Creare un tipo di servizio personalizzato
-    const customType: ServiceType = {
-      id: uuidv4(),
-      name: customServiceName,
-      category: "Personalizzato" as ServiceCategory,
-      laborPrice: 40,
-      description: "Servizio personalizzato"
-    };
-    
-    handleAddItem(customType);
-    setCustomServiceName("");
-  };
-  
-  const isCategorySelected = (category: ServiceCategory) => {
-    return items.some(item => item.serviceType.category === category);
-  };
-  
-  const handleCategoryToggle = (category: ServiceCategory, checked: boolean) => {
-    if (checked) {
-      const serviceType = serviceTypes.find(st => st.category === category);
-      if (serviceType) handleAddItem(serviceType);
-    } else {
-      onChange(items.filter(item => item.serviceType.category !== category));
+    const itemToRemove = items.find(item => item.id === id);
+    if (itemToRemove) {
+      // Rimuovi il segno di spunta dal servizio
+      setSelectedServices({
+        ...selectedServices,
+        [itemToRemove.serviceType.id]: false
+      });
     }
+    
+    onChange(items.filter(item => item.id !== id));
   };
   
   const formatCurrency = (amount: number): string => {
@@ -114,247 +124,160 @@ export default function ServiceItemForm({ items, onChange }: ServiceItemFormProp
       currency: 'EUR'
     }).format(amount);
   };
-
+  
   return (
-    <div className="space-y-4">
-      <div className="space-y-4">
-        <h3 className="text-lg font-medium text-primary">Servizi ({items.length} selezionati)</h3>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="border border-border rounded-md overflow-hidden p-4 bg-muted/20">
-            <div className="grid grid-cols-1 gap-4">
-              <div className="flex items-center space-x-2 p-3 rounded-md border border-primary/50 bg-muted/30">
-                <Checkbox 
-                  id="service-tagliando" 
-                  checked={isCategorySelected("Tagliando")}
-                  onCheckedChange={(checked) => handleCategoryToggle("Tagliando", checked as boolean)}
-                />
-                <Label htmlFor="service-tagliando" className="text-lg cursor-pointer font-semibold">Tagliando</Label>
-              </div>
-              
-              <div className="flex items-center space-x-2 p-3 rounded-md border border-primary/50 bg-muted/30">
-                <Checkbox 
-                  id="service-frenante" 
-                  checked={isCategorySelected("Frenante")}
-                  onCheckedChange={(checked) => handleCategoryToggle("Frenante", checked as boolean)}
-                />
-                <Label htmlFor="service-frenante" className="text-lg cursor-pointer font-semibold">Frenante</Label>
-              </div>
-              
-              <div className="flex items-center space-x-2 p-3 rounded-md border border-primary/50 bg-muted/30">
-                <Checkbox 
-                  id="service-sospensioni" 
-                  checked={isCategorySelected("Sospensioni")}
-                  onCheckedChange={(checked) => handleCategoryToggle("Sospensioni", checked as boolean)}
-                />
-                <Label htmlFor="service-sospensioni" className="text-lg cursor-pointer font-semibold">Sospensioni</Label>
-              </div>
-              
-              <div className="flex items-center space-x-2 p-3 rounded-md border border-border bg-muted/30">
-                <Checkbox 
-                  id="service-accessori" 
-                  checked={isCategorySelected("Accessori")}
-                  onCheckedChange={(checked) => handleCategoryToggle("Accessori", checked as boolean)}
-                />
-                <Label htmlFor="service-accessori" className="text-lg cursor-pointer font-semibold">Accessori</Label>
-              </div>
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div>
+          <div className="mb-4">
+            <Label className="mb-1 block">Tariffa oraria manodopera</Label>
+            <div className="flex items-center space-x-2">
+              <Input
+                type="number"
+                value={laborPrice}
+                onChange={(e) => setLaborPrice(parseFloat(e.target.value) || 0)}
+                className="w-24"
+                min={0}
+              />
+              <span>€/ora</span>
             </div>
           </div>
           
-          <div className="border border-border rounded-md overflow-hidden p-4 bg-muted/20">
-            <div className="grid grid-cols-1 gap-4">
-              <div className="flex items-center space-x-2 p-3 rounded-md border border-border bg-muted/30">
-                <Checkbox 
-                  id="service-manutenzione" 
-                  checked={isCategorySelected("Manutenzione")}
-                  onCheckedChange={(checked) => handleCategoryToggle("Manutenzione", checked as boolean)}
-                />
-                <Label htmlFor="service-manutenzione" className="text-lg cursor-pointer font-semibold">Manutenzione</Label>
-              </div>
-              
-              <div className="flex items-center space-x-2 p-3 rounded-md border border-border bg-muted/30">
-                <Checkbox 
-                  id="service-riparazione" 
-                  checked={isCategorySelected("Riparazione")}
-                  onCheckedChange={(checked) => handleCategoryToggle("Riparazione", checked as boolean)}
-                />
-                <Label htmlFor="service-riparazione" className="text-lg cursor-pointer font-semibold">Riparazione</Label>
-              </div>
-              
-              <div className="flex items-center space-x-2 p-3 rounded-md border border-border bg-muted/30">
-                <Checkbox 
-                  id="service-carrozzeria" 
-                  checked={isCategorySelected("Carrozzeria")}
-                  onCheckedChange={(checked) => handleCategoryToggle("Carrozzeria", checked as boolean)}
-                />
-                <Label htmlFor="service-carrozzeria" className="text-lg cursor-pointer font-semibold">Carrozzeria</Label>
-              </div>
-              
-              <div className="flex items-center space-x-2 p-3 rounded-md border border-border bg-muted/30">
-                <Checkbox 
-                  id="service-altro" 
-                  checked={isCategorySelected("Altro")}
-                  onCheckedChange={(checked) => handleCategoryToggle("Altro", checked as boolean)}
-                />
-                <Label htmlFor="service-altro" className="text-lg cursor-pointer font-semibold">Altro</Label>
-              </div>
+          <div className="mb-4">
+            <Label className="mb-1 block">Ore di manodopera</Label>
+            <div className="flex items-center space-x-2">
+              <Input
+                type="number"
+                value={laborHours}
+                onChange={(e) => setLaborHours(e.target.value ? parseFloat(e.target.value) : "")}
+                className="w-24"
+                min={0}
+                step={0.5}
+              />
+              <span>ore</span>
             </div>
           </div>
+          
+          <div className="mb-4">
+            <Label className="mb-1 block">Note</Label>
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Note per il servizio (opzionale)"
+              className="h-24"
+            />
+          </div>
         </div>
         
-        <div className="border border-primary rounded-md p-4 bg-muted/30">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="servizio-personalizzato" className="font-semibold text-primary">Servizio personalizzato</Label>
-            <Button 
-              type="button" 
-              size="sm"
-              className="bg-primary hover:bg-primary/90"
-              onClick={handleAddCustomService}
-              disabled={!customServiceName.trim()}
-            >
-              <span className="mr-1">+</span> Aggiungi
-            </Button>
-          </div>
-          <Input 
-            id="servizio-personalizzato" 
-            className="mt-2" 
-            placeholder="Inserisci servizio personalizzato (es. Riparazione specifica)"
-            value={customServiceName}
-            onChange={(e) => setCustomServiceName(e.target.value)}
-          />
-        </div>
-      </div>
-      
-      <Separator className="my-4" />
-      
-      <div>
-        <h2 className="text-lg font-medium mb-4">Servizi Selezionati</h2>
-        
-        {items.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            Nessun servizio selezionato
-          </div>
-        ) : (
-          <Accordion type="multiple" className="space-y-4">
-            {items.map((item, index) => (
-              <AccordionItem 
-                key={item.id} 
-                value={item.id} 
-                className="border rounded-md overflow-hidden"
-              >
-                <AccordionTrigger className="px-4 py-2 hover:no-underline">
-                  <div className="flex items-center justify-between w-full">
-                    <div className="flex items-center space-x-2">
-                      <span className="font-medium">{index + 1}. {item.serviceType.name}</span>
-                      <span className="text-xs bg-muted px-2 py-0.5 rounded">
-                        {item.serviceType.category}
-                      </span>
-                    </div>
-                    <div className="font-bold">{formatCurrency(item.totalPrice)}</div>
-                  </div>
+        <div className="border rounded-md">
+          <Accordion type="multiple" defaultValue={["Tagliando", "Frenante", "Sospensioni", "Accessori"]}>
+            {Object.entries(services).map(([category, categoryServices]) => (
+              <AccordionItem value={category} key={category}>
+                <AccordionTrigger className="px-4">
+                  {category}
                 </AccordionTrigger>
-                <AccordionContent className="px-4 pb-4">
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor={`description-${item.id}`}>Descrizione</Label>
-                        <Textarea 
-                          id={`description-${item.id}`}
-                          value={item.description || ""}
-                          onChange={(e) => handleItemChange(item.id, { description: e.target.value })}
-                          placeholder="Descrizione del servizio"
-                        />
-                      </div>
-                      
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor={`laborPrice-${item.id}`}>Costo Manodopera/ora</Label>
-                            <Input 
-                              id={`laborPrice-${item.id}`}
-                              type="number"
-                              value={item.laborPrice}
-                              onChange={(e) => handleItemChange(item.id, { 
-                                laborPrice: parseFloat(e.target.value) || 0 
-                              })}
-                              min="0"
-                              step="0.01"
-                            />
-                          </div>
-                          
-                          <div className="space-y-2">
-                            <Label htmlFor={`laborHours-${item.id}`}>Ore di Lavoro</Label>
-                            <Input 
-                              id={`laborHours-${item.id}`}
-                              type="number"
-                              value={item.laborHours}
-                              onChange={(e) => handleItemChange(item.id, { 
-                                laborHours: parseFloat(e.target.value) || 0 
-                              })}
-                              min="0.25"
-                              step="0.25"
-                            />
-                          </div>
+                <AccordionContent className="px-4 pb-2">
+                  <div className="space-y-2">
+                    {categoryServices.map((service) => (
+                      <div key={service.id} className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <Checkbox 
+                            id={service.id}
+                            checked={selectedServices[service.id] || false}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                handleAddService(category, service);
+                              } else {
+                                const itemId = items.find(
+                                  item => item.serviceType.id === service.id
+                                )?.id;
+                                if (itemId) handleRemoveItem(itemId);
+                              }
+                            }}
+                          />
+                          <Label htmlFor={service.id} className="cursor-pointer">
+                            {service.name}
+                          </Label>
                         </div>
-                        
-                        <div className="flex justify-between">
-                          <div>
-                            <div className="text-sm font-medium">Totale Manodopera</div>
-                            <div className="text-muted-foreground text-sm">
-                              {item.laborPrice} € x {item.laborHours} ore
-                            </div>
-                          </div>
-                          <div className="font-bold">{formatCurrency(item.laborPrice * item.laborHours)}</div>
-                        </div>
+                        <span className="text-sm">{formatCurrency(service.price)}</span>
                       </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label>Ricambi</Label>
-                      <SparePartForm 
-                        parts={item.parts} 
-                        onChange={(parts) => handleItemChange(item.id, { parts })}
-                      />
-                    </div>
-                    
-                    <div className="flex justify-between pt-2 border-t">
-                      <div>
-                        <div className="text-sm font-medium">Totale Servizio</div>
-                        <div className="text-muted-foreground text-sm">
-                          Manodopera + Ricambi
-                        </div>
-                      </div>
-                      <div className="font-bold text-lg">{formatCurrency(item.totalPrice)}</div>
-                    </div>
-                    
-                    <div className="flex justify-end">
-                      <Button 
-                        variant="destructive" 
-                        size="sm" 
-                        onClick={() => handleRemoveItem(item.id)}
-                      >
-                        Rimuovi servizio
-                      </Button>
-                    </div>
+                    ))}
                   </div>
                 </AccordionContent>
               </AccordionItem>
             ))}
           </Accordion>
-        )}
+        </div>
       </div>
       
-      <div className="flex justify-between pt-4 border-t">
-        <div>
-          <div className="font-medium">Subtotale Servizi</div>
-          <div className="text-sm text-muted-foreground">
-            {items.length} servizi selezionati
+      {items.length > 0 && (
+        <>
+          <Separator />
+          
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Servizio</TableHead>
+                  <TableHead>Categoria</TableHead>
+                  <TableHead className="text-right">Prezzo</TableHead>
+                  <TableHead className="text-right">Manodopera</TableHead>
+                  <TableHead className="text-right">Ricambi</TableHead>
+                  <TableHead className="text-right">Totale</TableHead>
+                  <TableHead className="w-[80px]"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {items.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell className="font-medium">
+                      {item.serviceType.name}
+                      {item.notes && (
+                        <div className="text-xs text-muted-foreground mt-1">{item.notes}</div>
+                      )}
+                    </TableCell>
+                    <TableCell>{item.serviceType.category}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(item.serviceType.price)}</TableCell>
+                    <TableCell className="text-right">
+                      {formatCurrency(item.laborPrice * item.laborHours)}
+                      <div className="text-xs text-muted-foreground">
+                        {item.laborHours} ore × {formatCurrency(item.laborPrice)}/h
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatCurrency(item.parts.reduce((sum, part) => sum + part.finalPrice, 0))}
+                      <div className="text-xs text-muted-foreground">
+                        {item.parts.length} ricambi
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right font-medium">{formatCurrency(item.totalPrice)}</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleRemoveItem(item.id)}
+                        className="h-8 w-8"
+                      >
+                        <span className="material-icons text-destructive">delete</span>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                
+                <TableRow>
+                  <TableCell colSpan={5} className="text-right font-medium">
+                    Totale Servizi:
+                  </TableCell>
+                  <TableCell className="text-right font-bold">
+                    {formatCurrency(items.reduce((sum, item) => sum + item.totalPrice, 0))}
+                  </TableCell>
+                  <TableCell></TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
           </div>
-        </div>
-        <div className="font-bold text-xl">
-          {formatCurrency(items.reduce((sum, item) => sum + item.totalPrice, 0))}
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 }

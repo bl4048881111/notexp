@@ -15,22 +15,26 @@ interface SparePartFormProps {
 export default function SparePartForm({ parts, onChange }: SparePartFormProps) {
   const [code, setCode] = useState("");
   const [description, setDescription] = useState("");
+  const [quantity, setQuantity] = useState<number | "">(1);
   const [netPrice, setNetPrice] = useState<number | "">(0);
   const [markup, setMarkup] = useState<number | "">(20); // Default markup percentage
   
   const handleAddPart = () => {
-    if (!description || netPrice === "" || markup === "") return;
+    if (!description || netPrice === "" || markup === "" || quantity === "") return;
     
     const netPriceNum = typeof netPrice === "string" ? parseFloat(netPrice) : netPrice;
     const markupNum = typeof markup === "string" ? parseFloat(markup) : markup;
+    const quantityNum = typeof quantity === "string" ? parseFloat(quantity) : quantity;
     
     const margin = (netPriceNum * markupNum) / 100;
-    const finalPrice = netPriceNum + margin;
+    const unitPrice = netPriceNum + margin;
+    const finalPrice = unitPrice * quantityNum;
     
     const newPart: SparePart = {
       id: uuidv4(),
       code: code || `PART-${Math.floor(Math.random() * 10000)}`,
       description,
+      quantity: quantityNum,
       netPrice: netPriceNum,
       markup: markupNum,
       margin,
@@ -78,6 +82,20 @@ export default function SparePartForm({ parts, onChange }: SparePartFormProps) {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Descrizione ricambio"
+            className="h-9"
+          />
+        </div>
+        
+        <div className="w-16">
+          <Label htmlFor="part-quantity" className="text-sm">Qtà</Label>
+          <Input
+            id="part-quantity"
+            type="number"
+            value={quantity}
+            onChange={(e) => setQuantity(e.target.value ? parseFloat(e.target.value) : "")}
+            placeholder="1"
+            min="1"
+            step="1"
             className="h-9"
           />
         </div>
