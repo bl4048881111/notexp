@@ -50,7 +50,25 @@ import {
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PlusCircle, Pencil, Trash2, Settings, Filter, CheckCircle, XCircle } from "lucide-react";
+import { 
+  PlusCircle, 
+  Pencil, 
+  Trash2, 
+  Settings, 
+  Filter, 
+  CheckCircle, 
+  XCircle, 
+  Wrench, 
+  ArrowUpDown, 
+  Sparkles, 
+  Tool, 
+  Hammer, 
+  Car, 
+  Gauge, 
+  Zap, 
+  Plus, 
+  Search 
+} from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
 export default function ServiceManagementPage() {
@@ -267,7 +285,7 @@ export default function ServiceManagementPage() {
       </Card>
       
       {/* Tabella Servizi */}
-      <div className="bg-white rounded-md border shadow-sm">
+      <div className="bg-gray-50 rounded-md border shadow-sm">
         <div className="p-4 border-b">
           <h2 className="text-xl font-semibold flex items-center gap-2">
             <Settings className="h-5 w-5 text-primary" />
@@ -288,64 +306,87 @@ export default function ServiceManagementPage() {
             )}
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-gray-900">
-                <TableHead className="w-[250px] text-white font-semibold">Nome</TableHead>
-                <TableHead className="text-white font-semibold">Categoria</TableHead>
-                <TableHead className="text-white font-semibold">Descrizione</TableHead>
-                <TableHead className="text-right text-white font-semibold">Tariffa (€/h)</TableHead>
-                <TableHead className="text-right w-[150px] text-white font-semibold">Azioni</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredServices.map((service) => (
-                <TableRow key={service.id} className={`${filteredServices.indexOf(service) % 2 === 0 ? 'bg-gray-50' : 'bg-white'}`}>
-                  <TableCell className="font-medium">{service.name}</TableCell>
-                  <TableCell>
-                    <span className={`px-2 py-1 rounded-md text-xs font-medium ${
-                      service.category === "Frenante" ? "bg-red-100 text-red-700" :
-                      service.category === "Sospensioni" ? "bg-blue-100 text-blue-700" :
-                      service.category === "Accessori" ? "bg-purple-100 text-purple-700" :
-                      service.category === "Manutenzione" ? "bg-green-100 text-green-700" :
-                      service.category === "Riparazione" ? "bg-yellow-100 text-yellow-700" :
-                      service.category === "Carrozzeria" ? "bg-pink-100 text-pink-700" :
-                      service.category === "Motore" ? "bg-orange-100 text-orange-700" :
-                      service.category === "Elettronica" ? "bg-indigo-100 text-indigo-700" :
-                      service.category === "Altro" ? "bg-gray-100 text-gray-700" :
-                      service.category === "Personalizzato" ? "bg-teal-100 text-teal-700" :
-                      "bg-primary/20 text-primary font-semibold"
-                    }`}>
-                      {service.category}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {service.description || "-"}
-                  </TableCell>
-                  <TableCell className="text-right">{service.laborPrice} €/h</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => handleEditService(service)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="text-destructive border-destructive hover:bg-destructive/10" 
-                        onClick={() => handleDeleteService(service)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+          <div className="p-4">
+            {/* Raggruppa i servizi per categoria */}
+            {Object.entries(
+              filteredServices.reduce((acc, service) => {
+                if (!acc[service.category]) {
+                  acc[service.category] = [];
+                }
+                acc[service.category].push(service);
+                return acc;
+              }, {} as Record<string, ServiceType[]>)
+            ).map(([category, services]) => (
+              <div key={category} className="mb-6">
+                {/* Intestazione categoria */}
+                <div className={`mb-3 px-4 py-2 rounded-md font-semibold text-white ${
+                  category === "Frenante" ? "bg-red-600" :
+                  category === "Sospensioni" ? "bg-blue-600" :
+                  category === "Accessori" ? "bg-purple-600" :
+                  category === "Manutenzione" ? "bg-green-600" :
+                  category === "Riparazione" ? "bg-yellow-600" :
+                  category === "Carrozzeria" ? "bg-pink-600" :
+                  category === "Motore" ? "bg-orange-600" :
+                  category === "Elettronica" ? "bg-indigo-600" :
+                  category === "Altro" ? "bg-gray-600" :
+                  category === "Personalizzato" ? "bg-teal-600" :
+                  "bg-gray-800"
+                }`}>
+                  <h3 className="text-lg flex items-center">
+                    {category === "Frenante" && <Settings className="h-5 w-5 mr-2" />}
+                    {category === "Sospensioni" && <Settings className="h-5 w-5 mr-2" />}
+                    {category === "Accessori" && <Settings className="h-5 w-5 mr-2" />}
+                    {category === "Manutenzione" && <Settings className="h-5 w-5 mr-2" />}
+                    {category === "Riparazione" && <Settings className="h-5 w-5 mr-2" />}
+                    {category === "Carrozzeria" && <Settings className="h-5 w-5 mr-2" />}
+                    {category === "Motore" && <Settings className="h-5 w-5 mr-2" />}
+                    {category === "Elettronica" && <Settings className="h-5 w-5 mr-2" />}
+                    {(category === "Altro" || category === "Personalizzato") && <Settings className="h-5 w-5 mr-2" />}
+                    {category} ({services.length})
+                  </h3>
+                </div>
+
+                {/* Elenco servizi per categoria */}
+                <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                  {services.map((service) => (
+                    <div key={service.id} className="bg-gray-100 border rounded-md p-4 relative">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-medium mb-1">{service.name}</h4>
+                          <p className="text-sm text-gray-600 mb-2">
+                            {service.description || "Nessuna descrizione"}
+                          </p>
+                          <div className="text-sm font-medium">
+                            <span className="inline-block bg-gray-200 text-gray-800 rounded-full px-3 py-1">
+                              {service.laborPrice} €/ora
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-8 w-8 p-0"
+                            onClick={() => handleEditService(service)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-8 w-8 p-0 text-destructive border-destructive hover:bg-destructive/10" 
+                            onClick={() => handleDeleteService(service)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
                     </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </div>
       
