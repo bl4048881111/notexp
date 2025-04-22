@@ -2,7 +2,7 @@ import { useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { QuoteItem, ServiceType } from "@shared/schema";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -176,23 +176,13 @@ export default function ServiceSelectionForm({
                 >
                   <div className="flex justify-between items-start">
                     <div className="flex items-center gap-2">
-                      <Checkbox 
-                        id={service.id}
-                        checked={selectedServices[service.id] || false}
-                        onCheckedChange={(checked) => {
-                          if (!checked) {
-                            const itemId = items.find(
-                              item => item.serviceType.id === service.id
-                            )?.id;
-                            if (itemId) handleRemoveItem(itemId);
-                          } else {
-                            handleServiceClick(activeCategory, service);
-                          }
-                        }}
-                        onClick={(e) => e.stopPropagation()}
-                      />
+                      <div className={`w-5 h-5 rounded-sm border flex items-center justify-center ${
+                        selectedServices[service.id] ? 'bg-primary border-primary text-primary-foreground' : 'border-input'
+                      }`}>
+                        {selectedServices[service.id] && <span className="material-icons text-sm">check</span>}
+                      </div>
                       <div>
-                        <Label htmlFor={service.id} className="cursor-pointer font-medium">
+                        <Label className="cursor-pointer font-medium">
                           {service.name}
                         </Label>
                       </div>
