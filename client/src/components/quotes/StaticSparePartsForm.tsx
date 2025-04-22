@@ -57,7 +57,10 @@ export default function StaticSparePartsForm({
     setIsDialogOpen(true);
   };
   
-  // Funzione per salvare il nuovo ricambio
+  // Stato per tracciare se stiamo modificando un ricambio esistente
+  const [editingPartId, setEditingPartId] = useState<string | null>(null);
+  
+  // Funzione per salvare il nuovo ricambio o aggiornare uno esistente
   const handleSavePart = () => {
     if (!activeServiceId || !partCode) return;
     
@@ -65,7 +68,12 @@ export default function StaticSparePartsForm({
     const activeService = items.find(item => item.id === activeServiceId);
     if (!activeService) return;
     
-    // Crea e aggiunge il ricambio
+    // Se stiamo modificando un ricambio esistente, prima rimuoviamo quello vecchio
+    if (editingPartId) {
+      onRemovePart(activeServiceId, editingPartId);
+    }
+    
+    // Crea e aggiunge il ricambio (sia nuovo che modificato)
     onAddPart(activeServiceId, {
       code: partCode,
       name: partDescription || `Ricambio ${partCode}`,
@@ -75,8 +83,9 @@ export default function StaticSparePartsForm({
       finalPrice: partPrice * partQuantity
     });
     
-    // Chiudi il dialog
+    // Chiudi il dialog e resetta lo stato di modifica
     setIsDialogOpen(false);
+    setEditingPartId(null);
   };
   
   return (
@@ -120,14 +129,25 @@ export default function StaticSparePartsForm({
                             <td className="p-2 text-right">{formatCurrency(part.unitPrice)}</td>
                             <td className="p-2 text-right font-medium">{formatCurrency(part.finalPrice)}</td>
                             <td className="p-2 text-right">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 text-destructive"
-                                onClick={() => onRemovePart(service.id, part.id)}
-                              >
-                                Elimina
-                              </Button>
+                              <div className="flex justify-end gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 text-primary"
+                                  onClick={() => {
+                                    // Apri il dialog per modificare il ricambio
+                                    setActiveServiceId(service.id);
+                                    setPartCode(part.code);
+                                    setPartDescription(part.name);
+                                    setPartQuantity(part.quantity);
+                                    setPartPrice(part.unitPrice);
+                                    setEditingPartId(part.id); // Imposta l'ID del ricambio che stiamo modificando
+                                    setIsDialogOpen(true);
+                                  }}
+                                >
+                                  Modifica
+                                </Button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -168,7 +188,7 @@ export default function StaticSparePartsForm({
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle>Aggiungi Ricambio</DialogTitle>
+            <DialogTitle>{editingPartId ? "Modifica Ricambio" : "Aggiungi Ricambio"}</DialogTitle>
           </DialogHeader>
           
           <div className="grid gap-4 py-4">
