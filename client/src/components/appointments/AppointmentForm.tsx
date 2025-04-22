@@ -200,6 +200,10 @@ export default function AppointmentForm({
   
   const handleSelectQuote = (quote: Quote) => {
     setSelectedQuote(quote);
+    // Dopo aver selezionato il preventivo, avanziamo automaticamente allo step successivo
+    setTimeout(() => {
+      setCurrentStep(prev => prev + 1);
+    }, 100);
   };
   
   const handleCreateNewQuote = () => {
