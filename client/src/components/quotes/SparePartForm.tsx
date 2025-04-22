@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
-import { X, Plus } from "lucide-react";
+import { useState } from "react";
+import { v4 as uuidv4 } from "uuid";
 import { SparePart } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface SparePartFormProps {
   parts: SparePart[];
@@ -14,25 +15,25 @@ interface SparePartFormProps {
 export default function SparePartForm({ parts, onChange }: SparePartFormProps) {
   const [code, setCode] = useState("");
   const [description, setDescription] = useState("");
-  const [netPrice, setNetPrice] = useState<number>(0);
-  const [markupPercentage, setMarkupPercentage] = useState<number>(20);
-  const [finalPrice, setFinalPrice] = useState<number>(0);
-  
-  // Calculate final price based on net price and markup
-  useEffect(() => {
-    const calculatedPrice = netPrice * (1 + markupPercentage / 100);
-    setFinalPrice(parseFloat(calculatedPrice.toFixed(2)));
-  }, [netPrice, markupPercentage]);
+  const [netPrice, setNetPrice] = useState<number | "">(0);
+  const [markup, setMarkup] = useState<number | "">(20); // Default markup percentage
   
   const handleAddPart = () => {
-    if (code.trim() === "" || netPrice <= 0) return;
+    if (!description || netPrice === "" || markup === "") return;
+    
+    const netPriceNum = typeof netPrice === "string" ? parseFloat(netPrice) : netPrice;
+    const markupNum = typeof markup === "string" ? parseFloat(markup) : markup;
+    
+    const margin = (netPriceNum * markupNum) / 100;
+    const finalPrice = netPriceNum + margin;
     
     const newPart: SparePart = {
-      id: `part_${Date.now()}`,
-      code,
+      id: uuidv4(),
+      code: code || `PART-${Math.floor(Math.random() * 10000)}`,
       description,
-      netPrice,
-      markupPercentage,
+      netPrice: netPriceNum,
+      markup: markupNum,
+      margin,
       finalPrice
     };
     
@@ -42,11 +43,11 @@ export default function SparePartForm({ parts, onChange }: SparePartFormProps) {
     setCode("");
     setDescription("");
     setNetPrice(0);
-    setMarkupPercentage(20);
+    setMarkup(20);
   };
   
-  const handleRemovePart = (partId: string) => {
-    onChange(parts.filter(part => part.id !== partId));
+  const handleRemovePart = (id: string) => {
+    onChange(parts.filter(part => part.id !== id));
   };
   
   const formatCurrency = (amount: number): string => {
@@ -57,110 +58,119 @@ export default function SparePartForm({ parts, onChange }: SparePartFormProps) {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+    <div className="space-y-4 border rounded-md p-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div>
-          <Label htmlFor="code">Codice</Label>
+          <Label htmlFor="part-code">Codice</Label>
           <Input
-            id="code"
-            placeholder="Codice"
+            id="part-code"
             value={code}
             onChange={(e) => setCode(e.target.value)}
+            placeholder="Codice ricambio"
           />
         </div>
         
         <div className="md:col-span-2">
-          <Label htmlFor="description">Descrizione</Label>
+          <Label htmlFor="part-description">Descrizione</Label>
           <Input
-            id="description"
-            placeholder="Descrizione"
+            id="part-description"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
+            placeholder="Descrizione ricambio"
           />
         </div>
         
-        <div>
-          <Label htmlFor="netPrice">Prezzo netto</Label>
-          <div className="relative">
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <Label htmlFor="part-price">Prezzo</Label>
             <Input
-              id="netPrice"
+              id="part-price"
               type="number"
+              value={netPrice}
+              onChange={(e) => setNetPrice(e.target.value ? parseFloat(e.target.value) : "")}
               placeholder="0.00"
               min="0"
               step="0.01"
-              value={netPrice}
-              onChange={(e) => setNetPrice(parseFloat(e.target.value) || 0)}
             />
-            <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-sm text-muted-foreground">
-              €
-            </div>
           </div>
-        </div>
-        
-        <div>
-          <Label htmlFor="markup">Ricarico (%)</Label>
-          <div className="flex items-center space-x-2">
+          
+          <div>
+            <Label htmlFor="part-markup">Ricarico %</Label>
             <Input
-              id="markup"
+              id="part-markup"
               type="number"
+              value={markup}
+              onChange={(e) => setMarkup(e.target.value ? parseFloat(e.target.value) : "")}
               placeholder="20"
               min="0"
-              value={markupPercentage}
-              onChange={(e) => setMarkupPercentage(parseFloat(e.target.value) || 0)}
+              step="1"
             />
-            <div className="text-sm font-semibold bg-background rounded-md px-3 py-2 border border-input">
-              {formatCurrency(finalPrice)}
-            </div>
           </div>
         </div>
       </div>
       
-      <Button type="button" onClick={handleAddPart} variant="outline" className="w-full">
-        <Plus className="h-4 w-4 mr-2" />
-        Aggiungi Pezzo
-      </Button>
-      
-      <div className="border rounded-md">
-        <div className="bg-muted px-4 py-2 border-b">
-          <h3 className="text-sm font-medium">Pezzi Aggiunti</h3>
-        </div>
-        <div className="p-4 space-y-2">
-          {parts.length === 0 ? (
-            <div className="text-center text-sm text-muted-foreground py-2">
-              Nessun pezzo aggiunto
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {parts.map((part) => (
-                <div key={part.id} className="flex items-center justify-between bg-background rounded-md p-2 border">
-                  <div className="flex-1">
-                    <div className="font-medium flex items-center">
-                      <Badge variant="outline" className="mr-2">
-                        {part.code}
-                      </Badge>
-                      {part.description}
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {formatCurrency(part.netPrice)} + {part.markupPercentage}% = {formatCurrency(part.finalPrice)}
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleRemovePart(part.id)}
-                    className="h-8 w-8"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-              <div className="text-right font-medium pt-2 border-t">
-                Totale: {formatCurrency(parts.reduce((sum, part) => sum + part.finalPrice, 0))}
-              </div>
-            </div>
-          )}
-        </div>
+      <div className="flex justify-end">
+        <Button 
+          type="button" 
+          size="sm" 
+          onClick={handleAddPart}
+          disabled={!description || netPrice === "" || markup === ""}
+        >
+          Aggiungi Ricambio
+        </Button>
       </div>
+      
+      {parts.length > 0 && (
+        <>
+          <Separator />
+          
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Codice</TableHead>
+                  <TableHead>Descrizione</TableHead>
+                  <TableHead className="text-right">Prezzo Netto</TableHead>
+                  <TableHead className="text-right">Ricarico</TableHead>
+                  <TableHead className="text-right">Prezzo Finale</TableHead>
+                  <TableHead className="w-[80px]"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {parts.map((part) => (
+                  <TableRow key={part.id}>
+                    <TableCell>{part.code}</TableCell>
+                    <TableCell>{part.description}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(part.netPrice)}</TableCell>
+                    <TableCell className="text-right">{part.markup}%</TableCell>
+                    <TableCell className="text-right font-medium">{formatCurrency(part.finalPrice)}</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleRemovePart(part.id)}
+                        className="h-8 w-8"
+                      >
+                        <span className="material-icons text-destructive">delete</span>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                
+                <TableRow>
+                  <TableCell colSpan={4} className="text-right font-medium">
+                    Totale Ricambi:
+                  </TableCell>
+                  <TableCell className="text-right font-bold">
+                    {formatCurrency(parts.reduce((sum, part) => sum + part.finalPrice, 0))}
+                  </TableCell>
+                  <TableCell></TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+        </>
+      )}
     </div>
   );
 }

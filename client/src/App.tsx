@@ -11,6 +11,7 @@ import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
 import ClientsPage from "./pages/ClientsPage";
 import AppointmentsPage from "./pages/AppointmentsPage";
+import QuotesPage from "./pages/QuotesPage";
 import NotFound from "@/pages/not-found";
 import { useAuth } from "./hooks/useAuth";
 
@@ -47,6 +48,9 @@ function Router() {
       </Route>
       <Route path="/appointments">
         {() => <ProtectedRoute component={AppointmentsPage} path="/appointments" />}
+      </Route>
+      <Route path="/quotes">
+        {() => <ProtectedRoute component={QuotesPage} path="/quotes" />}
       </Route>
       <Route path="/">
         {() => {

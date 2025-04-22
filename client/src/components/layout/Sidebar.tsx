@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { LogOut, LayoutDashboard, Users, Calendar } from "lucide-react";
+import { LogOut, LayoutDashboard, Users, Calendar, FileText } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import autoExpressLogo from "../../assets/autoexpress-logo.png";
 
@@ -51,6 +51,14 @@ export default function Sidebar() {
               }`}>
                 <Calendar className="mr-3 h-5 w-5" />
                 Appuntamenti
+            </Link>
+          </li>
+          <li>
+            <Link href="/quotes" className={`flex items-center px-4 py-3 text-foreground hover:bg-accent/50 ${
+                isActive("/quotes") ? "border-l-2 border-primary bg-accent/50" : ""
+              }`}>
+                <FileText className="mr-3 h-5 w-5" />
+                Preventivi
             </Link>
           </li>
         </ul>

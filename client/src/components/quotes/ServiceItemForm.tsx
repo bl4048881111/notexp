@@ -1,14 +1,19 @@
 import { useState, useEffect } from "react";
-import { X, Plus } from "lucide-react";
-import { ServiceType, QuoteItem, SparePart, serviceCategories } from "@shared/schema";
+import { v4 as uuidv4 } from "uuid";
+import { QuoteItem, ServiceType } from "@shared/schema";
 import { getAllServiceTypes, getServiceTypesByCategory } from "@shared/firebase";
-import { useQuery } from "@tanstack/react-query";
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Card,
   CardContent,
@@ -17,7 +22,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 import SparePartForm from "./SparePartForm";
 
@@ -27,110 +37,67 @@ interface ServiceItemFormProps {
 }
 
 export default function ServiceItemForm({ items, onChange }: ServiceItemFormProps) {
-  const [selectedCategory, setSelectedCategory] = useState<string>(serviceCategories[0]);
-  const [selectedServiceType, setSelectedServiceType] = useState<ServiceType | null>(null);
-  const [serviceDescription, setServiceDescription] = useState<string>("");
-  const [laborHours, setLaborHours] = useState<number>(1);
-  const [laborPrice, setLaborPrice] = useState<number>(0);
-  const [notes, setNotes] = useState<string>("");
-  const [spareParts, setSpareParts] = useState<SparePart[]>([]);
-  const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
-  const [totalPrice, setTotalPrice] = useState<number>(0);
+  const [serviceTypes, setServiceTypes] = useState<ServiceType[]>([]);
+  const [filteredTypes, setFilteredTypes] = useState<ServiceType[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   
-  // Fetch service types from Firebase
-  const { data: serviceTypes = [] } = useQuery({
-    queryKey: ['/api/serviceTypes'],
-    queryFn: getAllServiceTypes,
-  });
-  
-  // Filter service types by category
-  const filteredServiceTypes = serviceTypes.filter(
-    serviceType => serviceType.category === selectedCategory
-  );
-  
-  // Calculate total price
+  // Load service types on component mount
   useEffect(() => {
-    if (!selectedServiceType) {
-      setTotalPrice(0);
-      return;
-    }
-    
-    const partsTotal = spareParts.reduce((sum, part) => sum + part.finalPrice, 0);
-    const laborTotal = laborPrice * laborHours;
-    setTotalPrice(partsTotal + laborTotal);
-  }, [selectedServiceType, spareParts, laborPrice, laborHours]);
-  
-  // Set labor price when service type changes
-  useEffect(() => {
-    if (selectedServiceType) {
-      setLaborPrice(selectedServiceType.laborPrice);
-    } else {
-      setLaborPrice(0);
-    }
-  }, [selectedServiceType]);
-  
-  const handleServiceTypeChange = (serviceTypeId: string) => {
-    const serviceType = serviceTypes.find(st => st.id === serviceTypeId) || null;
-    setSelectedServiceType(serviceType);
-    if (serviceType) {
-      setServiceDescription(serviceType.description || "");
-    }
-  };
-  
-  const handleAddItem = () => {
-    if (!selectedServiceType) return;
-    
-    const newItem: QuoteItem = {
-      id: `item_${Date.now()}`,
-      serviceType: selectedServiceType,
-      description: serviceDescription,
-      parts: [...spareParts],
-      laborPrice: laborPrice,
-      laborHours: laborHours,
-      notes: notes,
-      totalPrice: totalPrice
+    const loadServiceTypes = async () => {
+      const types = await getAllServiceTypes();
+      setServiceTypes(types);
+      setFilteredTypes(types);
     };
     
-    // If editing an existing item, update it
-    if (editingItemIndex !== null && editingItemIndex >= 0 && editingItemIndex < items.length) {
-      const updatedItems = [...items];
-      updatedItems[editingItemIndex] = newItem;
-      onChange(updatedItems);
-    } else {
-      // Otherwise add a new item
-      onChange([...items, newItem]);
-    }
+    loadServiceTypes();
+  }, []);
+  
+  // Filter service types by category
+  useEffect(() => {
+    const filterTypes = async () => {
+      if (selectedCategory === "all") {
+        setFilteredTypes(serviceTypes);
+      } else {
+        const types = await getServiceTypesByCategory(selectedCategory);
+        setFilteredTypes(types);
+      }
+    };
     
-    // Reset form
-    resetForm();
+    filterTypes();
+  }, [selectedCategory, serviceTypes]);
+  
+  const handleAddItem = (serviceType: ServiceType) => {
+    const newItem: QuoteItem = {
+      id: uuidv4(),
+      serviceType,
+      description: serviceType.description || "",
+      laborPrice: serviceType.laborPrice,
+      laborHours: 1,
+      parts: [],
+      totalPrice: serviceType.laborPrice // Initial price without parts
+    };
+    
+    onChange([...items, newItem]);
   };
   
-  const handleEditItem = (index: number) => {
-    const item = items[index];
-    setSelectedCategory(item.serviceType.category);
-    setSelectedServiceType(item.serviceType);
-    setServiceDescription(item.description || "");
-    setLaborHours(item.laborHours);
-    setLaborPrice(item.laborPrice);
-    setNotes(item.notes || "");
-    setSpareParts([...item.parts]);
-    setEditingItemIndex(index);
+  const handleRemoveItem = (id: string) => {
+    onChange(items.filter(item => item.id !== id));
   };
   
-  const handleRemoveItem = (index: number) => {
-    const updatedItems = [...items];
-    updatedItems.splice(index, 1);
-    onChange(updatedItems);
-  };
-  
-  const resetForm = () => {
-    setSelectedServiceType(null);
-    setServiceDescription("");
-    setLaborHours(1);
-    setLaborPrice(0);
-    setNotes("");
-    setSpareParts([]);
-    setEditingItemIndex(null);
+  const handleItemChange = (id: string, updates: Partial<QuoteItem>) => {
+    onChange(items.map(item => {
+      if (item.id === id) {
+        const updatedItem = { ...item, ...updates };
+        
+        // Calculate the total price (labor + parts)
+        const laborTotal = updatedItem.laborPrice * updatedItem.laborHours;
+        const partsTotal = updatedItem.parts.reduce((sum, part) => sum + part.finalPrice, 0);
+        updatedItem.totalPrice = laborTotal + partsTotal;
+        
+        return updatedItem;
+      }
+      return item;
+    }));
   };
   
   const formatCurrency = (amount: number): string => {
@@ -141,208 +108,190 @@ export default function ServiceItemForm({ items, onChange }: ServiceItemFormProp
   };
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-4">
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
         <div>
-          <Tabs defaultValue={serviceCategories[0]} onValueChange={setSelectedCategory}>
-            <TabsList className="w-full grid grid-cols-5">
-              {serviceCategories.map((category) => (
-                <TabsTrigger key={category} value={category}>
-                  {category}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-            
-            {serviceCategories.map((category) => (
-              <TabsContent key={category} value={category} className="pt-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="serviceType">Tipo di Servizio</Label>
-                    <Select
-                      value={selectedServiceType?.id || ""}
-                      onValueChange={handleServiceTypeChange}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleziona servizio" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {filteredServiceTypes.map((serviceType) => (
-                          <SelectItem key={serviceType.id} value={serviceType.id}>
-                            {serviceType.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="laborPrice">Costo Manodopera (€/ora)</Label>
-                    <Input
-                      id="laborPrice"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={laborPrice}
-                      onChange={(e) => setLaborPrice(parseFloat(e.target.value) || 0)}
-                    />
-                  </div>
-                </div>
-              </TabsContent>
-            ))}
-          </Tabs>
+          <h2 className="text-lg font-medium">Servizi e Ricambi</h2>
+          <p className="text-sm text-muted-foreground">Aggiungi servizi e ricambi al preventivo</p>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="description">Descrizione Servizio</Label>
-            <Textarea
-              id="description"
-              placeholder="Descrizione dettagliata del servizio"
-              value={serviceDescription}
-              onChange={(e) => setServiceDescription(e.target.value)}
-              rows={2}
-            />
-          </div>
-          
-          <div>
-            <Label htmlFor="notes">Note</Label>
-            <Textarea
-              id="notes"
-              placeholder="Note aggiuntive"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-            />
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="laborHours">Ore di Manodopera</Label>
-            <Input
-              id="laborHours"
-              type="number"
-              min="0.5"
-              step="0.5"
-              value={laborHours}
-              onChange={(e) => setLaborHours(parseFloat(e.target.value) || 0)}
-            />
-          </div>
-          
-          <div className="flex items-end space-x-4">
-            <div className="flex-1">
-              <Label>Totale Manodopera</Label>
-              <div className="h-10 px-4 py-2 bg-muted rounded-md border border-input flex items-center">
-                {formatCurrency(laborPrice * laborHours)}
+        <Select
+          value={selectedCategory}
+          onValueChange={setSelectedCategory}
+        >
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Filtra per categoria" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tutte le categorie</SelectItem>
+            <SelectItem value="Tagliando">Tagliando</SelectItem>
+            <SelectItem value="Frenante">Frenante</SelectItem>
+            <SelectItem value="Sospensioni">Sospensioni</SelectItem>
+            <SelectItem value="Accessori">Accessori</SelectItem>
+            <SelectItem value="Altro">Altro</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {filteredTypes.map(serviceType => (
+          <Card key={serviceType.id} className="hover:shadow-md transition-shadow">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">{serviceType.name}</CardTitle>
+              <CardDescription className="text-xs">{serviceType.category}</CardDescription>
+            </CardHeader>
+            <CardContent className="pb-2">
+              <div className="flex justify-between text-sm">
+                <span>Manodopera:</span>
+                <span className="font-medium">{formatCurrency(serviceType.laborPrice)}/ora</span>
               </div>
-            </div>
-            
-            <Button 
-              onClick={handleAddItem} 
-              disabled={!selectedServiceType}
-              className="mb-0"
-            >
-              {editingItemIndex !== null ? "Aggiorna" : "Aggiungi"} Servizio
-            </Button>
-            
-            {editingItemIndex !== null && (
-              <Button variant="outline" onClick={resetForm} className="mb-0">
-                Annulla
+              {serviceType.description && (
+                <p className="text-xs text-muted-foreground mt-2">{serviceType.description}</p>
+              )}
+            </CardContent>
+            <CardFooter className="pt-0">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full"
+                onClick={() => handleAddItem(serviceType)}
+              >
+                Aggiungi al preventivo
               </Button>
-            )}
-          </div>
-        </div>
+            </CardFooter>
+          </Card>
+        ))}
       </div>
       
-      <div className="border-t pt-4">
-        <h3 className="text-lg font-medium mb-4">Pezzi di Ricambio</h3>
-        <SparePartForm 
-          parts={spareParts}
-          onChange={setSpareParts}
-        />
-      </div>
+      <Separator className="my-4" />
       
-      <div className="border-t pt-4">
-        <h3 className="text-lg font-medium mb-4">Servizi nel Preventivo</h3>
+      <div>
+        <h2 className="text-lg font-medium mb-4">Servizi Selezionati</h2>
         
         {items.length === 0 ? (
-          <div className="text-center p-4 border rounded-md bg-muted">
-            <p className="text-muted-foreground">Nessun servizio aggiunto al preventivo</p>
+          <div className="text-center py-8 text-muted-foreground">
+            Nessun servizio selezionato
           </div>
         ) : (
-          <div className="space-y-4">
+          <Accordion type="multiple" className="space-y-4">
             {items.map((item, index) => (
-              <Card key={item.id}>
-                <CardHeader className="pb-2">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle>
-                        {item.serviceType.name} ({item.serviceType.category})
-                      </CardTitle>
-                      <CardDescription>
-                        {item.description || item.serviceType.description}
-                      </CardDescription>
+              <AccordionItem 
+                key={item.id} 
+                value={item.id} 
+                className="border rounded-md overflow-hidden"
+              >
+                <AccordionTrigger className="px-4 py-2 hover:no-underline">
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center space-x-2">
+                      <span className="font-medium">{index + 1}. {item.serviceType.name}</span>
+                      <span className="text-xs bg-muted px-2 py-0.5 rounded">
+                        {item.serviceType.category}
+                      </span>
                     </div>
-                    <div className="flex space-x-2">
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => handleEditItem(index)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon"
-                        onClick={() => handleRemoveItem(index)}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    <div className="font-bold">{formatCurrency(item.totalPrice)}</div>
                   </div>
-                </CardHeader>
-                
-                <CardContent className="pb-2">
-                  <div className="text-sm">
-                    <p><span className="font-medium">Manodopera:</span> {item.laborHours} ore x {formatCurrency(item.laborPrice)}/ora = {formatCurrency(item.laborHours * item.laborPrice)}</p>
-                    
-                    {item.parts.length > 0 && (
-                      <div className="mt-2">
-                        <p className="font-medium">Ricambi:</p>
-                        <ul className="list-disc pl-5 text-xs">
-                          {item.parts.map((part) => (
-                            <li key={part.id}>
-                              {part.code} - {part.description || "Ricambio"}: {formatCurrency(part.finalPrice)}
-                            </li>
-                          ))}
-                        </ul>
+                </AccordionTrigger>
+                <AccordionContent className="px-4 pb-4">
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor={`description-${item.id}`}>Descrizione</Label>
+                        <Textarea 
+                          id={`description-${item.id}`}
+                          value={item.description || ""}
+                          onChange={(e) => handleItemChange(item.id, { description: e.target.value })}
+                          placeholder="Descrizione del servizio"
+                        />
                       </div>
-                    )}
+                      
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor={`laborPrice-${item.id}`}>Costo Manodopera/ora</Label>
+                            <Input 
+                              id={`laborPrice-${item.id}`}
+                              type="number"
+                              value={item.laborPrice}
+                              onChange={(e) => handleItemChange(item.id, { 
+                                laborPrice: parseFloat(e.target.value) || 0 
+                              })}
+                              min="0"
+                              step="0.01"
+                            />
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label htmlFor={`laborHours-${item.id}`}>Ore di Lavoro</Label>
+                            <Input 
+                              id={`laborHours-${item.id}`}
+                              type="number"
+                              value={item.laborHours}
+                              onChange={(e) => handleItemChange(item.id, { 
+                                laborHours: parseFloat(e.target.value) || 0 
+                              })}
+                              min="0.25"
+                              step="0.25"
+                            />
+                          </div>
+                        </div>
+                        
+                        <div className="flex justify-between">
+                          <div>
+                            <div className="text-sm font-medium">Totale Manodopera</div>
+                            <div className="text-muted-foreground text-sm">
+                              {item.laborPrice} € x {item.laborHours} ore
+                            </div>
+                          </div>
+                          <div className="font-bold">{formatCurrency(item.laborPrice * item.laborHours)}</div>
+                        </div>
+                      </div>
+                    </div>
                     
-                    {item.notes && (
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        <span className="font-medium">Note:</span> {item.notes}
-                      </p>
-                    )}
+                    <div className="space-y-2">
+                      <Label>Ricambi</Label>
+                      <SparePartForm 
+                        parts={item.parts} 
+                        onChange={(parts) => handleItemChange(item.id, { parts })}
+                      />
+                    </div>
+                    
+                    <div className="flex justify-between pt-2 border-t">
+                      <div>
+                        <div className="text-sm font-medium">Totale Servizio</div>
+                        <div className="text-muted-foreground text-sm">
+                          Manodopera + Ricambi
+                        </div>
+                      </div>
+                      <div className="font-bold text-lg">{formatCurrency(item.totalPrice)}</div>
+                    </div>
+                    
+                    <div className="flex justify-end">
+                      <Button 
+                        variant="destructive" 
+                        size="sm" 
+                        onClick={() => handleRemoveItem(item.id)}
+                      >
+                        Rimuovi servizio
+                      </Button>
+                    </div>
                   </div>
-                </CardContent>
-                
-                <CardFooter className="pt-2 flex justify-between items-center border-t">
-                  <div></div>
-                  <div className="text-lg font-bold">
-                    {formatCurrency(item.totalPrice)}
-                  </div>
-                </CardFooter>
-              </Card>
+                </AccordionContent>
+              </AccordionItem>
             ))}
-            
-            <div className="flex justify-end pt-4 border-t">
-              <div className="text-xl font-bold">
-                Totale: {formatCurrency(items.reduce((sum, item) => sum + item.totalPrice, 0))}
-              </div>
-            </div>
-          </div>
+          </Accordion>
         )}
+      </div>
+      
+      <div className="flex justify-between pt-4 border-t">
+        <div>
+          <div className="font-medium">Subtotale Servizi</div>
+          <div className="text-sm text-muted-foreground">
+            {items.length} servizi selezionati
+          </div>
+        </div>
+        <div className="font-bold text-xl">
+          {formatCurrency(items.reduce((sum, item) => sum + item.totalPrice, 0))}
+        </div>
       </div>
     </div>
   );
