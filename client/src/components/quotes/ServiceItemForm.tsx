@@ -166,9 +166,39 @@ export default function ServiceItemForm({ items, onChange }: ServiceItemFormProp
       return;
     }
     
-    // Altrimenti, imposta il servizio corrente e mostra il form
-    setCurrentService({...service, price: 0}); // Prezzo sempre zero, sarà inserito manualmente
-    setShowArticleForm(true);
+    // Verifica che la categoria sia valida secondo lo schema
+    const isValidCategory = ["Tagliando", "Frenante", "Sospensioni", "Accessori", 
+                         "Manutenzione", "Riparazione", "Carrozzeria", 
+                         "Motore", "Elettronica", "Altro", "Personalizzato"].includes(categoryId);
+    
+    // Crea un nuovo servizio con valori temporanei (saranno compilati nel passo 3)
+    const serviceType: ServiceType = {
+      id: service.id,
+      name: service.name,
+      category: isValidCategory ? categoryId as any : "Altro",
+      description: `${categoryId} - ${service.name}`,
+      laborPrice: 0, // Nessun prezzo predefinito
+    };
+    
+    // Crea un nuovo item temporaneo (sarà completato nel passo 3)
+    const newItem: QuoteItem = {
+      id: uuidv4(),
+      serviceType,
+      laborPrice: 45, // Valore di default
+      laborHours: 1,  // Valore di default
+      parts: [],      // Sarà compilato nel passo 3
+      notes: "",
+      totalPrice: 45  // Solo manodopera temporanea
+    };
+    
+    // Aggiungi l'elemento
+    onChange([...items, newItem]);
+    
+    // Marca il servizio come selezionato
+    setSelectedServices({
+      ...selectedServices,
+      [service.id]: true
+    });
   };
   
   // Gestisce l'aggiunta standard di un servizio (non più usata direttamente, ma tenuta per compatibilità)
@@ -250,150 +280,6 @@ export default function ServiceItemForm({ items, onChange }: ServiceItemFormProp
             </div>
           ))}
         </div>
-        
-        {/* Form per l'inserimento manuale dell'articolo */}
-        {showArticleForm && currentService && (
-          <div className="mb-6 border rounded-lg p-4 bg-muted/20">
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="font-medium text-lg">
-                <span className="text-primary font-bold">{currentService.name}</span> - Inserimento codice articolo
-              </h3>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => {
-                  setShowArticleForm(false);
-                  setCurrentService(null);
-                }}
-              >
-                Annulla
-              </Button>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <div>
-                <Label htmlFor="articleCode" className="text-primary font-medium">Codice Articolo*</Label>
-                <Input
-                  id="articleCode"
-                  value={articleCode}
-                  onChange={(e) => setArticleCode(e.target.value)}
-                  placeholder="Inserisci il codice articolo"
-                  autoFocus
-                  className="mt-1"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="articlePrice" className="text-primary font-medium">Prezzo (€)*</Label>
-                <Input
-                  id="articlePrice"
-                  type="number"
-                  value={articlePrice}
-                  onChange={(e) => setArticlePrice(e.target.value === "" ? "" : parseFloat(e.target.value))}
-                  placeholder="Prezzo articolo"
-                  min={0}
-                  step={0.01}
-                  className="mt-1"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="articleQuantity" className="text-primary font-medium">Quantità*</Label>
-                <Input
-                  id="articleQuantity"
-                  type="number"
-                  value={articleQuantity}
-                  onChange={(e) => setArticleQuantity(e.target.value === "" ? "" : parseFloat(e.target.value))}
-                  placeholder="Quantità"
-                  min={1}
-                  step={1}
-                  className="mt-1"
-                />
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div>
-                <Label htmlFor="articleDescription">Descrizione (opzionale)</Label>
-                <Input
-                  id="articleDescription"
-                  value={articleDescription}
-                  onChange={(e) => setArticleDescription(e.target.value)}
-                  placeholder="Inserisci la descrizione"
-                  className="mt-1"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="articleBrand">Brand (opzionale)</Label>
-                <Input
-                  id="articleBrand"
-                  value={articleBrand}
-                  onChange={(e) => setArticleBrand(e.target.value)}
-                  placeholder="Inserisci il brand"
-                  className="mt-1"
-                />
-              </div>
-            </div>
-            
-            <div className="flex items-center justify-between p-3 bg-muted/20 rounded-lg mb-4">
-              <div>
-                <p className="font-medium text-sm">Servizio: <span className="text-primary font-bold">{currentService.name}</span></p>
-                <p className="font-medium text-sm mt-1">Categoria: <span className="text-primary">{activeCategory}</span></p>
-              </div>
-              
-              <div className="flex items-center gap-4">
-                <div>
-                  <Label htmlFor="laborHours" className="text-sm">Ore di Manodopera</Label>
-                  <Input
-                    id="laborHours"
-                    type="number"
-                    value={laborHours}
-                    onChange={(e) => setLaborHours(e.target.value === "" ? "" : parseFloat(e.target.value))}
-                    placeholder="Ore"
-                    min={0}
-                    step={0.5}
-                    className="w-20 h-8 text-sm"
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="laborPrice" className="text-sm">Costo/Ora (€)</Label>
-                  <Input
-                    id="laborPrice"
-                    type="number"
-                    value={laborPrice}
-                    onChange={(e) => setLaborPrice(parseFloat(e.target.value))}
-                    placeholder="€/ora"
-                    min={0}
-                    step={0.01}
-                    className="w-20 h-8 text-sm"
-                  />
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex justify-end gap-2">
-              <Button 
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setShowArticleForm(false);
-                  setCurrentService(null);
-                }}
-              >
-                Annulla
-              </Button>
-              <Button 
-                type="button" 
-                onClick={handleAddManualArticle}
-                disabled={!articleCode || articlePrice === ""}
-              >
-                Aggiungi Articolo
-              </Button>
-            </div>
-          </div>
-        )}
         
         {activeCategory && !showArticleForm && (
           <div className="border rounded-lg p-4">
