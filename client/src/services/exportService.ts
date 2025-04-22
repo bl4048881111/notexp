@@ -194,8 +194,8 @@ export const exportQuoteToPDF = async (quote: Quote): Promise<void> => {
       part.code,
       part.description || '',
       part.quantity,
-      `€${part.netPrice.toFixed(2)}`,
-      `${part.markup}%`,
+      `€${(part.netPrice || 0).toFixed(2)}`,
+      `${part.markup || 0}%`,
       `€${part.finalPrice.toFixed(2)}`,
     ]);
     
