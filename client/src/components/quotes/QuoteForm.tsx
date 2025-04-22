@@ -312,25 +312,26 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
           </DialogDescription>
         </DialogHeader>
         
-        {/* Indicatore Passaggi */}
-        <div className="w-full flex items-center mb-6">
-          <div className="w-full grid grid-cols-4 gap-2">
+        {/* Indicatore Passaggi con pallini */}
+        <div className="flex justify-between items-center mb-6">
+          <div className="text-sm text-muted-foreground">
+            {currentStep === 1 && "Dati Cliente"}
+            {currentStep === 2 && "Selezione Servizi"}
+            {currentStep === 3 && "Gestione Ricambi"}
+            {currentStep === 4 && "Riepilogo"}
+          </div>
+          <div className="flex items-center gap-2">
             {[1, 2, 3, 4].map((step) => (
               <div 
                 key={step} 
-                className={`border rounded-lg p-2 text-center transition-colors ${
-                  currentStep >= step 
-                    ? "border-primary bg-primary/10" 
-                    : "border-muted"
+                className={`rounded-full w-3 h-3 transition-colors ${
+                  currentStep === step 
+                    ? "bg-primary" 
+                    : currentStep > step
+                    ? "bg-primary/40"
+                    : "bg-muted"
                 }`}
-              >
-                <span className={currentStep === step ? "font-medium" : ""}>
-                  {step === 1 && "1. Dati Cliente"}
-                  {step === 2 && "2. Servizi"}
-                  {step === 3 && "3. Ricambi"}
-                  {step === 4 && "4. Riepilogo"}
-                </span>
-              </div>
+              />
             ))}
           </div>
         </div>
