@@ -5,9 +5,9 @@ import { Heading } from "@/components/ui/heading";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FilePlus, FileDown } from "lucide-react";
-import QuoteForm from "../components/quotes/QuoteForm";
-import QuoteTable from "../components/quotes/QuoteTable";
-import { exportQuotesToExcel } from "../services/exportService";
+import QuoteForm from "@/components/quotes/QuoteForm";
+import QuoteTable from "@/components/quotes/QuoteTable";
+import { exportQuotesToExcel } from "@/services/exportService";
 import { useToast } from "@/hooks/use-toast";
 
 export default function QuotesPage() {

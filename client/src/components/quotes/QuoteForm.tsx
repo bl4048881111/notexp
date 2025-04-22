@@ -660,9 +660,9 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote }: QuoteFo
                       <tbody>
                         {items.map((item, index) => (
                           <tr key={index} className="border-t">
-                            <td className="p-2">{item.name}</td>
-                            <td className="p-2">{item.category}</td>
-                            <td className="p-2 text-right">{formatCurrency(item.price)}</td>
+                            <td className="p-2">{item.serviceType.name}</td>
+                            <td className="p-2">{item.serviceType.category}</td>
+                            <td className="p-2 text-right">{formatCurrency(item.serviceType.laborPrice || 0)}</td>
                             <td className="p-2 text-right">{item.laborHours ? `${item.laborHours} h × ${formatCurrency(item.laborPrice || 0)}` : '-'}</td>
                             <td className="p-2 text-right">{item.parts?.length ? `${item.parts.length} ricambi` : '-'}</td>
                             <td className="p-2 text-right font-medium">{formatCurrency(item.totalPrice)}</td>
