@@ -59,8 +59,8 @@ import { it } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { ComboboxDemo } from "@/components/ui/ComboboxDemo";
 import ServiceSelectionForm from "./ServiceSelectionForm";
-// Utilizziamo la versione semplificata
-import SimpleSparePartsForm from "./SimpleSparePartsForm";
+// Utilizziamo la versione completamente statica
+import StaticSparePartsForm from "./StaticSparePartsForm";
 
 interface QuoteFormProps {
   isOpen: boolean;
@@ -631,9 +631,60 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                   <div className="text-sm text-muted-foreground">Passo 3 di 4</div>
                 </div>
                 
-                <SimpleSparePartsForm
+                <StaticSparePartsForm
                   items={items}
-                  onChange={handleItemsChange}
+                  onAddPart={(serviceId, partData) => {
+                    // Crea un nuovo array di servizi con il nuovo ricambio
+                    const newItems = items.map(item => {
+                      if (item.id === serviceId) {
+                        // Crea un nuovo ricambio completo
+                        const newPart: SparePart = {
+                          ...partData,
+                          id: uuidv4()
+                        };
+                        
+                        // Assicurati che parts sia un array
+                        const parts = Array.isArray(item.parts) ? [...item.parts, newPart] : [newPart];
+                        
+                        // Calcola il nuovo prezzo totale
+                        const totalPrice = parts.reduce((sum, part) => sum + part.finalPrice, 0);
+                        
+                        return {
+                          ...item,
+                          parts,
+                          totalPrice
+                        };
+                      }
+                      return item;
+                    });
+                    
+                    // Aggiorna lo stato
+                    setItems(newItems);
+                  }}
+                  onRemovePart={(serviceId, partId) => {
+                    // Crea un nuovo array di servizi senza il ricambio rimosso
+                    const newItems = items.map(item => {
+                      if (item.id === serviceId) {
+                        // Rimuovi il ricambio
+                        const parts = Array.isArray(item.parts) 
+                          ? item.parts.filter(part => part.id !== partId)
+                          : [];
+                        
+                        // Calcola il nuovo prezzo totale
+                        const totalPrice = parts.reduce((sum, part) => sum + part.finalPrice, 0);
+                        
+                        return {
+                          ...item,
+                          parts,
+                          totalPrice
+                        };
+                      }
+                      return item;
+                    });
+                    
+                    // Aggiorna lo stato
+                    setItems(newItems);
+                  }}
                 />
                 
                 <div className="flex justify-between space-x-2 pt-4">
