@@ -198,8 +198,15 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
     
     // Aggiorna lo stato con i calcoli corretti
     setItems(itemsWithCorrectTotals);
-    console.log("Items aggiornati con totali corretti");
-  }, []);
+    
+    // Ricalcola i totali per il preventivo
+    const { subtotal, taxAmount, total } = calculateTotals(itemsWithCorrectTotals);
+    form.setValue("subtotal", subtotal);
+    form.setValue("taxAmount", taxAmount);
+    form.setValue("total", total);
+    
+    console.log("Items aggiornati con totali corretti:", { subtotal, taxAmount, total });
+  }, [form]);
   
   // Versione migliorata che include manodopera nei totali
   function calculateTotals(quoteItems: QuoteItem[]) {
@@ -272,9 +279,20 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
         laborHours
       };
       
-      // Calcola i totali finali
+      // Calcola i totali finali manualmente
       console.log("QuoteData prima di salvare:", quoteData);
-      const finalQuote = calculateQuoteTotals(quoteData as Quote);
+      
+      // Calcoliamo manualmente i totali per assicurarci che siano corretti
+      const calcTotals = calculateTotals(cleanedItems);
+      
+      // Aggiorniamo i totali nel quoteData
+      quoteData.subtotal = calcTotals.subtotal;
+      quoteData.taxAmount = calcTotals.taxAmount;
+      quoteData.total = calcTotals.total;
+      
+      console.log("Totali calcolati manualmente:", calcTotals);
+      
+      const finalQuote = quoteData as Quote;
       
       // Salva il preventivo
       if (quote) {
