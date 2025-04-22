@@ -266,6 +266,31 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote }: QuoteFo
     );
   });
   
+  // Stato per il passaggio corrente
+  const [currentStep, setCurrentStep] = useState<number>(1);
+  const totalSteps = 3;
+  
+  // Funzione per andare al passaggio successivo
+  const goToNextStep = () => {
+    setCurrentStep(prev => Math.min(prev + 1, totalSteps));
+  };
+  
+  // Funzione per andare al passaggio precedente
+  const goToPreviousStep = () => {
+    setCurrentStep(prev => Math.max(prev - 1, 1));
+  };
+  
+  // Controlla se il passaggio 1 è valido (dati cliente e veicolo)
+  const isStep1Valid = () => {
+    const { clientName, phone, plate, model } = form.getValues();
+    return !!clientName && !!phone && !!plate && !!model;
+  };
+  
+  // Controlla se il passaggio 2 è valido (servizi)
+  const isStep2Valid = () => {
+    return items.length > 0;
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -276,384 +301,469 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote }: QuoteFo
           </DialogDescription>
         </DialogHeader>
         
+        {/* Indicatore Passaggi */}
+        <div className="w-full flex items-center mb-6">
+          <div className="w-full grid grid-cols-3 gap-2">
+            {[1, 2, 3].map((step) => (
+              <div 
+                key={step} 
+                className={`border rounded-lg p-2 text-center transition-colors ${
+                  currentStep >= step 
+                    ? "border-primary bg-primary/10" 
+                    : "border-muted"
+                }`}
+              >
+                <span className={currentStep === step ? "font-medium" : ""}>
+                  {step === 1 && "1. Dati Cliente"}
+                  {step === 2 && "2. Servizi"}
+                  {step === 3 && "3. Riepilogo"}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+        
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* Sezione Info Cliente */}
-            <div className="space-y-4">
-              {selectedClient ? (
-                <div className="flex justify-between items-center border p-4 rounded-md bg-muted/40">
-                  <div>
-                    <h3 className="font-medium">{selectedClient.name} {selectedClient.surname}</h3>
-                    <div className="text-sm text-muted-foreground mt-1 space-y-1">
-                      <p>Tel: {selectedClient.phone}</p>
-                      <p>Veicolo: {selectedClient.model} ({selectedClient.plate})</p>
-                    </div>
-                  </div>
-                  <Button 
-                    type="button" 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={handleClearSelectedClient}
-                  >
-                    <XCircle className="h-4 w-4 mr-1" />
-                    <span>Cambia</span>
-                  </Button>
+            {/* STEP 1: Dati Cliente */}
+            {currentStep === 1 && (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-xl font-semibold">Dati Cliente e Veicolo</h2>
+                  <div className="text-sm text-muted-foreground">Passo 1 di 3</div>
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  <div>
-                    <Label className="mb-2 block">Cerca cliente</Label>
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <Input
-                          placeholder="Cerca per nome, targa o telefono"
-                          value={searchQuery}
-                          onChange={(e) => {
-                            setSearchQuery(e.target.value);
-                            setIsSearching(e.target.value.length > 0);
-                          }}
-                          className="w-full"
-                        />
-                        {isSearching && (
-                          <div className="absolute top-full mt-1 left-0 right-0 border rounded-md bg-background shadow-md z-10 max-h-52 overflow-y-auto">
-                            {filteredClients.length === 0 ? (
-                              <div className="p-2 text-center text-sm text-muted-foreground">
-                                Nessun cliente trovato
-                              </div>
-                            ) : (
-                              <div>
-                                {filteredClients.map((client) => (
-                                  <div
-                                    key={client.id}
-                                    className="p-2 cursor-pointer hover:bg-accent flex justify-between items-center"
-                                    onClick={() => handleSelectClient(client)}
-                                  >
-                                    <div>
-                                      <div className="font-medium">
-                                        {client.name} {client.surname}
+                
+                {selectedClient ? (
+                  <div className="flex justify-between items-center border p-4 rounded-md bg-muted/40">
+                    <div>
+                      <h3 className="font-medium">{selectedClient.name} {selectedClient.surname}</h3>
+                      <div className="text-sm text-muted-foreground mt-1 space-y-1">
+                        <p>Tel: {selectedClient.phone}</p>
+                        <p>Veicolo: {selectedClient.model} ({selectedClient.plate})</p>
+                      </div>
+                    </div>
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={handleClearSelectedClient}
+                    >
+                      <XCircle className="h-4 w-4 mr-1" />
+                      <span>Cambia</span>
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="mb-2 block">Cerca cliente</Label>
+                      <div className="flex gap-2">
+                        <div className="relative flex-1">
+                          <Input
+                            placeholder="Cerca per nome, targa o telefono"
+                            value={searchQuery}
+                            onChange={(e) => {
+                              setSearchQuery(e.target.value);
+                              setIsSearching(e.target.value.length > 0);
+                            }}
+                            className="w-full"
+                          />
+                          {isSearching && (
+                            <div className="absolute top-full mt-1 left-0 right-0 border rounded-md bg-background shadow-md z-10 max-h-52 overflow-y-auto">
+                              {filteredClients.length === 0 ? (
+                                <div className="p-2 text-center text-sm text-muted-foreground">
+                                  Nessun cliente trovato
+                                </div>
+                              ) : (
+                                <div>
+                                  {filteredClients.map((client) => (
+                                    <div
+                                      key={client.id}
+                                      className="p-2 cursor-pointer hover:bg-accent flex justify-between items-center"
+                                      onClick={() => handleSelectClient(client)}
+                                    >
+                                      <div>
+                                        <div className="font-medium">
+                                          {client.name} {client.surname}
+                                        </div>
+                                        <div className="text-sm text-muted-foreground">
+                                          {client.model} ({client.plate})
+                                        </div>
                                       </div>
                                       <div className="text-sm text-muted-foreground">
-                                        {client.model} ({client.plate})
+                                        {client.phone}
                                       </div>
                                     </div>
-                                    <div className="text-sm text-muted-foreground">
-                                      {client.phone}
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="clientName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Nome Cliente</FormLabel>
-                          <FormControl>
-                            <Input {...field} placeholder="Nome completo" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="phone"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Telefono</FormLabel>
-                          <FormControl>
-                            <Input {...field} placeholder="Numero di telefono" type="tel" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="plate"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Targa</FormLabel>
-                          <FormControl>
-                            <Input {...field} placeholder="Targa del veicolo" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name="model"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Modello</FormLabel>
-                          <FormControl>
-                            <Input {...field} placeholder="Modello del veicolo" />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-              )}
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="kilometrage"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Chilometraggio</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Chilometraggio attuale" type="number" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="date"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Data</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant={"outline"}
-                              className={cn(
-                                "w-full pl-3 text-left font-normal",
-                                !field.value && "text-muted-foreground"
+                                  ))}
+                                </div>
                               )}
-                            >
-                              {field.value ? (
-                                format(new Date(field.value), "PPP", {
-                                  locale: it,
-                                })
-                              ) : (
-                                <span>Seleziona una data</span>
-                              )}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={new Date(field.value)}
-                            onSelect={(date) => {
-                              if (date) {
-                                field.onChange(format(date, "yyyy-MM-dd"));
-                              }
-                            }}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </div>
-            
-            <Separator />
-            
-            {/* Sezione Servizi */}
-            <div className="space-y-4">
-              <h2 className="text-xl font-semibold">Aggiungi Servizi</h2>
-              <ServiceItemForm
-                items={items}
-                onChange={handleItemsChange}
-              />
-            </div>
-            
-            <Separator />
-            
-            {/* Sezione Riepilogo */}
-            <div className="space-y-4">
-              <h2 className="text-xl font-semibold">Riepilogo</h2>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <h3 className="font-medium">Manodopera</h3>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="laborPrice"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Tariffa oraria</FormLabel>
-                            <FormControl>
-                              <div className="flex items-center space-x-2">
-                                <Input 
-                                  {...field} 
-                                  type="number" 
-                                  min={0} 
-                                  onChange={(e) => {
-                                    const value = parseFloat(e.target.value);
-                                    field.onChange(value);
-                                    // Ricalcola i totali quando cambia la tariffa
-                                    const hours = form.getValues("laborHours") || 0;
-                                    const laborTotal = value * hours;
-                                    const newTotal = form.getValues("subtotal") + laborTotal;
-                                    form.setValue("total", newTotal);
-                                  }}
-                                />
-                                <span>€/ora</span>
-                              </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <FormField
-                        control={form.control}
-                        name="laborHours"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Ore totali</FormLabel>
-                            <FormControl>
-                              <div className="flex items-center space-x-2">
-                                <Input 
-                                  {...field} 
-                                  type="number" 
-                                  min={0} 
-                                  step={0.5} 
-                                  onChange={(e) => {
-                                    const value = parseFloat(e.target.value);
-                                    field.onChange(value);
-                                    // Ricalcola i totali quando cambiano le ore
-                                    const price = form.getValues("laborPrice") || 0;
-                                    const laborTotal = price * value;
-                                    const newTotal = form.getValues("subtotal") + laborTotal;
-                                    form.setValue("total", newTotal);
-                                  }}
-                                />
-                                <span>ore</span>
-                              </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    
-                    <FormField
-                      control={form.control}
-                      name="notes"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Note</FormLabel>
-                          <FormControl>
-                            <Textarea 
-                              {...field} 
-                              placeholder="Note aggiuntive per il preventivo"
-                              className="h-24"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-                
-                <div>
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Totale Preventivo</CardTitle>
-                      <CardDescription>Riepilogo dei costi</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="flex justify-between">
-                        <span>Subtotale Servizi:</span>
-                        <span>{formatCurrency(form.getValues("subtotal") || 0)}</span>
-                      </div>
-                      
-                      <div className="flex justify-between">
-                        <span>Manodopera extra:</span>
-                        <span>
-                          {formatCurrency((form.getValues("laborPrice") || 0) * (form.getValues("laborHours") || 0))}
-                        </span>
-                      </div>
-                      
-                      <div className="flex justify-between">
-                        <span>IVA ({form.getValues("taxRate")}%):</span>
-                        <span>{formatCurrency(form.getValues("taxAmount") || 0)}</span>
-                      </div>
-                      
-                      <Separator />
-                      
-                      <div className="flex justify-between font-bold text-lg">
-                        <span>TOTALE:</span>
-                        <span>
-                          {formatCurrency(
-                            (form.getValues("total") || 0) + 
-                            (form.getValues("laborPrice") || 0) * (form.getValues("laborHours") || 0)
+                            </div>
                           )}
-                        </span>
+                        </div>
                       </div>
-                    </CardContent>
-                    <CardFooter className="flex justify-between">
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="clientName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Nome Cliente</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="Nome completo" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="phone"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Telefono</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="Numero di telefono" type="tel" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="plate"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Targa</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="Targa del veicolo" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="model"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Modello</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="Modello del veicolo" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+                )}
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="kilometrage"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Chilometraggio</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Chilometraggio attuale" type="number" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="date"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-col">
+                        <FormLabel>Data</FormLabel>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant={"outline"}
+                                className={cn(
+                                  "w-full pl-3 text-left font-normal",
+                                  !field.value && "text-muted-foreground"
+                                )}
+                              >
+                                {field.value ? (
+                                  format(new Date(field.value), "PPP", {
+                                    locale: it,
+                                  })
+                                ) : (
+                                  <span>Seleziona una data</span>
+                                )}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={new Date(field.value)}
+                              onSelect={(date) => {
+                                if (date) {
+                                  field.onChange(format(date, "yyyy-MM-dd"));
+                                }
+                              }}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                
+                <div className="flex justify-end space-x-2 pt-4">
+                  <Button 
+                    type="button" 
+                    onClick={goToNextStep} 
+                    disabled={!isStep1Valid()}
+                  >
+                    Avanti
+                  </Button>
+                </div>
+              </div>
+            )}
+            
+            {/* STEP 2: Selezione Servizi */}
+            {currentStep === 2 && (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-xl font-semibold">Selezione Servizi</h2>
+                  <div className="text-sm text-muted-foreground">Passo 2 di 3</div>
+                </div>
+                
+                <ServiceItemForm
+                  items={items}
+                  onChange={handleItemsChange}
+                />
+                
+                <div className="flex justify-between space-x-2 pt-4">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={goToPreviousStep}
+                  >
+                    Indietro
+                  </Button>
+                  <Button 
+                    type="button" 
+                    onClick={goToNextStep} 
+                    disabled={!isStep2Valid()}
+                  >
+                    Avanti
+                  </Button>
+                </div>
+              </div>
+            )}
+            
+            {/* STEP 3: Riepilogo */}
+            {currentStep === 3 && (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h2 className="text-xl font-semibold">Riepilogo e Conferma</h2>
+                  <div className="text-sm text-muted-foreground">Passo 3 di 3</div>
+                </div>
+                
+                <div className="border p-4 rounded-md bg-muted/20 mb-4">
+                  <h3 className="font-medium mb-2">Dati Cliente e Veicolo</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p><span className="font-medium">Cliente:</span> {form.getValues("clientName")}</p>
+                      <p><span className="font-medium">Telefono:</span> {form.getValues("phone")}</p>
+                    </div>
+                    <div>
+                      <p><span className="font-medium">Veicolo:</span> {form.getValues("model")}</p>
+                      <p><span className="font-medium">Targa:</span> {form.getValues("plate")}</p>
+                      <p><span className="font-medium">Km:</span> {form.getValues("kilometrage")}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <h3 className="font-medium">Manodopera Extra e Note</h3>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="laborPrice"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Tariffa oraria</FormLabel>
+                              <FormControl>
+                                <div className="flex items-center space-x-2">
+                                  <Input 
+                                    {...field} 
+                                    type="number" 
+                                    min={0} 
+                                    onChange={(e) => {
+                                      const value = parseFloat(e.target.value);
+                                      field.onChange(value);
+                                      // Ricalcola i totali quando cambia la tariffa
+                                      const hours = form.getValues("laborHours") || 0;
+                                      const laborTotal = value * hours;
+                                      const newTotal = form.getValues("subtotal") + laborTotal;
+                                      form.setValue("total", newTotal);
+                                    }}
+                                  />
+                                  <span>€/ora</span>
+                                </div>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={form.control}
+                          name="laborHours"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Ore totali</FormLabel>
+                              <FormControl>
+                                <div className="flex items-center space-x-2">
+                                  <Input 
+                                    {...field} 
+                                    type="number" 
+                                    min={0} 
+                                    step={0.5} 
+                                    onChange={(e) => {
+                                      const value = parseFloat(e.target.value);
+                                      field.onChange(value);
+                                      // Ricalcola i totali quando cambiano le ore
+                                      const price = form.getValues("laborPrice") || 0;
+                                      const laborTotal = price * value;
+                                      const newTotal = form.getValues("subtotal") + laborTotal;
+                                      form.setValue("total", newTotal);
+                                    }}
+                                  />
+                                  <span>ore</span>
+                                </div>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      
+                      <FormField
+                        control={form.control}
+                        name="notes"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Note</FormLabel>
+                            <FormControl>
+                              <Textarea 
+                                {...field} 
+                                placeholder="Note aggiuntive per il preventivo"
+                                className="h-24"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
                       <FormField
                         control={form.control}
                         name="status"
                         render={({ field }) => (
-                          <FormItem className="w-full">
-                            <div className="flex items-center space-x-4">
-                              <FormLabel className="w-24">Stato:</FormLabel>
-                              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Seleziona uno stato" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value="bozza">Bozza</SelectItem>
-                                  <SelectItem value="inviato">Inviato</SelectItem>
-                                  <SelectItem value="accettato">Accettato</SelectItem>
-                                  <SelectItem value="rifiutato">Rifiutato</SelectItem>
-                                  <SelectItem value="scaduto">Scaduto</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
+                          <FormItem>
+                            <FormLabel>Stato Preventivo</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Seleziona uno stato" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="bozza">Bozza</SelectItem>
+                                <SelectItem value="inviato">Inviato</SelectItem>
+                                <SelectItem value="accettato">Accettato</SelectItem>
+                                <SelectItem value="rifiutato">Rifiutato</SelectItem>
+                                <SelectItem value="scaduto">Scaduto</SelectItem>
+                              </SelectContent>
+                            </Select>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-                    </CardFooter>
-                  </Card>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Totale Preventivo</CardTitle>
+                        <CardDescription>Riepilogo dei costi</CardDescription>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="flex justify-between">
+                          <span>Subtotale Servizi:</span>
+                          <span>{formatCurrency(form.getValues("subtotal") || 0)}</span>
+                        </div>
+                        
+                        <div className="flex justify-between">
+                          <span>Manodopera extra:</span>
+                          <span>
+                            {formatCurrency((form.getValues("laborPrice") || 0) * (form.getValues("laborHours") || 0))}
+                          </span>
+                        </div>
+                        
+                        <div className="flex justify-between">
+                          <span>IVA ({form.getValues("taxRate")}%):</span>
+                          <span>{formatCurrency(form.getValues("taxAmount") || 0)}</span>
+                        </div>
+                        
+                        <Separator />
+                        
+                        <div className="flex justify-between font-bold text-lg">
+                          <span>TOTALE:</span>
+                          <span>
+                            {formatCurrency(
+                              (form.getValues("total") || 0) + 
+                              (form.getValues("laborPrice") || 0) * (form.getValues("laborHours") || 0)
+                            )}
+                          </span>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
+                
+                <div className="flex justify-between space-x-2 pt-4">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={goToPreviousStep}
+                  >
+                    Indietro
+                  </Button>
+                  
+                  <div className="flex space-x-2">
+                    <Button type="button" variant="outline" onClick={onClose}>
+                      Annulla
+                    </Button>
+                    <Button type="submit" disabled={isLoading}>
+                      {quote ? "Aggiorna" : "Salva"} Preventivo
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
-            
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={onClose}>
-                Annulla
-              </Button>
-              <Button type="submit" disabled={isLoading}>
-                {quote ? "Aggiorna" : "Salva"} Preventivo
-              </Button>
-            </DialogFooter>
+            )}
           </form>
         </Form>
       </DialogContent>
