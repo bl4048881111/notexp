@@ -213,20 +213,30 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
     // Utilizziamo la funzione helper per calcolare i totali dei singoli item
     let subtotal = 0;
     
-    for (const item of quoteItems) {
-      // Calcola il totale dei ricambi per questo item
-      const partsTotal = Array.isArray(item.parts) 
-        ? item.parts.reduce((sum, part) => sum + (part.finalPrice || 0), 0) 
-        : 0;
+    // Log items per debug
+    console.log("Calcolando totali per items:", quoteItems);
+    
+    if (quoteItems && quoteItems.length > 0) {
+      for (const item of quoteItems) {
+        // Calcola il totale dei ricambi per questo item
+        const partsTotal = item.parts && Array.isArray(item.parts) 
+          ? item.parts.reduce((sum, part) => {
+              const partPrice = part.finalPrice || 0;
+              console.log(`Ricambio: ${part.code} - ${part.name} = ${partPrice}€`);
+              return sum + partPrice;
+            }, 0) 
+          : 0;
+          
+        console.log(`Totale ricambi per ${item.serviceType.name}: ${partsTotal}€`);
         
-      // Aggiorniamo il totalPrice dell'item (utile per la visualizzazione)
-      const itemTotal = partsTotal;
-      if (item && item.totalPrice !== itemTotal) {
-        console.log(`Aggiornato totale per ${item.serviceType.name}: da ${item.totalPrice} a ${itemTotal}`);
-        item.totalPrice = itemTotal;
+        // Aggiorniamo il totalPrice dell'item (utile per la visualizzazione)
+        item.totalPrice = partsTotal;
+        
+        // Aggiorniamo il subtotale
+        subtotal += partsTotal;
       }
-      
-      subtotal += itemTotal;
+    } else {
+      console.warn("Nessun item trovato nel preventivo");
     }
     
     // Aggiungi la manodopera extra
@@ -234,7 +244,7 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
     const laborHours = form.getValues('laborHours') || 0;
     const laborTotal = laborPrice * laborHours;
     
-    console.log(`Calcolando manodopera: ${laborPrice}€/ora × ${laborHours} ore = ${laborTotal}€`);
+    console.log(`Manodopera: ${laborPrice}€/ora × ${laborHours} ore = ${laborTotal}€`);
     subtotal += laborTotal;
     
     // Calcoli dell'IVA
@@ -242,7 +252,13 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
     const taxAmount = (subtotal * taxRate) / 100;
     const total = subtotal + taxAmount;
     
-    console.log(`Totali calcolati: Subtotale ${subtotal}€, IVA ${taxAmount}€, Totale ${total}€`);
+    console.log(`TOTALI FINALI: Subtotale ${subtotal}€, IVA ${taxAmount}€, Totale ${total}€`);
+    
+    // Aggiorniamo i valori del form direttamente
+    form.setValue("subtotal", subtotal);
+    form.setValue("taxAmount", taxAmount);
+    form.setValue("total", total);
+    
     return { subtotal, taxAmount, total };
   }
   
