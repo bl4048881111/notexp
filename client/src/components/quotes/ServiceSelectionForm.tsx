@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { QuoteItem, ServiceType } from "@shared/schema";
 import { Button } from "@/components/ui/button";
+import { getAllServiceTypes } from "@shared/firebase";
 
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -16,35 +17,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 
 // Definizione delle categorie e dei servizi
-type ServiceCategory = "Tagliando" | "Frenante" | "Sospensioni" | "Accessori";
-
-const services: Record<ServiceCategory, Array<{ id: string, name: string }>> = {
-  "Tagliando": [
-    { id: "filtro-aria", name: "Filtro Aria" },
-    { id: "filtro-olio", name: "Filtro Olio" },
-    { id: "filtro-carburante", name: "Filtro Carburante" },
-    { id: "filtro-abitacolo", name: "Filtro Abitacolo" },
-    { id: "olio-motore", name: "Olio Motore" },
-  ],
-  "Frenante": [
-    { id: "pastiglie-anteriori", name: "Pastiglie Anteriori" },
-    { id: "pastiglie-posteriori", name: "Pastiglie Posteriori" },
-    { id: "dischi-anteriori", name: "Dischi Anteriori" },
-    { id: "dischi-posteriori", name: "Dischi/Ganasce Posteriori" },
-  ],
-  "Sospensioni": [
-    { id: "ammortizzatori-anteriori", name: "Ammortizzatori Anteriori" },
-    { id: "ammortizzatori-posteriori", name: "Ammortizzatori Posteriori" },
-    { id: "bracci-sospensione", name: "Bracci Sospensione" },
-    { id: "silent-block", name: "Silent Block" },
-  ],
-  "Accessori": [
-    { id: "batteria", name: "Batteria" },
-    { id: "spazzole-tergicristallo", name: "Spazzole Tergicristallo" },
-    { id: "lampadine", name: "Lampadine" },
-    { id: "candele", name: "Candele" },
-  ]
-};
+type ServiceCategory = "Tagliando" | "Frenante" | "Sospensioni" | "Accessori" | string;
 
 interface ServiceSelectionFormProps {
   items: QuoteItem[];
@@ -58,6 +31,51 @@ export default function ServiceSelectionForm({
   // Stati del componente
   const [activeCategory, setActiveCategory] = useState<ServiceCategory>("Tagliando");
   const [selectedServices, setSelectedServices] = useState<Record<string, boolean>>({});
+  const [dynamicServices, setDynamicServices] = useState<Record<ServiceCategory, Array<{id: string, name: string}>>>({
+    "Tagliando": [],
+    "Frenante": [],
+    "Sospensioni": [],
+    "Accessori": []
+  });
+  
+  // Carica tutti i tipi di servizio dal database
+  useEffect(() => {
+    async function loadAllServiceTypes() {
+      try {
+        const allServiceTypes = await getAllServiceTypes();
+        
+        // Organizza i servizi per categoria
+        const servicesByCategory: Record<ServiceCategory, Array<{id: string, name: string}>> = {
+          "Tagliando": [],
+          "Frenante": [],
+          "Sospensioni": [],
+          "Accessori": []
+        };
+        
+        // Aggiungi i servizi alle rispettive categorie
+        allServiceTypes.forEach(service => {
+          const category = service.category as ServiceCategory;
+          
+          // Se la categoria non esiste ancora, creala
+          if (!servicesByCategory[category]) {
+            servicesByCategory[category] = [];
+          }
+          
+          servicesByCategory[category].push({
+            id: service.id,
+            name: service.name
+          });
+        });
+        
+        setDynamicServices(servicesByCategory);
+        console.log("Servizi caricati:", servicesByCategory);
+      } catch (error) {
+        console.error("Errore durante il caricamento dei servizi:", error);
+      }
+    }
+    
+    loadAllServiceTypes();
+  }, []);
   
   // Gestisce il click su un servizio
   const handleServiceClick = (categoryId: ServiceCategory, service: { id: string, name: string }) => {
@@ -150,7 +168,7 @@ export default function ServiceSelectionForm({
     <div className="space-y-6">
       <div className="mb-4">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-          {Object.entries(services).map(([category, categoryServices]) => (
+          {Object.entries(dynamicServices).map(([category, categoryServices]) => (
             <div key={category} 
               className="border rounded-lg hover:border-primary/70 hover:shadow-sm transition-all cursor-pointer"
               onClick={() => setActiveCategory(category as ServiceCategory)}
@@ -166,7 +184,7 @@ export default function ServiceSelectionForm({
           <div className="border rounded-lg p-4">
             <h3 className="font-medium mb-4">Servizi {activeCategory}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {services[activeCategory].map((service) => (
+              {dynamicServices[activeCategory]?.map((service: {id: string, name: string}) => (
                 <div 
                   key={service.id} 
                   className={`border rounded-lg p-3 cursor-pointer transition-all ${

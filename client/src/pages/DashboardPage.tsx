@@ -217,7 +217,7 @@ export default function DashboardPage() {
                   </div>
                   <div className="flex-1">
                     <h4 className="font-medium">{appointment.clientName}</h4>
-                    <p className="text-sm text-muted-foreground">{appointment.serviceType}</p>
+                    <p className="text-sm text-muted-foreground">{appointment.services.join(', ')}</p>
                     <p className="text-xs text-muted-foreground mt-1">{appointment.plate} - {appointment.model}</p>
                   </div>
                   <div className="flex items-center">
