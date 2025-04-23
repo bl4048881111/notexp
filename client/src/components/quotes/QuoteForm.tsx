@@ -50,11 +50,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { CalendarIcon, XCircle } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { SimplePopover } from "@/components/ui/simple-popover";
 import { cn } from "@/lib/utils";
 import { it } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
@@ -633,47 +629,43 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                     render={({ field }) => (
                       <FormItem className="flex flex-col">
                         <FormLabel>Data</FormLabel>
-                        <Popover>
-                          <FormControl>
-                            <Button
-                              variant={"outline"}
-                              type="button"
-                              onClick={() => document.getElementById('quote-calendar-trigger')?.click()}
-                              className={cn(
-                                "w-full pl-3 text-left font-normal",
-                                !field.value && "text-muted-foreground"
-                              )}
-                            >
-                              {field.value ? (
-                                format(new Date(field.value), "dd MMMM yyyy", {
-                                  locale: it,
-                                })
-                              ) : (
-                                <span>Seleziona una data</span>
-                              )}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                          <PopoverTrigger 
-                            asChild
-                            id="quote-calendar-trigger"
-                            className="sr-only"
+                        <FormControl>
+                          <SimplePopover
+                            trigger={
+                              <Button
+                                variant={"outline"}
+                                type="button"
+                                className={cn(
+                                  "w-full pl-3 text-left font-normal",
+                                  !field.value && "text-muted-foreground"
+                                )}
+                              >
+                                {field.value ? (
+                                  format(new Date(field.value), "dd MMMM yyyy", {
+                                    locale: it,
+                                  })
+                                ) : (
+                                  <span>Seleziona una data</span>
+                                )}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                              </Button>
+                            }
+                            align="start"
+                            className="p-0"
                           >
-                            <Button type="button" className="hidden">Apri calendario</Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
                             <Calendar
                               mode="single"
-                              selected={new Date(field.value)}
-                              onSelect={(date) => {
+                              selected={field.value ? new Date(field.value) : undefined}
+                              onSelect={(date: Date | undefined) => {
                                 if (date) {
                                   field.onChange(format(date, "yyyy-MM-dd"));
                                 }
                               }}
+                              locale={it}
                               initialFocus
                             />
-                          </PopoverContent>
-                        </Popover>
+                          </SimplePopover>
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
