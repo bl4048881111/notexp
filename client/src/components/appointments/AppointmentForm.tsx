@@ -549,10 +549,45 @@ export default function AppointmentForm({
                               </FormLabel>
                               <FormControl>
                                 {/* Il tipo date utilizza il formato ISO (yyyy-MM-dd) internamente */}
+                                <Button
+                                  variant="outline"
+                                  className={cn(
+                                    "w-full pl-3 text-left font-normal border-primary/20 focus-visible:ring-primary/30",
+                                    !field.value && "text-muted-foreground"
+                                  )}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    document.getElementById('date-calendar-popover')?.click();
+                                  }}
+                                >
+                                  {field.value ? (
+                                    format(new Date(field.value), "dd MMMM yyyy", { locale: it })
+                                  ) : (
+                                    <span>Seleziona una data</span>
+                                  )}
+                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                </Button>
+                                <Popover>
+                                  <PopoverTrigger id="date-calendar-popover" className="sr-only" asChild>
+                                    <Button size="sm" variant="ghost">Apri calendario</Button>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar
+                                      mode="single"
+                                      selected={field.value ? new Date(field.value) : undefined}
+                                      onSelect={(date) => {
+                                        if (date) {
+                                          field.onChange(format(date, "yyyy-MM-dd"));
+                                        }
+                                      }}
+                                      locale={it}
+                                      initialFocus
+                                    />
+                                  </PopoverContent>
+                                </Popover>
                                 <Input 
-                                  type="date" 
-                                  {...field} 
-                                  className="border-primary/20 focus-visible:ring-primary/30" 
+                                  type="hidden"
+                                  {...field}
                                 />
                               </FormControl>
                               <FormMessage />

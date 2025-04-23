@@ -644,7 +644,7 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                                 )}
                               >
                                 {field.value ? (
-                                  format(new Date(field.value), "PPP", {
+                                  format(new Date(field.value), "dd MMMM yyyy", {
                                     locale: it,
                                   })
                                 ) : (
