@@ -9,7 +9,11 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card } from "@/components/ui/card";
 
 // Definizione tipo di vista per il calendario
-type ViewType = "day" | "week" | "month";
+enum ViewType {
+  Day = "day",
+  Week = "week",
+  Month = "month"
+}
 
 // Definizione delle fasce orarie (dalle 8 alle 19)
 const TIME_SLOTS = Array.from({ length: 22 }, (_, i) => ({
