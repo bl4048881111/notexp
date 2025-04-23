@@ -15,7 +15,6 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { SimplePopover } from "@/components/ui/CustomUIComponents";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -25,6 +24,11 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -771,8 +775,8 @@ export default function AppointmentForm({
                                   Data
                                 </FormLabel>
                                 <FormControl>
-                                  <SimplePopover
-                                    trigger={
+                                  <Popover>
+                                    <PopoverTrigger asChild>
                                       <Button
                                         variant="outline"
                                         className={cn(
@@ -780,6 +784,7 @@ export default function AppointmentForm({
                                           !field.value && "text-muted-foreground"
                                         )}
                                         type="button"
+                                        onClick={(e) => e.preventDefault()}
                                       >
                                         {field.value ? (
                                           format(new Date(field.value), "dd MMMM yyyy", { locale: it })
@@ -788,10 +793,8 @@ export default function AppointmentForm({
                                         )}
                                         <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                       </Button>
-                                    }
-                                    align="start"
-                                    className="p-0"
-                                    content={
+                                    </PopoverTrigger>
+                                    <PopoverContent align="start" className="p-0 w-auto">
                                       <Calendar
                                         mode="single"
                                         selected={field.value ? new Date(field.value) : undefined}
@@ -803,8 +806,8 @@ export default function AppointmentForm({
                                         locale={it}
                                         initialFocus
                                       />
-                                    }
-                                  />
+                                    </PopoverContent>
+                                  </Popover>
                                   <Input 
                                     type="hidden"
                                     {...field}
