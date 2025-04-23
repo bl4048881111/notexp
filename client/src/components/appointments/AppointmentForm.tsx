@@ -129,6 +129,13 @@ export default function AppointmentForm({
           if (client) {
             setSelectedClient(client);
             
+            // Imposta la targa del veicolo se disponibile nell'appuntamento o nel cliente
+            if (appointment.plate) {
+              setVehiclePlate(appointment.plate);
+            } else if (client.plate) {
+              setVehiclePlate(client.plate);
+            }
+            
             // Se l'appuntamento ha un preventivo associato, selezionalo
             if (appointment.quoteId) {
               const quotes = await getQuotesByClientId(client.id);
@@ -157,6 +164,8 @@ export default function AppointmentForm({
       setSelectedQuote(null);
       setSearchQuery("");
       setIsSearching(false);
+      setVehiclePlate("");
+      setIsLoadingVehicle(false);
       form.reset();
     }
   }, [isOpen, form]);
@@ -177,6 +186,17 @@ export default function AppointmentForm({
   const handleSelectClient = (client: Client) => {
     setSelectedClient(client);
     form.setValue("clientId", client.id);
+    
+    // Imposta la targa del cliente se disponibile
+    if (client.plate) {
+      setVehiclePlate(client.plate);
+    }
+    
+    // Se c'è un modello associato, impostalo nel form
+    if (client.model) {
+      form.setValue("model", client.model);
+    }
+    
     setIsSearching(false);
     setSearchQuery("");
   };
@@ -184,8 +204,10 @@ export default function AppointmentForm({
   const handleClearSelectedClient = () => {
     setSelectedClient(null);
     setSelectedQuote(null);
+    setVehiclePlate("");
     form.setValue("clientId", "");
     form.setValue("quoteId", "");
+    form.setValue("model", "");
   };
   
   const handleSelectQuote = (quote: Quote) => {
