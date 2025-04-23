@@ -50,11 +50,11 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { CalendarIcon, XCircle } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
-import { SimplePopover } from "@/components/ui/simple-popover";
+import { SimplePopover } from "@/components/ui/CustomUIComponents";
 import { cn } from "@/lib/utils";
 import { it } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
-import { ComboboxDemo } from "@/components/ui/ComboboxDemo";
+import { ComboboxDemo } from "@/components/ui/ComboboxDemoFixed";
 import ServiceSelectionForm from "./ServiceSelectionForm";
 // Utilizziamo la versione completamente statica
 import StaticSparePartsForm from "./StaticSparePartsForm";
