@@ -43,7 +43,6 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T 
 export type ActivityType = 
   | 'login'
   | 'logout'
-  | 'page_view'
   | 'create_client'
   | 'update_client'
   | 'delete_client'
@@ -55,13 +54,15 @@ export type ActivityType =
   | 'update_appointment'
   | 'delete_appointment'
   | 'print_quote'
-  | 'export_data';
+  | 'export_data'
+  | 'error';
 
 // Interfaccia per un'attività registrata
 export interface Activity {
   id: string;
   type: ActivityType;
   description: string;
+  ipAddress?: string;
   details?: Record<string, any>;
   timestamp: Date;
 }
@@ -88,12 +89,32 @@ export const useActivityLogger = () => {
 export const ActivityLoggerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [logs, setLogs] = useLocalStorage<Activity[]>('activity_logs', []);
 
+  // Funzione per ottenere l'indirizzo IP dell'utente
+  const getUserIP = async (): Promise<string> => {
+    try {
+      // Utilizziamo un servizio esterno per ottenere l'IP
+      const response = await fetch('https://api.ipify.org?format=json');
+      const data = await response.json();
+      return data.ip;
+    } catch (error) {
+      console.warn("Impossibile ottenere l'indirizzo IP:", error);
+      return "unknown";
+    }
+  };
+
   // Funzione per registrare una nuova attività
-  const logActivity = (type: ActivityType, description: string, details?: Record<string, any>) => {
+  const logActivity = async (type: ActivityType, description: string, details?: Record<string, any>) => {
+    // Ottieni indirizzo IP solo per log di operazioni su database o errori
+    let ipAddress = undefined;
+    if (type !== 'login' && type !== 'logout' && type !== 'page_view') {
+      ipAddress = await getUserIP();
+    }
+    
     const newActivity: Activity = {
       id: uuidv4(),
       type,
       description,
+      ipAddress,
       details,
       timestamp: new Date()
     };
