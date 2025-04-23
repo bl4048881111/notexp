@@ -104,6 +104,27 @@ export default function QuoteTable({
     
     try {
       await deleteQuote(quoteToDelete.id);
+      
+      // Registra l'attività di eliminazione preventivo
+      try {
+        const activityModule = await import('../dev/ActivityLogger');
+        const { useActivityLogger } = activityModule;
+        const { logActivity } = useActivityLogger();
+        
+        logActivity(
+          'delete_quote',
+          `Preventivo eliminato: ${quoteToDelete.clientName}`,
+          {
+            quoteId: quoteToDelete.id,
+            clientName: quoteToDelete.clientName,
+            plate: quoteToDelete.plate,
+            timestamp: new Date()
+          }
+        );
+      } catch (error) {
+        console.warn("Impossibile registrare l'attività:", error);
+      }
+      
       toast({
         title: "Preventivo eliminato",
         description: "Il preventivo è stato eliminato con successo.",

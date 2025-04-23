@@ -52,6 +52,28 @@ export default function ClientTable({ clients, isLoading, onEdit, onDeleteSucces
     setIsDeleting(true);
     try {
       await deleteClient(clientToDelete.id);
+      
+      // Registra l'attività di eliminazione cliente
+      try {
+        const activityModule = await import('../dev/ActivityLogger');
+        const { useActivityLogger } = activityModule;
+        const { logActivity } = useActivityLogger();
+        
+        logActivity(
+          'delete_client',
+          `Cliente eliminato: ${clientToDelete.name} ${clientToDelete.surname}`,
+          {
+            clientId: clientToDelete.id,
+            name: clientToDelete.name,
+            surname: clientToDelete.surname,
+            plate: clientToDelete.plate,
+            timestamp: new Date()
+          }
+        );
+      } catch (error) {
+        console.warn("Impossibile registrare l'attività:", error);
+      }
+      
       toast({
         title: "Cliente eliminato",
         description: "Il cliente è stato eliminato con successo",
