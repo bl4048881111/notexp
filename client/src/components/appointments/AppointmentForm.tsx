@@ -384,6 +384,13 @@ export default function AppointmentForm({
                     e.preventDefault();
                     form.handleSubmit(onSubmit)(e);
                   }}
+                  onKeyDown={(e) => {
+                    // Impedisce che il tasto ENTER faccia avanzare il form
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      // Non fa nulla, impedisce semplicemente l'azione predefinita
+                    }
+                  }}
                 >
                   {/* Step 1: Cliente */}
                   {currentStep === 1 && (
