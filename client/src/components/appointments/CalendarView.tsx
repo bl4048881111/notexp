@@ -1,9 +1,9 @@
-import { useState, useEffect, useMemo } from "react";
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, parseISO, setHours, setMinutes, addMinutes } from "date-fns";
-import { it } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Clock } from "lucide-react";
-import { Appointment } from "@shared/schema";
+import { useState, useEffect, useMemo } from 'react';
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, setHours, setMinutes } from 'date-fns';
+import { it } from 'date-fns/locale';
 import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight, Clock } from 'lucide-react';
+import { Appointment } from '@shared/schema';
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card } from "@/components/ui/card";
@@ -147,18 +147,15 @@ export default function CalendarView({
             </Button>
           </div>
 
-          <div className="flex gap-2 w-full sm:w-auto">
-            <Button variant="outline" size="sm" className="text-xs sm:text-sm" onClick={handleToday}>
-              Oggi
-            </Button>
-            <div className="flex border border-border rounded-md overflow-hidden flex-1 sm:flex-auto">
+          <div className="w-full sm:w-auto">
+            <div className="flex border border-border rounded-md overflow-hidden w-full">
               <Button 
                 variant={view === ViewType.Day ? "default" : "outline"}
                 size="sm"
                 className="rounded-none flex-1 text-xs sm:text-sm px-2 sm:px-3"
                 onClick={() => setView(ViewType.Day)}
               >
-                G
+                Giorno
               </Button>
               <Button 
                 variant={view === ViewType.Week ? "default" : "outline"}
@@ -166,7 +163,7 @@ export default function CalendarView({
                 className="rounded-none flex-1 text-xs sm:text-sm px-2 sm:px-3"
                 onClick={() => setView(ViewType.Week)}
               >
-                S
+                Settimana
               </Button>
               <Button 
                 variant={view === ViewType.Month ? "default" : "outline"}
@@ -174,7 +171,7 @@ export default function CalendarView({
                 className="rounded-none flex-1 text-xs sm:text-sm px-2 sm:px-3"
                 onClick={() => setView(ViewType.Month)}
               >
-                M
+                Mese
               </Button>
             </div>
           </div>
@@ -254,18 +251,15 @@ export default function CalendarView({
             </Button>
           </div>
 
-          <div className="flex gap-2 w-full sm:w-auto">
-            <Button variant="outline" size="sm" className="text-xs sm:text-sm" onClick={handleToday}>
-              Oggi
-            </Button>
-            <div className="flex border border-border rounded-md overflow-hidden flex-1 sm:flex-auto">
+          <div className="w-full sm:w-auto">
+            <div className="flex border border-border rounded-md overflow-hidden w-full">
               <Button 
                 variant={view === ViewType.Day ? "default" : "outline"}
                 size="sm"
                 className="rounded-none flex-1 text-xs sm:text-sm px-2 sm:px-3"
                 onClick={() => setView(ViewType.Day)}
               >
-                G
+                Giorno
               </Button>
               <Button 
                 variant={view === ViewType.Week ? "default" : "outline"}
@@ -273,7 +267,7 @@ export default function CalendarView({
                 className="rounded-none flex-1 text-xs sm:text-sm px-2 sm:px-3"
                 onClick={() => setView(ViewType.Week)}
               >
-                S
+                Settimana
               </Button>
               <Button 
                 variant={view === ViewType.Month ? "default" : "outline"}
@@ -281,7 +275,7 @@ export default function CalendarView({
                 className="rounded-none flex-1 text-xs sm:text-sm px-2 sm:px-3"
                 onClick={() => setView(ViewType.Month)}
               >
-                M
+                Mese
               </Button>
             </div>
           </div>
@@ -313,18 +307,15 @@ export default function CalendarView({
           </Button>
         </div>
 
-        <div className="flex gap-2 w-full sm:w-auto">
-          <Button variant="outline" size="sm" className="text-xs sm:text-sm" onClick={handleToday}>
-            Oggi
-          </Button>
-          <div className="flex border border-border rounded-md overflow-hidden flex-1 sm:flex-auto">
+        <div className="w-full sm:w-auto">
+          <div className="flex border border-border rounded-md overflow-hidden w-full">
             <Button 
               variant={view === ViewType.Day ? "default" : "outline"}
               size="sm"
               className="rounded-none flex-1 text-xs sm:text-sm px-2 sm:px-3"
               onClick={() => setView(ViewType.Day)}
             >
-              G
+              Giorno
             </Button>
             <Button 
               variant={view === ViewType.Week ? "default" : "outline"}
@@ -332,7 +323,7 @@ export default function CalendarView({
               className="rounded-none flex-1 text-xs sm:text-sm px-2 sm:px-3"
               onClick={() => setView(ViewType.Week)}
             >
-              S
+              Settimana
             </Button>
             <Button 
               variant={view === ViewType.Month ? "default" : "outline"}
@@ -340,7 +331,7 @@ export default function CalendarView({
               className="rounded-none flex-1 text-xs sm:text-sm px-2 sm:px-3"
               onClick={() => setView(ViewType.Month)}
             >
-              M
+              Mese
             </Button>
           </div>
         </div>
