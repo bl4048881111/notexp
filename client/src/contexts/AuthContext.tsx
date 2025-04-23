@@ -28,7 +28,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setIsAuthenticated(isAuth);
       
       if (isAuth) {
-        setUser(authService.getCurrentUser());
+        const currentUser = authService.getCurrentUser();
+        // Assicurati che l'utente abbia tutti i campi richiesti
+        setUser(currentUser ? { 
+          username: currentUser.username,
+          password: '' // Campo richiesto dal tipo ma non memorizzato per sicurezza
+        } : null);
       } else {
         setUser(null);
       }
@@ -45,7 +50,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     
     if (success) {
       setIsAuthenticated(true);
-      setUser({ username });
+      setUser({ 
+        username,
+        password: '' // Campo richiesto dal tipo ma non memorizzato per sicurezza
+      });
       
       // Registra l'attività di login
       try {
