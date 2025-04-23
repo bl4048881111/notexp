@@ -111,6 +111,15 @@ export default function AppLayout({ children }: AppLayoutProps) {
                     {currentDate}
                   </div>
                 )}
+                <a 
+                  href="/activity-log"
+                  className="flex w-full items-center px-3 py-2 text-sm text-gray-300 hover:bg-[#333333] hover:text-white rounded-md transition-colors duration-200"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 h-4 w-4">
+                    <path d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
+                  </svg>
+                  Log Attività
+                </a>
                 <button 
                   onClick={logout}
                   className="flex w-full items-center px-3 py-2 text-sm text-gray-300 hover:bg-[#333333] hover:text-white rounded-md transition-colors duration-200"

@@ -169,10 +169,17 @@ export default function ActivityLogPage() {
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <p className="text-sm">{log.description}</p>
-                                    <div className="flex items-center justify-between">
-                                      <p className="text-xs text-muted-foreground">
-                                        {formatTime(new Date(log.timestamp))}
-                                      </p>
+                                    <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between">
+                                      <div className="flex items-center gap-2">
+                                        <p className="text-xs text-muted-foreground">
+                                          {formatTime(new Date(log.timestamp))}
+                                        </p>
+                                        {log.ipAddress && (
+                                          <p className="text-xs bg-background/30 px-1.5 py-0.5 rounded text-muted-foreground">
+                                            IP: {log.ipAddress}
+                                          </p>
+                                        )}
+                                      </div>
                                       <p className="text-xs text-muted-foreground">
                                         {log.type}
                                       </p>
@@ -318,10 +325,17 @@ export default function ActivityLogPage() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm">{log.description}</p>
-                            <div className="flex items-center justify-between">
-                              <p className="text-xs text-muted-foreground">
-                                {format(new Date(log.timestamp), 'dd/MM/yyyy HH:mm:ss')}
-                              </p>
+                            <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between">
+                              <div className="flex items-center gap-2">
+                                <p className="text-xs text-muted-foreground">
+                                  {format(new Date(log.timestamp), 'dd/MM/yyyy HH:mm:ss')}
+                                </p>
+                                {log.ipAddress && (
+                                  <p className="text-xs bg-background/30 px-1.5 py-0.5 rounded text-muted-foreground">
+                                    IP: {log.ipAddress}
+                                  </p>
+                                )}
+                              </div>
                               <p className="text-xs text-muted-foreground">
                                 {log.type}
                               </p>
