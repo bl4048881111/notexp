@@ -10,7 +10,7 @@ import {
   CommandInput,
   CommandItem,
 } from "@/components/ui/command"
-import { SimplePopover } from "@/components/ui/simple-popover"
+import { SimplePopover } from "@/components/ui/CustomUIComponents"
 
 interface ComboboxDemoProps {
   items: { value: string; label: string }[]
@@ -41,17 +41,32 @@ export function ComboboxDemo({ items, value, onChange, placeholder = "Seleziona.
       }
       content={
         <div className="w-full p-0">
-          <Command>
-            <CommandInput placeholder={`Cerca ${placeholder.toLowerCase()}...`} />
+          <Command shouldFilter={false}>
+            <CommandInput 
+              placeholder={`Cerca ${placeholder.toLowerCase()}...`} 
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                  e.preventDefault();
+                }
+              }}
+            />
             <CommandEmpty>Nessun risultato trovato.</CommandEmpty>
             <CommandGroup className="max-h-60 overflow-y-auto">
               {items.map((item) => (
                 <CommandItem
                   key={item.value}
                   value={item.label}
-                  onSelect={() => {
-                    onChange(item.value)
-                    setOpen(false)
+                  onSelect={(currentValue) => {
+                    const selectedItem = items.find(item => item.label === currentValue);
+                    if (selectedItem) {
+                      onChange(selectedItem.value);
+                      setOpen(false);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                    }
                   }}
                 >
                   <Check

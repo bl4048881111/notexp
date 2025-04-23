@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { SimpleDropdown, DropdownMenuItem } from "@/components/ui/simple-dropdown";
+import { SimpleDropdown, DropdownMenuItem } from "@/components/ui/CustomUIComponents";
 import { useToast } from "@/hooks/use-toast";
 
 import { getAllAppointments } from "@shared/firebase";

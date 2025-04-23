@@ -15,7 +15,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { SimplePopover } from "@/components/ui/simple-popover";
+import { SimplePopover } from "@/components/ui/CustomUIComponents";
 import { Button } from "@/components/ui/button";
 import {
   Form,
