@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
@@ -92,6 +92,7 @@ export default function AppointmentForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingVehicle, setIsLoadingVehicle] = useState(false);
   const [vehiclePlate, setVehiclePlate] = useState("");
+  const nextButtonRef = useRef<HTMLButtonElement>(null);
   
   const form = useForm<CreateAppointmentInput>({
     resolver: zodResolver(createAppointmentSchema),
@@ -187,7 +188,7 @@ export default function AppointmentForm({
     );
   }, [searchQuery, clients]);
   
-  const handleSelectClient = (client: Client) => {
+  const handleSelectClient = (client: Client, goToNextStep = false) => {
     setSelectedClient(client);
     form.setValue("clientId", client.id);
     
@@ -203,6 +204,11 @@ export default function AppointmentForm({
     
     setIsSearching(false);
     setSearchQuery("");
+    
+    // Passa automaticamente allo step successivo se richiesto
+    if (goToNextStep) {
+      setCurrentStep(prev => prev + 1);
+    }
   };
   
   const handleClearSelectedClient = () => {
@@ -472,7 +478,7 @@ export default function AppointmentForm({
                                   }
                                 } else if (e.key === 'Enter' && selectedIndex >= 0 && filteredClients[selectedIndex]) {
                                   e.preventDefault();
-                                  handleSelectClient(filteredClients[selectedIndex]);
+                                  handleSelectClient(filteredClients[selectedIndex], true); // Con true passa automaticamente allo step successivo
                                 } else if (e.key === 'Escape') {
                                   e.preventDefault();
                                   setIsSearching(false);
@@ -493,7 +499,7 @@ export default function AppointmentForm({
                                           "flex items-center p-2 rounded-md cursor-pointer",
                                           selectedIndex === index ? "bg-primary/10" : "hover:bg-primary/5"
                                         )}
-                                        onClick={() => handleSelectClient(client)}
+                                        onClick={() => handleSelectClient(client, true)}
                                         onMouseEnter={() => setSelectedIndex(index)}
                                       >
                                         <div className="flex-1 min-w-0">
@@ -545,6 +551,21 @@ export default function AppointmentForm({
                       )}
                       
                       <Input type="hidden" {...form.register("clientId")} />
+                      
+                      {/* Pulsante per passare allo step successivo con il tasto Invio */}
+                      <div className="sr-only">
+                        <Button
+                          ref={nextButtonRef}
+                          type="button"
+                          onClick={() => {
+                            if (currentStep === 1 && selectedClient) {
+                              setCurrentStep(prev => prev + 1);
+                            }
+                          }}
+                        >
+                          Avanti
+                        </Button>
+                      </div>
                     </div>
                   )}
                   
