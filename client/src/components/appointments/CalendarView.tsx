@@ -17,6 +17,7 @@ const TIME_SLOTS = Array.from({ length: 22 }, (_, i) => ({
   label: format(
     setMinutes(setHours(new Date(), Math.floor((8 * 60 + i * 30) / 60)), (8 * 60 + i * 30) % 60),
     'HH:mm',
+    { locale: it }
   )
 }));
 
