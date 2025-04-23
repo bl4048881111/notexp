@@ -634,25 +634,32 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                       <FormItem className="flex flex-col">
                         <FormLabel>Data</FormLabel>
                         <Popover>
-                          <PopoverTrigger asChild>
-                            <FormControl>
-                              <Button
-                                variant={"outline"}
-                                className={cn(
-                                  "w-full pl-3 text-left font-normal",
-                                  !field.value && "text-muted-foreground"
-                                )}
-                              >
-                                {field.value ? (
-                                  format(new Date(field.value), "dd MMMM yyyy", {
-                                    locale: it,
-                                  })
-                                ) : (
-                                  <span>Seleziona una data</span>
-                                )}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                              </Button>
-                            </FormControl>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              type="button"
+                              onClick={() => document.getElementById('quote-calendar-trigger')?.click()}
+                              className={cn(
+                                "w-full pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value ? (
+                                format(new Date(field.value), "dd MMMM yyyy", {
+                                  locale: it,
+                                })
+                              ) : (
+                                <span>Seleziona una data</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                          <PopoverTrigger 
+                            asChild
+                            id="quote-calendar-trigger"
+                            className="sr-only"
+                          >
+                            <Button type="button" className="hidden">Apri calendario</Button>
                           </PopoverTrigger>
                           <PopoverContent className="w-auto p-0" align="start">
                             <Calendar
