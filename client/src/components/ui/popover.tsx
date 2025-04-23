@@ -1,20 +1,29 @@
 import * as React from "react"
 import * as PopoverPrimitive from "@radix-ui/react-popover"
-
+import { Slot } from "@radix-ui/react-slot"
 import { cn } from "@/lib/utils"
 
 const Popover = PopoverPrimitive.Root
 
-// Miglioriamo i tipi del PopoverTrigger per gestire correttamente asChild
+/**
+ * Un wrapper avanzato per il PopoverTrigger di Radix UI
+ * Gestisce correttamente sia il caso con asChild che senza
+ * Risolve l'errore React.Children.only
+ */
 const PopoverTrigger = React.forwardRef<
   React.ElementRef<typeof PopoverPrimitive.Trigger>,
-  React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Trigger>
->((props, ref) => (
-  <PopoverPrimitive.Trigger 
-    ref={ref}
-    {...props}
-  />
-))
+  React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Trigger> & {
+    asChild?: boolean;
+  }
+>(({ asChild, ...props }, ref) => {
+  const Comp = asChild ? Slot : "button";
+  
+  return (
+    <PopoverPrimitive.Trigger ref={ref} asChild>
+      <Comp {...props} />
+    </PopoverPrimitive.Trigger>
+  );
+});
 PopoverTrigger.displayName = PopoverPrimitive.Trigger.displayName
 
 const PopoverContent = React.forwardRef<
