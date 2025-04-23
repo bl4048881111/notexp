@@ -196,46 +196,46 @@ const DevLogger: React.FC = () => {
 
   return (
     <div 
-      className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           setIsVisible(false);
         }
       }}
     >
-      <Card className="w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-xl border border-border">
-        <div className="flex items-center justify-between p-4 border-b border-border bg-card">
-          <div className="text-lg font-bold">
+      <Card className="w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-xl border-2 border-primary">
+        <div className="flex items-center justify-between p-4 border-b-2 border-border bg-zinc-900 text-white">
+          <div className="text-lg font-bold text-primary">
             Dev Logger
-            <span className="ml-2 text-xs text-muted-foreground">
+            <span className="ml-2 text-xs text-zinc-400">
               (Premi "a" seguito da "log" per mostrare/nascondere)
             </span>
           </div>
           <div className="flex items-center space-x-2">
-            <Button size="sm" variant="outline" onClick={handleClearLogs}>
+            <Button size="sm" variant="outline" onClick={handleClearLogs} className="border-zinc-700 hover:bg-zinc-800">
               <RefreshCw className="h-4 w-4 mr-2" />
               Reset
             </Button>
-            <Button size="sm" variant="outline" onClick={handleExportLogs}>
+            <Button size="sm" variant="outline" onClick={handleExportLogs} className="border-zinc-700 hover:bg-zinc-800">
               <Download className="h-4 w-4 mr-2" />
               Esporta
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => setIsVisible(false)}>
+            <Button size="sm" variant="destructive" onClick={() => setIsVisible(false)}>
               <X className="h-4 w-4" />
             </Button>
           </div>
         </div>
         
-        <div className="flex p-2 border-b border-border bg-card">
+        <div className="flex p-2 border-b-2 border-border bg-zinc-800">
           <input
             type="text"
             placeholder="Cerca nei log..."
-            className="flex-1 px-3 py-1 rounded-md border border-input text-sm"
+            className="flex-1 px-3 py-1 rounded-md border border-zinc-600 bg-zinc-800 text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary"
             value={filter.search}
             onChange={(e) => setFilter(prev => ({ ...prev, search: e.target.value }))}
           />
           <select
-            className="ml-2 px-3 py-1 rounded-md border border-input text-sm"
+            className="ml-2 px-3 py-1 rounded-md border border-zinc-600 bg-zinc-800 text-white text-sm focus:border-primary focus:ring-1 focus:ring-primary"
             value={filter.type}
             onChange={(e) => setFilter(prev => ({ ...prev, type: e.target.value as any }))}
           >
@@ -247,32 +247,32 @@ const DevLogger: React.FC = () => {
           </select>
         </div>
         
-        <ScrollArea className="max-h-[calc(90vh-120px)]">
+        <ScrollArea className="max-h-[calc(90vh-120px)] bg-zinc-900">
           <div className="p-4 space-y-2">
             {filteredLogs.length === 0 ? (
-              <div className="text-center text-muted-foreground p-6">
+              <div className="text-center text-zinc-400 p-6 border border-zinc-700 rounded-md">
                 Nessun log da visualizzare
               </div>
             ) : (
               filteredLogs.map(log => (
                 <div
                   key={log.id}
-                  className={`p-3 rounded-md border ${
-                    log.type === 'error' ? 'bg-destructive/10 border-destructive/30' :
-                    log.type === 'warning' ? 'bg-yellow-500/10 border-yellow-500/30' :
-                    log.type === 'success' ? 'bg-green-500/10 border-green-500/30' :
-                    'bg-card border-border'
+                  className={`p-3 rounded-md border-2 ${
+                    log.type === 'error' ? 'bg-black border-red-600' :
+                    log.type === 'warning' ? 'bg-black border-yellow-500' :
+                    log.type === 'success' ? 'bg-black border-green-500' :
+                    'bg-black border-primary'
                   }`}
                 >
                   <div className="flex justify-between items-start">
                     <div className="text-sm font-medium">
                       {log.component && (
-                        <span className="bg-primary/10 text-primary py-0.5 px-1.5 rounded-md text-xs mr-2">
+                        <span className="bg-primary/20 text-primary py-0.5 px-1.5 rounded-md text-xs mr-2 font-bold">
                           {log.component}
                         </span>
                       )}
-                      <span className={`px-1.5 py-0.5 rounded-md text-xs ${
-                        log.type === 'error' ? 'bg-destructive/20 text-destructive' :
+                      <span className={`px-1.5 py-0.5 rounded-md text-xs font-bold ${
+                        log.type === 'error' ? 'bg-red-500/20 text-red-500' :
                         log.type === 'warning' ? 'bg-yellow-500/20 text-yellow-500' :
                         log.type === 'success' ? 'bg-green-500/20 text-green-500' :
                         'bg-primary/20 text-primary'
@@ -280,17 +280,17 @@ const DevLogger: React.FC = () => {
                         {log.type.toUpperCase()}
                       </span>
                     </div>
-                    <div className="text-xs text-muted-foreground">
+                    <div className="text-xs text-zinc-400">
                       {log.timestamp.toLocaleString()}
                     </div>
                   </div>
-                  <div className="mt-1 whitespace-pre-wrap break-words text-sm">
+                  <div className="mt-1 whitespace-pre-wrap break-words text-sm text-white">
                     {log.message}
                   </div>
                   {log.data && (
-                    <div className="mt-2 pt-2 border-t border-border text-xs text-muted-foreground">
-                      <div className="font-medium mb-1">Dati aggiuntivi:</div>
-                      <pre className="overflow-x-auto p-2 rounded bg-muted text-xs">
+                    <div className="mt-2 pt-2 border-t border-zinc-700 text-xs text-zinc-300">
+                      <div className="font-medium mb-1 text-primary">Dati aggiuntivi:</div>
+                      <pre className="overflow-x-auto p-2 rounded bg-black text-xs text-zinc-300 border border-zinc-800">
                         {JSON.stringify(log.data, null, 2)}
                       </pre>
                     </div>
