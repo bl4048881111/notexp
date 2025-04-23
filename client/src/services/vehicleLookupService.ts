@@ -20,6 +20,7 @@ interface VehicleDetails {
   power_kw?: number;
   built_year_from?: number;
   vehicle_type?: string;
+  vin?: string;
   error?: string;
 }
 
@@ -95,6 +96,7 @@ export async function lookupVehicleByPlate(plate: string, country: string = 'it'
               built_year_till
               power_kw
               power_hp
+              vin
               __typename
             }
           }

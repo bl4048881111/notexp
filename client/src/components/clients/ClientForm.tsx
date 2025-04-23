@@ -5,6 +5,8 @@ import { Client, CreateClientInput } from "@shared/types";
 import { createClientSchema } from "@shared/schema";
 import { createClient, updateClient } from "@shared/firebase";
 import { useToast } from "@/hooks/use-toast";
+import { Search } from "lucide-react";
+import { lookupVehicleByPlate, formatVehicleDetails } from "@/services/vehicleLookupService";
 
 import {
   Dialog,
@@ -33,6 +35,7 @@ interface ClientFormProps {
 
 export default function ClientForm({ isOpen, onClose, onSuccess, client }: ClientFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingVehicle, setIsLoadingVehicle] = useState(false);
   const { toast } = useToast();
   
   const form = useForm<CreateClientInput>({
@@ -44,6 +47,7 @@ export default function ClientForm({ isOpen, onClose, onSuccess, client }: Clien
       email: "",
       plate: "",
       model: "",
+      vin: "",
       createdAt: Date.now(),
     }
   });
@@ -55,6 +59,59 @@ export default function ClientForm({ isOpen, onClose, onSuccess, client }: Clien
       form.reset(clientData);
     }
   }, [client, form]);
+  
+  // Funzione per cercare i dettagli del veicolo tramite targa
+  const handleLookupVehicle = async () => {
+    const plate = form.getValues('plate');
+    if (!plate || plate.length < 3) {
+      toast({
+        title: "Targa non valida",
+        description: "Inserisci una targa valida per cercare le informazioni sul veicolo.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsLoadingVehicle(true);
+    
+    try {
+      const vehicleDetails = await lookupVehicleByPlate(plate);
+      
+      if (!vehicleDetails) {
+        toast({
+          title: "Veicolo non trovato",
+          description: "Non è stato possibile trovare informazioni per questa targa.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      const formattedDetails = formatVehicleDetails(vehicleDetails);
+      
+      // Aggiorna i campi del form con i dettagli del veicolo
+      const model = `${formattedDetails.make} ${formattedDetails.model} ${formattedDetails.year}`;
+      form.setValue("model", model);
+      
+      // Se disponibile, aggiorna anche il VIN
+      if (vehicleDetails.vin) {
+        form.setValue("vin", vehicleDetails.vin);
+      }
+      
+      toast({
+        title: "Veicolo trovato",
+        description: `${formattedDetails.make} ${formattedDetails.fullModel} ${formattedDetails.power ? `(${formattedDetails.power})` : ''}`,
+      });
+    } catch (error) {
+      console.error("Errore durante la ricerca del veicolo:", error);
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore durante la ricerca del veicolo.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingVehicle(false);
+    }
+  };
   
   const onSubmit = async (data: CreateClientInput) => {
     setIsSubmitting(true);
@@ -160,13 +217,25 @@ export default function ClientForm({ isOpen, onClose, onSuccess, client }: Clien
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Targa</FormLabel>
-                    <FormControl>
-                      <Input 
-                        placeholder="Targa" 
-                        {...field} 
-                        onChange={(e) => field.onChange(e.target.value.toUpperCase())}
-                      />
-                    </FormControl>
+                    <div className="flex w-full items-center space-x-2">
+                      <FormControl className="flex-1">
+                        <Input 
+                          placeholder="Targa" 
+                          {...field} 
+                          onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                        />
+                      </FormControl>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        size="icon" 
+                        onClick={handleLookupVehicle}
+                        disabled={isLoadingVehicle}
+                        className="shrink-0"
+                      >
+                        <Search className="h-4 w-4" />
+                      </Button>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -180,6 +249,20 @@ export default function ClientForm({ isOpen, onClose, onSuccess, client }: Clien
                     <FormLabel>Modello Veicolo</FormLabel>
                     <FormControl>
                       <Input placeholder="Modello veicolo" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="vin"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Codice VIN (opzionale)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Codice VIN" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
