@@ -1126,38 +1126,83 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                       type="button" 
                       disabled={isLoading}
                       onClick={async () => {
-                        // Crea un preventivo di test direttamente
+                        // Salva preventivo con i dati del form
                         setIsLoading(true);
                         try {
-                          const testQuote: Omit<Quote, 'id'> = {
-                            clientId: selectedClient?.id || "client123",
-                            clientName: selectedClient?.name + " " + selectedClient?.surname || "Cliente Test",
-                            phone: selectedClient?.phone || "123456789",
-                            plate: selectedClient?.plate || "AB123CD",
-                            model: selectedClient?.model || "Test Model",
-                            kilometrage: 10000,
-                            date: new Date().toISOString().split('T')[0],
-                            items: items.length ? items : [],
-                            notes: form.getValues("notes") || "Test note",
-                            laborPrice: 45,
-                            laborHours: 1,
-                            subtotal: 100,
-                            taxRate: 22,
-                            taxAmount: 22,
-                            total: 122,
-                            status: "bozza",
-                            validUntil: "",
+                          // Calcola totali in tempo reale
+                          let itemsSubtotal = 0;
+                          
+                          // Prepara items puliti con array di parti validi
+                          const cleanedItems = items.map(item => {
+                            const cleanItem = {
+                              ...item,
+                              parts: Array.isArray(item.parts) ? item.parts : []
+                            };
+                            
+                            // Calcola total dei ricambi
+                            cleanItem.parts.forEach(part => {
+                              if (part.finalPrice) {
+                                itemsSubtotal += part.finalPrice;
+                              }
+                            });
+                            
+                            return cleanItem;
+                          });
+                          
+                          // Aggiungi manodopera
+                          const laborPrice = Number(form.getValues("laborPrice") || 45);
+                          const laborHours = Number(form.getValues("laborHours") || 0);
+                          const laborTotal = laborPrice * laborHours;
+                          
+                          // Calcola subtotale
+                          const subtotal = itemsSubtotal + laborTotal;
+                          
+                          // Calcola IVA
+                          const taxRate = Number(form.getValues("taxRate") || 22);
+                          const taxAmount = (subtotal * taxRate) / 100;
+                          
+                          // Calcola totale finale
+                          const total = subtotal + taxAmount;
+                          
+                          // Usa i dati effettivamente selezionati o presenti nel form
+                          const quoteData: Omit<Quote, 'id'> = {
+                            clientId: selectedClient?.id || form.getValues("clientId") || "",
+                            clientName: form.getValues("clientName") || "",
+                            phone: form.getValues("phone") || "",
+                            plate: form.getValues("plate") || "",
+                            model: form.getValues("model") || "",
+                            kilometrage: Number(form.getValues("kilometrage") || 0),
+                            date: form.getValues("date") || new Date().toISOString().split('T')[0],
+                            items: cleanedItems,
+                            notes: form.getValues("notes") || "",
+                            laborPrice,
+                            laborHours,
+                            subtotal,
+                            taxRate,
+                            taxAmount,
+                            total,
+                            status: form.getValues("status") || "bozza",
+                            validUntil: form.getValues("validUntil") || "",
                             createdAt: Date.now()
                           };
                           
-                          console.log("Salvando preventivo di test:", testQuote);
+                          console.log("Salvando preventivo reale:", quoteData);
                           
-                          await createQuote(testQuote);
-                          
-                          toast({
-                            title: "Preventivo creato",
-                            description: "Test preventivo creato con successo",
-                          });
+                          if (quote) {
+                            // Aggiornamento preventivo esistente
+                            await updateQuote(quote.id, { ...quoteData, id: quote.id });
+                            toast({
+                              title: "Preventivo aggiornato",
+                              description: "Il preventivo è stato aggiornato con successo"
+                            });
+                          } else {
+                            // Creazione nuovo preventivo
+                            await createQuote(quoteData);
+                            toast({
+                              title: "Preventivo creato",
+                              description: "Il preventivo è stato creato con successo"
+                            });
+                          }
                           
                           if (onSuccess) onSuccess();
                           if (onClose) onClose();
@@ -1165,7 +1210,7 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                           console.error("Errore nel salvataggio:", error);
                           toast({
                             title: "Errore",
-                            description: "Si è verificato un errore durante il salvataggio del preventivo di test.",
+                            description: "Si è verificato un errore durante il salvataggio del preventivo.",
                             variant: "destructive",
                           });
                         } finally {
@@ -1173,7 +1218,7 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                         }
                       }}
                     >
-                      Salva Preventivo di Test
+                      {quote ? "Aggiorna" : "Salva"} Preventivo
                     </Button>
                   </div>
                 </div>
