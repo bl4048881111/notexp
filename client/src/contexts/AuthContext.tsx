@@ -46,6 +46,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
     if (success) {
       setIsAuthenticated(true);
       setUser({ username });
+      
+      // Registra l'attività di login
+      try {
+        // Importa dinamicamente per evitare dipendenze circolari
+        const activityModule = await import('../components/dev/ActivityLogger');
+        const { useActivityLogger } = activityModule;
+        const { logActivity } = useActivityLogger();
+        
+        logActivity(
+          'login',
+          `Login effettuato come: ${username}`,
+          {
+            username,
+            timestamp: new Date()
+          }
+        );
+      } catch (error) {
+        console.warn("Impossibile registrare l'attività di login:", error);
+      }
     }
     
     return success;

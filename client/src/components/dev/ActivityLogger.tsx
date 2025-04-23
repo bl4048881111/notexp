@@ -43,6 +43,7 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T 
 export type ActivityType = 
   | 'login'
   | 'logout'
+  | 'page_view'
   | 'create_client'
   | 'update_client'
   | 'delete_client'
@@ -172,6 +173,7 @@ export const RecentActivityList: React.FC<{
     if (type.includes('print')) return '🖨️';
     if (type.includes('export')) return '📤';
     if (type.includes('status')) return '🔄';
+    if (type.includes('page_view')) return '👁️';
     return '📌';
   };
 

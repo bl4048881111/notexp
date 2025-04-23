@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "../../hooks/useAuth";
 import Sidebar from "./Sidebar";
 import { useIsMobile } from "../../hooks/use-mobile";
+import PageTracker from "../dev/PageTracker";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -62,6 +63,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
   
   return (
     <div className="flex h-screen overflow-hidden bg-background">
+      {/* Componente per tracciare il cambio di pagina */}
+      <PageTracker />
+      
       {/* Sidebar for desktop and mobile */}
       <div 
         className={`
