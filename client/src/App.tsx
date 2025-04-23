@@ -93,6 +93,7 @@ function AppContent() {
         <Router />
       )}
       <Toaster />
+      <DevLogger />
     </TooltipProvider>
   );
 }

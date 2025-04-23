@@ -206,11 +206,17 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
   
   // Versione migliorata che include manodopera nei totali
   function calculateTotals(quoteItems: QuoteItem[]) {
+    // Importiamo il devLogger
+    try {
+      const { devLogger } = require('./../../components/dev/DevLogger');
+      devLogger.log(`Calcolando totali per ${quoteItems.length} servizi`, 'info', 'QuoteForm');
+    } catch (error) {
+      // Se il devLogger non è disponibile, usiamo console.log
+      console.log("Calcolando totali per items:", quoteItems);
+    }
+    
     // Utilizziamo la funzione helper per calcolare i totali dei singoli item
     let subtotal = 0;
-    
-    // Log items per debug
-    console.log("Calcolando totali per items:", quoteItems);
     
     if (quoteItems && quoteItems.length > 0) {
       for (const item of quoteItems) {
@@ -218,12 +224,24 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
         const partsTotal = item.parts && Array.isArray(item.parts) 
           ? item.parts.reduce((sum, part) => {
               const partPrice = part.finalPrice || 0;
-              console.log(`Ricambio: ${part.code} - ${part.name} = ${partPrice}€`);
+              
+              try {
+                const { devLogger } = require('./../../components/dev/DevLogger');
+                devLogger.log(`Ricambio: ${part.code} - ${part.name} = ${partPrice}€`, 'info', 'QuoteForm');
+              } catch (error) {
+                console.log(`Ricambio: ${part.code} - ${part.name} = ${partPrice}€`);
+              }
+              
               return sum + partPrice;
             }, 0) 
           : 0;
           
-        console.log(`Totale ricambi per ${item.serviceType.name}: ${partsTotal}€`);
+        try {
+          const { devLogger } = require('./../../components/dev/DevLogger');
+          devLogger.log(`Totale ricambi per ${item.serviceType.name}: ${partsTotal}€`, 'success', 'QuoteForm');
+        } catch (error) {
+          console.log(`Totale ricambi per ${item.serviceType.name}: ${partsTotal}€`);
+        }
         
         // Aggiorniamo il totalPrice dell'item (utile per la visualizzazione)
         item.totalPrice = partsTotal;
@@ -232,7 +250,12 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
         subtotal += partsTotal;
       }
     } else {
-      console.warn("Nessun item trovato nel preventivo");
+      try {
+        const { devLogger } = require('./../../components/dev/DevLogger');
+        devLogger.log("Nessun item trovato nel preventivo", 'warning', 'QuoteForm');
+      } catch (error) {
+        console.warn("Nessun item trovato nel preventivo");
+      }
     }
     
     // Aggiungi la manodopera extra
@@ -240,7 +263,13 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
     const laborHours = form.getValues('laborHours') || 0;
     const laborTotal = laborPrice * laborHours;
     
-    console.log(`Manodopera: ${laborPrice}€/ora × ${laborHours} ore = ${laborTotal}€`);
+    try {
+      const { devLogger } = require('./../../components/dev/DevLogger');
+      devLogger.log(`Manodopera: ${laborPrice}€/ora × ${laborHours} ore = ${laborTotal}€`, 'info', 'QuoteForm');
+    } catch (error) {
+      console.log(`Manodopera: ${laborPrice}€/ora × ${laborHours} ore = ${laborTotal}€`);
+    }
+    
     subtotal += laborTotal;
     
     // Calcoli dell'IVA
@@ -248,7 +277,14 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
     const taxAmount = (subtotal * taxRate) / 100;
     const total = subtotal + taxAmount;
     
-    console.log(`TOTALI FINALI: Subtotale ${subtotal}€, IVA ${taxAmount}€, Totale ${total}€`);
+    try {
+      const { devLogger } = require('./../../components/dev/DevLogger');
+      devLogger.log(`TOTALI FINALI: Subtotale ${subtotal}€, IVA ${taxAmount}€, Totale ${total}€`, 'success', 'QuoteForm', {
+        subtotal, taxRate, taxAmount, total, laborPrice, laborHours, laborTotal
+      });
+    } catch (error) {
+      console.log(`TOTALI FINALI: Subtotale ${subtotal}€, IVA ${taxAmount}€, Totale ${total}€`);
+    }
     
     // Aggiorniamo i valori del form direttamente
     form.setValue("subtotal", subtotal);
@@ -725,36 +761,6 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                 </div>
                 
                 {/* Componente per la gestione dei ricambi */}
-                <div className="mb-4">
-                  <FormField
-                    control={form.control}
-                    name="laborPrice"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Costo orario manodopera (€)</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            type="number"
-                            min={0}
-                            onChange={(e) => {
-                              const value = parseFloat(e.target.value);
-                              field.onChange(isNaN(value) ? 0 : value);
-                              
-                              // Aggiorna tutti gli item con il nuovo costo orario
-                              const newItems = items.map(item => ({
-                                ...item,
-                                laborPrice: isNaN(value) ? 0 : value
-                              }));
-                              setItems(newItems);
-                            }}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
                 
                 <StaticSparePartsForm
                   items={items}
