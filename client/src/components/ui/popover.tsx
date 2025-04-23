@@ -15,12 +15,17 @@ const PopoverTrigger = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Trigger> & {
     asChild?: boolean;
   }
->(({ asChild, ...props }, ref) => {
-  const Comp = asChild ? Slot : "button";
+>(({ asChild = false, ...props }, ref) => {
+  // Semplifichiamo completamente questa parte
+  if (asChild) {
+    return (
+      <PopoverPrimitive.Trigger {...props} ref={ref} asChild />
+    )
+  }
   
   return (
-    <PopoverPrimitive.Trigger ref={ref} asChild>
-      <Comp {...props} />
+    <PopoverPrimitive.Trigger {...props} ref={ref}>
+      <button type="button">{props.children}</button>
     </PopoverPrimitive.Trigger>
   );
 });
