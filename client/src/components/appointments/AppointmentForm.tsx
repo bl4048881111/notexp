@@ -775,39 +775,15 @@ export default function AppointmentForm({
                                   Data
                                 </FormLabel>
                                 <FormControl>
-                                  <Popover>
-                                    <PopoverTrigger asChild>
-                                      <Button
-                                        variant="outline"
-                                        className={cn(
-                                          "w-full pl-3 text-left font-normal border-primary/20 focus-visible:ring-primary/30",
-                                          !field.value && "text-muted-foreground"
-                                        )}
-                                        type="button"
-                                        onClick={(e) => e.preventDefault()}
-                                      >
-                                        {field.value ? (
-                                          format(new Date(field.value), "dd MMMM yyyy", { locale: it })
-                                        ) : (
-                                          <span>Seleziona una data</span>
-                                        )}
-                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                      </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent align="start" className="p-0 w-auto">
-                                      <Calendar
-                                        mode="single"
-                                        selected={field.value ? new Date(field.value) : undefined}
-                                        onSelect={(date: Date | undefined) => {
-                                          if (date) {
-                                            field.onChange(format(date, "yyyy-MM-dd"));
-                                          }
-                                        }}
-                                        locale={it}
-                                        initialFocus
-                                      />
-                                    </PopoverContent>
-                                  </Popover>
+                                  {/* Versione semplificata temporanea per evitare errori con React.Children.only */}
+                                  <Input
+                                    type="date"
+                                    className="border-primary/20 focus-visible:ring-primary/30"
+                                    value={field.value || ""}
+                                    onChange={(e) => {
+                                      field.onChange(e.target.value);
+                                    }}
+                                  />
                                   <Input 
                                     type="hidden"
                                     {...field}
