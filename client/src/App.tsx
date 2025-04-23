@@ -15,6 +15,7 @@ import QuotesPage from "./pages/QuotesPage";
 import ServiceManagementPage from "./pages/ServiceManagementPage";
 import NotFound from "@/pages/not-found";
 import { useAuth } from "./hooks/useAuth";
+import DevLogger, { devLogger } from "./components/dev/DevLogger";
 
 // Import global styles
 import "@/styles/globals.css";
