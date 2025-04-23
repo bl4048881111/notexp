@@ -94,16 +94,17 @@ export default function ClientsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Clienti</h2>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0">
+        <h2 className="text-xl md:text-2xl font-bold">Clienti</h2>
         
-        <div className="flex space-x-3">
-          <Button onClick={() => setIsFormOpen(true)}>
+        <div className="flex flex-wrap w-full sm:w-auto gap-2 sm:space-x-3">
+          <Button className="w-full sm:w-auto" onClick={() => setIsFormOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
-            Nuovo Cliente
+            <span className="sm:inline">Nuovo Cliente</span>
+            <span className="inline sm:hidden">Nuovo</span>
           </Button>
           
-          <Button variant="outline" onClick={handleExportClients}>
+          <Button variant="outline" className="w-full sm:w-auto" onClick={handleExportClients}>
             <Download className="mr-2 h-4 w-4" />
             Esporta
           </Button>
@@ -111,14 +112,14 @@ export default function ClientsPage() {
       </div>
       
       <div className="bg-card rounded-lg shadow-md overflow-hidden border border-border">
-        <div className="p-4 border-b border-border flex flex-col sm:flex-row justify-between gap-4">
-          <div className="relative flex-grow">
+        <div className="p-3 md:p-4 border-b border-border flex flex-col justify-between gap-3">
+          <div className="relative w-full">
             <Input
               type="text"
               placeholder="Cerca cliente per nome, targa o modello..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8"
+              className="pl-8 w-full"
             />
             <svg 
               xmlns="http://www.w3.org/2000/svg" 
@@ -131,9 +132,9 @@ export default function ClientsPage() {
             </svg>
           </div>
           
-          <div className="flex space-x-2">
+          <div className="flex flex-col sm:flex-row gap-2 w-full">
             <Select value={filterValue} onValueChange={setFilterValue}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Filtra clienti" />
               </SelectTrigger>
               <SelectContent>
@@ -144,14 +145,14 @@ export default function ClientsPage() {
             </Select>
             
             <Select value={sortOrder} onValueChange={setSortOrder}>
-              <SelectTrigger className="w-[180px]">
+              <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Ordinamento" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="name-asc">Nome (A-Z)</SelectItem>
                 <SelectItem value="name-desc">Nome (Z-A)</SelectItem>
-                <SelectItem value="date-desc">Data aggiunta (Recente)</SelectItem>
-                <SelectItem value="date-asc">Data aggiunta (Meno recente)</SelectItem>
+                <SelectItem value="date-desc">Data (Recente)</SelectItem>
+                <SelectItem value="date-asc">Data (Meno recente)</SelectItem>
               </SelectContent>
             </Select>
           </div>

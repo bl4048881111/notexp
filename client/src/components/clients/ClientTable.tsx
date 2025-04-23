@@ -91,11 +91,11 @@ export default function ClientTable({ clients, isLoading, onEdit, onDeleteSucces
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Codice</TableHead>
+              <TableHead className="hidden md:table-cell">Codice</TableHead>
               <TableHead>Cliente</TableHead>
-              <TableHead>Contatti</TableHead>
-              <TableHead>Veicolo</TableHead>
-              <TableHead>Data Aggiunta</TableHead>
+              <TableHead className="hidden sm:table-cell">Contatti</TableHead>
+              <TableHead className="hidden sm:table-cell">Veicolo</TableHead>
+              <TableHead className="hidden lg:table-cell">Data</TableHead>
               <TableHead>Azioni</TableHead>
             </TableRow>
           </TableHeader>
@@ -109,23 +109,29 @@ export default function ClientTable({ clients, isLoading, onEdit, onDeleteSucces
             ) : (
               clients.map((client) => (
                 <TableRow key={client.id} className="hover:bg-accent/50">
-                  <TableCell className="font-medium text-primary">{client.id}</TableCell>
-                  <TableCell>
-                    <div className="font-medium">{client.name} {client.surname}</div>
+                  <TableCell className="hidden md:table-cell font-medium text-primary">
+                    {client.id}
                   </TableCell>
                   <TableCell>
+                    <div className="font-medium">{client.name} {client.surname}</div>
+                    <div className="sm:hidden text-xs text-muted-foreground">
+                      <div>{client.model} - {client.plate}</div>
+                      <div>{client.phone}</div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="hidden sm:table-cell">
                     <div>{client.phone}</div>
                     <div className="text-xs text-muted-foreground">{client.email}</div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden sm:table-cell">
                     <div>{client.model}</div>
                     <div className="text-xs text-muted-foreground">{client.plate}</div>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
+                  <TableCell className="hidden lg:table-cell text-muted-foreground">
                     {format(new Date(client.createdAt), 'dd/MM/yyyy')}
                   </TableCell>
                   <TableCell>
-                    <div className="flex space-x-2">
+                    <div className="flex space-x-1 md:space-x-2">
                       <Button 
                         variant="ghost" 
                         size="icon" 
@@ -159,8 +165,8 @@ export default function ClientTable({ clients, isLoading, onEdit, onDeleteSucces
         </Table>
       </div>
       
-      <div className="px-6 py-3 flex items-center justify-between border-t border-border">
-        <div className="text-sm text-muted-foreground">
+      <div className="p-3 md:px-6 md:py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between border-t border-border gap-2">
+        <div className="text-xs sm:text-sm text-muted-foreground">
           Mostrando <span className="font-medium">1-{Math.min(clients.length, 10)}</span> di <span className="font-medium">{clients.length}</span> clienti
         </div>
         
