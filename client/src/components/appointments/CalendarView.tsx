@@ -8,7 +8,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card } from "@/components/ui/card";
 
-type ViewType = "day" | "week" | "month";
+// Definizione tipo di vista per il calendario
+type ViewType = string;
 
 // Definizione delle fasce orarie (dalle 8 alle 19)
 const TIME_SLOTS = Array.from({ length: 22 }, (_, i) => ({
