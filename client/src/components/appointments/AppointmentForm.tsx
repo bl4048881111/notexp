@@ -791,19 +791,20 @@ export default function AppointmentForm({
                                     }
                                     align="start"
                                     className="p-0"
-                                  >
-                                    <Calendar
-                                      mode="single"
-                                      selected={field.value ? new Date(field.value) : undefined}
-                                      onSelect={(date: Date | undefined) => {
-                                        if (date) {
-                                          field.onChange(format(date, "yyyy-MM-dd"));
-                                        }
-                                      }}
-                                      locale={it}
-                                      initialFocus
-                                    />
-                                  </SimplePopover>
+                                    content={
+                                      <Calendar
+                                        mode="single"
+                                        selected={field.value ? new Date(field.value) : undefined}
+                                        onSelect={(date: Date | undefined) => {
+                                          if (date) {
+                                            field.onChange(format(date, "yyyy-MM-dd"));
+                                          }
+                                        }}
+                                        locale={it}
+                                        initialFocus
+                                      />
+                                    }
+                                  />
                                   <Input 
                                     type="hidden"
                                     {...field}

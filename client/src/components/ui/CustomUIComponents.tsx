@@ -57,9 +57,19 @@ export function SimplePopover({
       }
     };
 
+    // Previene il refresh quando si usa il tasto Invio nel calendario
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (isOpen && event.key === 'Enter') {
+        event.preventDefault();
+      }
+    };
+
     document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isOpen]);
 
@@ -84,11 +94,16 @@ export function SimplePopover({
     };
   };
 
+  const handleTriggerClick = (e: React.MouseEvent) => {
+    e.preventDefault(); // Previene il submit del form
+    handleOpenChange(!isOpen);
+  };
+
   return (
-    <div className="relative inline-block">
+    <div className="relative inline-block w-full">
       <div
         ref={triggerRef}
-        onClick={() => handleOpenChange(!isOpen)}
+        onClick={handleTriggerClick}
       >
         {trigger}
       </div>
@@ -101,6 +116,7 @@ export function SimplePopover({
             "absolute z-50 min-w-[200px] rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-none",
             className
           )}
+          onClick={(e) => e.stopPropagation()} // Evita che i click vengano propagati
         >
           {content || children}
         </div>
