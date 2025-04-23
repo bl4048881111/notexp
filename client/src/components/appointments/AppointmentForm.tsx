@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
-import { XCircle, FileText, Check, ArrowRight, Plus, Trash2, CalendarIcon, Calendar as CalendarIcon2 } from "lucide-react";
+import { XCircle, FileText, Check, ArrowRight, Plus, Trash2, CalendarIcon, Calendar as CalendarIcon2, SearchIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import {
@@ -57,6 +57,7 @@ import {
   CreateAppointmentInput, 
   createAppointmentSchema
 } from "@shared/schema";
+import { lookupVehicleByPlate, formatVehicleDetails } from "@/services/vehicleLookupService";
 
 interface AppointmentFormProps {
   isOpen: boolean;
