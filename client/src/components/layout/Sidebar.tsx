@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { LogOut, LayoutDashboard, Users, Calendar, FileText, Settings, X } from "lucide-react";
+import { LogOut, LayoutDashboard, Users, Calendar, FileText, Settings, X, Activity, ChevronDown, ChevronUp } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { useIsMobile } from "../../hooks/use-mobile";
 import autoExpressLogo from "../../assets/autoexpress-logo.png";
@@ -12,6 +12,7 @@ interface SidebarProps {
 export default function Sidebar({ onClose }: SidebarProps) {
   const [location] = useLocation();
   const { logout } = useAuth();
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
   
   const handleLogout = () => {
     logout();
@@ -111,7 +112,38 @@ export default function Sidebar({ onClose }: SidebarProps) {
         </ul>
       </nav>
       
-      <div className="p-6 border-t border-gray-800">
+      <div className="p-6 border-t border-gray-800 space-y-2">
+        <div className="relative">
+          <button 
+            onClick={() => setShowProfileMenu(!showProfileMenu)}
+            className="flex items-center justify-between px-4 py-2 text-gray-400 hover:text-white hover:bg-[#222222] w-full rounded-md transition-all duration-200"
+          >
+            <div className="flex items-center">
+              <Settings className="mr-3 h-5 w-5" />
+              <span>Profilo</span>
+            </div>
+            {showProfileMenu ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </button>
+          
+          {showProfileMenu && (
+            <div className="mt-1 bg-[#1a1a1a] rounded-md overflow-hidden">
+              <Link 
+                href="/activity-log" 
+                onClick={() => {
+                  setShowProfileMenu(false);
+                  isMobile && onClose && onClose();
+                }}
+                className={`flex items-center px-4 py-2 text-gray-400 hover:text-white hover:bg-[#222222] w-full transition-all duration-200 ${
+                  isActive("/activity-log") ? "bg-[#222222] text-white border-l-2 border-primary" : ""
+                }`}
+              >
+                <Activity className={`ml-3 mr-3 h-4 w-4 ${isActive("/activity-log") ? "text-primary" : ""}`} />
+                Log Attività
+              </Link>
+            </div>
+          )}
+        </div>
+        
         <button 
           onClick={handleLogout}
           className="flex items-center px-4 py-2 text-gray-400 hover:text-white hover:bg-red-900/30 w-full rounded-md transition-all duration-200"
