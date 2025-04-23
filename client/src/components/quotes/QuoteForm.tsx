@@ -265,11 +265,12 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
   // Gestisce il submit del form
   const onSubmit = async (data: any) => {
     setIsLoading(true);
+    console.log("Avvio salvataggio preventivo!");
     
     try {
       // Ottieni tutti i valori dal form necessari per il preventivo
-      const laborPrice = form.getValues("laborPrice") || 0;
-      const laborHours = form.getValues("laborHours") || 0;
+      const laborPrice = parseFloat(form.getValues("laborPrice") || "0");
+      const laborHours = parseFloat(form.getValues("laborHours") || "0");
       
       console.log("Salvataggio preventivo - items:", items);
       
@@ -286,7 +287,7 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
       cleanedItems.forEach(item => {
         if (item.parts && Array.isArray(item.parts)) {
           item.parts.forEach(part => {
-            itemsSubtotal += part.finalPrice || 0;
+            itemsSubtotal += parseFloat(part.finalPrice?.toString() || "0");
           });
         }
       });
@@ -298,31 +299,46 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
       const subtotal = itemsSubtotal + laborTotal;
       
       // Calcola IVA
-      const taxRate = form.getValues('taxRate') || 22;
+      const taxRate = parseFloat(form.getValues('taxRate')?.toString() || "22");
       const taxAmount = (subtotal * taxRate) / 100;
       
       // Calcola totale finale
       const total = subtotal + taxAmount;
       
+      console.log("Valori per il preventivo:", {
+        laborPrice, laborHours, itemsSubtotal, laborTotal, subtotal, taxRate, taxAmount, total
+      });
+      
+      const clientId = form.getValues("clientId") || "";
+      const clientName = form.getValues("clientName") || "";
+      const phone = form.getValues("phone") || "";
+      const plate = form.getValues("plate") || "";
+      const model = form.getValues("model") || "";
+      const kilometrage = parseInt(form.getValues("kilometrage")?.toString() || "0");
+      const date = form.getValues("date") || new Date().toISOString().split('T')[0];
+      const notes = form.getValues("notes") || "";
+      const status = form.getValues("status") || "bozza";
+      const validUntil = form.getValues("validUntil") || "";
+      
       // Prepara i dati per il salvataggio
       const quoteData: Omit<Quote, 'id'> = {
-        clientId: data.clientId,
-        clientName: data.clientName,
-        phone: data.phone,
-        plate: data.plate,
-        model: data.model,
-        kilometrage: data.kilometrage || 0,
-        date: data.date,
+        clientId,
+        clientName,
+        phone,
+        plate,
+        model,
+        kilometrage,
+        date,
         items: cleanedItems,
-        notes: data.notes || '',
-        laborPrice: laborPrice,
-        laborHours: laborHours,
-        subtotal: subtotal,
-        taxRate: taxRate,
-        taxAmount: taxAmount,
-        total: total,
-        status: data.status || 'bozza',
-        validUntil: data.validUntil || '',
+        notes,
+        laborPrice,
+        laborHours,
+        subtotal,
+        taxRate,
+        taxAmount,
+        total,
+        status,
+        validUntil,
         createdAt: Date.now()
       };
       
@@ -1106,7 +1122,11 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                     <Button type="button" variant="outline" onClick={onClose}>
                       Annulla
                     </Button>
-                    <Button type="submit" disabled={isLoading}>
+                    <Button 
+                      type="button" 
+                      disabled={isLoading}
+                      onClick={() => form.handleSubmit(onSubmit)()}
+                    >
                       {quote ? "Aggiorna" : "Salva"} Preventivo
                     </Button>
                   </div>
