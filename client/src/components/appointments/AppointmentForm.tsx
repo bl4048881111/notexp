@@ -284,7 +284,13 @@ export default function AppointmentForm({
       if (appointment?.id) {
         // Aggiornamento appuntamento esistente
         console.log("Aggiornando appuntamento con ID:", appointment.id);
-        await updateAppointment(appointment.id, data);
+        // Aggiorna anche i dati del veicolo
+        const appointmentData = {
+          ...data,
+          plate: vehiclePlate || selectedClient?.plate || appointment.plate || "",
+        };
+        console.log("Dati finali aggiornamento:", appointmentData);
+        await updateAppointment(appointment.id, appointmentData);
         toast({
           title: "Appuntamento aggiornato",
           description: "L'appuntamento è stato aggiornato con successo.",
@@ -292,7 +298,13 @@ export default function AppointmentForm({
       } else {
         // Creazione nuovo appuntamento
         console.log("Creando nuovo appuntamento con dati:", data);
-        await createAppointment(data);
+        // Aggiungi dati del veicolo (targa e modello) dall'input dell'utente
+        const appointmentData = {
+          ...data,
+          plate: vehiclePlate || selectedClient?.plate || "",
+        };
+        console.log("Dati finali appuntamento:", appointmentData);
+        await createAppointment(appointmentData);
         toast({
           title: "Appuntamento creato",
           description: "L'appuntamento è stato creato con successo.",
