@@ -8,7 +8,8 @@ import { createAppointment, updateAppointment, deleteAppointment, getAllClients,
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
-import { XCircle, FileText, Calendar, Check, ArrowRight, Plus, Trash2 } from "lucide-react";
+import { XCircle, FileText, Calendar, Check, ArrowRight, Plus, Trash2, CalendarIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 import {
   Dialog,
@@ -18,6 +19,11 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import {
   Form,
