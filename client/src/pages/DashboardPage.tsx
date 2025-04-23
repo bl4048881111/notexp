@@ -81,13 +81,11 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-muted-foreground text-sm mb-1">Clienti</p>
-                <p className="text-3xl font-bold">
-                  {isLoadingStats ? (
-                    <Skeleton className="h-9 w-12" />
-                  ) : (
-                    statistics?.totalClients || 0
-                  )}
-                </p>
+                {isLoadingStats ? (
+                  <div className="text-3xl font-bold"><Skeleton className="h-9 w-12" /></div>
+                ) : (
+                  <div className="text-3xl font-bold">{statistics?.totalClients || 0}</div>
+                )}
               </div>
               <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center">
                 <Users className="h-6 w-6 text-primary" />
@@ -104,7 +102,7 @@ export default function DashboardPage() {
                 {isLoadingStats ? (
                   <div className="text-3xl font-bold"><Skeleton className="h-9 w-12" /></div>
                 ) : (
-                  <p className="text-3xl font-bold">{statistics?.newClientsThisMonth || 0}</p>
+                  <div className="text-3xl font-bold">{statistics?.newClientsThisMonth || 0}</div>
                 )}
               </div>
               <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center">
@@ -122,7 +120,7 @@ export default function DashboardPage() {
                 {isLoadingStats ? (
                   <div className="text-3xl font-bold"><Skeleton className="h-9 w-12" /></div>
                 ) : (
-                  <p className="text-3xl font-bold">{statistics?.totalAppointments || 0}</p>
+                  <div className="text-3xl font-bold">{statistics?.totalAppointments || 0}</div>
                 )}
               </div>
               <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center">
@@ -140,7 +138,7 @@ export default function DashboardPage() {
                 {isLoadingAppointments ? (
                   <div className="text-3xl font-bold"><Skeleton className="h-9 w-12" /></div>
                 ) : (
-                  <p className="text-3xl font-bold">{appointments.length}</p>
+                  <div className="text-3xl font-bold">{appointments.length}</div>
                 )}
               </div>
               <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center">

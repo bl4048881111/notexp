@@ -575,8 +575,8 @@ export default function AppointmentForm({
                                   <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                 </Button>
                                 <Popover>
-                                  <PopoverTrigger id="date-calendar-popover" className="sr-only" asChild>
-                                    <Button size="sm" variant="ghost">Apri calendario</Button>
+                                  <PopoverTrigger asChild>
+                                    <Button id="date-calendar-popover" className="sr-only" size="sm" variant="ghost">Apri calendario</Button>
                                   </PopoverTrigger>
                                   <PopoverContent className="w-auto p-0" align="start">
                                     <Calendar
