@@ -14,13 +14,10 @@ import {
   TableCell
 } from "@/components/ui/table";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
+  SimpleDropdown,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/components/ui/simple-dropdown";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -303,67 +300,69 @@ export default function QuoteTable({
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
+                    <SimpleDropdown
+                      trigger={
                         <Button variant="ghost" className="h-8 w-8 p-0">
                           <span className="sr-only">Apri menu</span>
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Azioni</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => onEdit(quote)}>
-                          <Pencil className="mr-2 h-4 w-4" />
-                          <span>Modifica</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleExportToPDF(quote)}>
-                          <FileDown className="mr-2 h-4 w-4" />
-                          <span>Esporta PDF</span>
-                        </DropdownMenuItem>
-                        
-                        <DropdownMenuSeparator />
-                        
-                        <DropdownMenuLabel>Cambia stato</DropdownMenuLabel>
-                        <DropdownMenuItem 
-                          onClick={() => handleStatusChange(quote, 'bozza')}
-                          disabled={quote.status === 'bozza'}
-                        >
-                          <Clock className="mr-2 h-4 w-4" />
-                          <span>Bozza</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          onClick={() => handleStatusChange(quote, 'inviato')}
-                          disabled={quote.status === 'inviato'}
-                        >
-                          <Send className="mr-2 h-4 w-4" />
-                          <span>Inviato</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          onClick={() => handleStatusChange(quote, 'accettato')}
-                          disabled={quote.status === 'accettato'}
-                        >
-                          <CheckCircle className="mr-2 h-4 w-4" />
-                          <span>Accettato</span>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          onClick={() => handleStatusChange(quote, 'rifiutato')}
-                          disabled={quote.status === 'rifiutato'}
-                        >
-                          <XCircle className="mr-2 h-4 w-4" />
-                          <span>Rifiutato</span>
-                        </DropdownMenuItem>
-                        
-                        <DropdownMenuSeparator />
-                        
-                        <DropdownMenuItem 
-                          onClick={() => handleDeleteClick(quote)}
-                          className="text-destructive"
-                        >
-                          <Trash className="mr-2 h-4 w-4" />
-                          <span>Elimina</span>
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                      }
+                      content={
+                        <div className="min-w-[12rem]">
+                          <div className="px-2 py-1.5 text-sm font-semibold">Azioni</div>
+                          <DropdownMenuItem onClick={() => onEdit(quote)}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            <span>Modifica</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleExportToPDF(quote)}>
+                            <FileDown className="mr-2 h-4 w-4" />
+                            <span>Esporta PDF</span>
+                          </DropdownMenuItem>
+                          
+                          <DropdownMenuSeparator />
+                          
+                          <div className="px-2 py-1.5 text-sm font-semibold">Cambia stato</div>
+                          <DropdownMenuItem 
+                            onClick={() => handleStatusChange(quote, 'bozza')}
+                            disabled={quote.status === 'bozza'}
+                          >
+                            <Clock className="mr-2 h-4 w-4" />
+                            <span>Bozza</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => handleStatusChange(quote, 'inviato')}
+                            disabled={quote.status === 'inviato'}
+                          >
+                            <Send className="mr-2 h-4 w-4" />
+                            <span>Inviato</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => handleStatusChange(quote, 'accettato')}
+                            disabled={quote.status === 'accettato'}
+                          >
+                            <CheckCircle className="mr-2 h-4 w-4" />
+                            <span>Accettato</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => handleStatusChange(quote, 'rifiutato')}
+                            disabled={quote.status === 'rifiutato'}
+                          >
+                            <XCircle className="mr-2 h-4 w-4" />
+                            <span>Rifiutato</span>
+                          </DropdownMenuItem>
+                          
+                          <DropdownMenuSeparator />
+                          
+                          <DropdownMenuItem 
+                            onClick={() => handleDeleteClick(quote)}
+                            className="text-destructive"
+                          >
+                            <Trash className="mr-2 h-4 w-4" />
+                            <span>Elimina</span>
+                          </DropdownMenuItem>
+                        </div>
+                      }
+                    />
                   </TableCell>
                 </TableRow>
               ))

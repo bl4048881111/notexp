@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { SimpleDropdown, DropdownMenuItem } from "@/components/ui/simple-dropdown";
 import { useToast } from "@/hooks/use-toast";
 
 import { getAllAppointments } from "@shared/firebase";
@@ -153,36 +153,38 @@ export default function AppointmentsPage() {
           </div>
           
           <div className="relative">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+            <SimpleDropdown
+              trigger={
                 <Button variant="outline">
                   <Download className="mr-2 h-4 w-4" />
                   Esporta
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={handleExportAppointments}>
-                  Esporta in Excel
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => {
-                  try {
-                    exportAppointmentsToPDF(filteredAppointments);
-                    toast({
-                      title: "Esportazione completata",
-                      description: "Gli appuntamenti sono stati esportati in PDF con successo",
-                    });
-                  } catch (error) {
-                    toast({
-                      title: "Errore di esportazione",
-                      description: "Si è verificato un errore durante l'esportazione in PDF",
-                      variant: "destructive",
-                    });
-                  }
-                }}>
-                  Esporta in PDF
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+              }
+              content={
+                <div>
+                  <DropdownMenuItem onClick={handleExportAppointments}>
+                    Esporta in Excel
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => {
+                    try {
+                      exportAppointmentsToPDF(filteredAppointments);
+                      toast({
+                        title: "Esportazione completata",
+                        description: "Gli appuntamenti sono stati esportati in PDF con successo",
+                      });
+                    } catch (error) {
+                      toast({
+                        title: "Errore di esportazione",
+                        description: "Si è verificato un errore durante l'esportazione in PDF",
+                        variant: "destructive",
+                      });
+                    }
+                  }}>
+                    Esporta in PDF
+                  </DropdownMenuItem>
+                </div>
+              }
+            />
           </div>
         </div>
       </div>
