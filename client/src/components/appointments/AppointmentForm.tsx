@@ -377,7 +377,14 @@ export default function AppointmentForm({
           <div className="flex flex-col h-full">
             <div className="flex-grow overflow-auto">
               <Form {...form}>
-                <form className="space-y-6 px-6 pt-5 pb-20">
+                <form 
+                  className="space-y-6 px-6 pt-5 pb-20" 
+                  onSubmit={(e) => {
+                    // Evita il refresh della pagina su submit del form
+                    e.preventDefault();
+                    form.handleSubmit(onSubmit)(e);
+                  }}
+                >
                   {/* Step 1: Cliente */}
                   {currentStep === 1 && (
                     <div className="space-y-8">
@@ -437,6 +444,28 @@ export default function AppointmentForm({
                                 setSearchQuery(e.target.value);
                                 setIsSearching(true);
                                 setSelectedIndex(-1);
+                              }}
+                              onKeyDown={(e) => {
+                                // Previene il comportamento predefinito per i tasti freccia
+                                if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                                  e.preventDefault();
+                                  
+                                  if (filteredClients.length > 0) {
+                                    const newIndex = e.key === 'ArrowDown'
+                                      ? (selectedIndex + 1) % filteredClients.length
+                                      : selectedIndex <= 0
+                                        ? filteredClients.length - 1
+                                        : selectedIndex - 1;
+                                    
+                                    setSelectedIndex(newIndex);
+                                  }
+                                } else if (e.key === 'Enter' && selectedIndex >= 0 && filteredClients[selectedIndex]) {
+                                  e.preventDefault();
+                                  handleSelectClient(filteredClients[selectedIndex]);
+                                } else if (e.key === 'Escape') {
+                                  e.preventDefault();
+                                  setIsSearching(false);
+                                }
                               }}
                               className="w-full border-primary/20 focus-visible:ring-primary/30"
                               autoComplete="off"
@@ -884,7 +913,8 @@ export default function AppointmentForm({
                     <Button 
                       type="button"
                       size="sm"
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.preventDefault(); // Previene il refresh della pagina
                         if (currentStep === 1 && !selectedClient) {
                           toast({
                             title: "Selezione cliente richiesta",
@@ -905,7 +935,8 @@ export default function AppointmentForm({
                     <Button 
                       type="button"
                       size="sm"
-                      onClick={async () => {
+                      onClick={async (e) => {
+                        e.preventDefault(); // Previene il refresh della pagina
                         // Otteniamo direttamente i valori dal form
                         const formData = {
                           clientId: selectedClient?.id || "",
