@@ -376,18 +376,64 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
       
       console.log("Dati del preventivo da salvare:", quoteData);
       
+      // Importa dynamicamente il logger di attività
+      const activityModule = await import('../dev/ActivityLogger');
+      const { useActivityLogger } = activityModule;
+      let logActivity;
+      
+      try {
+        // Ottieni la funzione logActivity
+        logActivity = useActivityLogger().logActivity;
+      } catch (error) {
+        console.warn("ActivityLogger non disponibile:", error);
+      }
+      
       // Salva il preventivo
       if (quote) {
         // Se è un aggiornamento, mantieni l'ID esistente
         const updateData = { ...quoteData, id: quote.id };
         await updateQuote(quote.id, updateData);
+        
+        // Registra l'attività
+        if (logActivity) {
+          logActivity(
+            'update_quote',
+            `Preventivo aggiornato: ${updateData.clientName} - ${updateData.plate}`,
+            {
+              quoteId: quote.id,
+              clientName: updateData.clientName,
+              clientId: updateData.clientId,
+              plate: updateData.plate,
+              total: updateData.total,
+              timestamp: new Date()
+            }
+          );
+        }
+        
         toast({
           title: "Preventivo aggiornato",
           description: "Il preventivo è stato aggiornato con successo.",
         });
       } else {
         // Se è nuovo, il createQuote genererà un nuovo ID
-        await createQuote(quoteData);
+        const newQuote = await createQuote(quoteData);
+        
+        // Registra l'attività
+        if (logActivity) {
+          logActivity(
+            'create_quote',
+            `Nuovo preventivo: ${quoteData.clientName} - ${quoteData.plate}`,
+            {
+              quoteId: newQuote.id,
+              clientName: quoteData.clientName,
+              clientId: quoteData.clientId,
+              plate: quoteData.plate,
+              total: quoteData.total,
+              timestamp: new Date()
+            }
+          );
+        }
+        
         toast({
           title: "Preventivo creato",
           description: "Il preventivo è stato creato con successo.",

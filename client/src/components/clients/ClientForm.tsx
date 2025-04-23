@@ -61,16 +61,61 @@ export default function ClientForm({ isOpen, onClose, onSuccess, client }: Clien
     setIsSubmitting(true);
     
     try {
+      // Carica il modulo di logging in modo dinamico
+      const activityModule = await import('../dev/ActivityLogger');
+      const { useActivityLogger } = activityModule;
+      let logActivity;
+      
+      try {
+        logActivity = useActivityLogger().logActivity;
+      } catch (error) {
+        console.warn("ActivityLogger non disponibile:", error);
+      }
+      
       if (client) {
         // Update existing client
         await updateClient(client.id, data);
+        
+        // Log dell'attività di aggiornamento
+        if (logActivity) {
+          logActivity(
+            'update_client',
+            `Cliente aggiornato: ${data.name} ${data.surname}`,
+            {
+              clientId: client.id,
+              name: data.name,
+              surname: data.surname,
+              phone: data.phone,
+              plate: data.plate,
+              timestamp: new Date()
+            }
+          );
+        }
+        
         toast({
           title: "Cliente aggiornato",
           description: "Il cliente è stato aggiornato con successo",
         });
       } else {
         // Create new client
-        await createClient(data);
+        const newClient = await createClient(data);
+        
+        // Log dell'attività di creazione
+        if (logActivity) {
+          logActivity(
+            'create_client',
+            `Nuovo cliente: ${data.name} ${data.surname}`,
+            {
+              clientId: newClient.id,
+              name: data.name,
+              surname: data.surname,
+              phone: data.phone,
+              plate: data.plate,
+              timestamp: new Date()
+            }
+          );
+        }
+        
         toast({
           title: "Cliente aggiunto",
           description: "Il nuovo cliente è stato aggiunto con successo",

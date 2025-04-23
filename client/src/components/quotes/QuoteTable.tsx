@@ -129,6 +129,30 @@ export default function QuoteTable({
       const updatedQuote = await updateQuote(quote.id, { status: newStatus });
       console.log("Preventivo aggiornato:", updatedQuote);
       
+      // Registra l'attività di cambio stato
+      try {
+        const activityModule = await import('../dev/ActivityLogger');
+        const { useActivityLogger } = activityModule;
+        const { logActivity } = useActivityLogger();
+        
+        let statusText = getStatusLabel(newStatus);
+        
+        logActivity(
+          'change_quote_status',
+          `Preventivo marcato come "${statusText}": ${quote.clientName}`,
+          {
+            quoteId: quote.id,
+            clientName: quote.clientName,
+            oldStatus: quote.status,
+            newStatus: newStatus,
+            total: quote.total,
+            timestamp: new Date()
+          }
+        );
+      } catch (error) {
+        console.warn("Impossibile registrare l'attività:", error);
+      }
+      
       toast({
         title: "Stato aggiornato",
         description: `Lo stato del preventivo è stato aggiornato in "${getStatusLabel(newStatus)}".`,
@@ -150,6 +174,27 @@ export default function QuoteTable({
   const handleExportToPDF = async (quote: Quote) => {
     try {
       await exportQuoteToPDF(quote);
+      
+      // Registra l'attività di esportazione
+      try {
+        const activityModule = await import('../dev/ActivityLogger');
+        const { useActivityLogger } = activityModule;
+        const { logActivity } = useActivityLogger();
+        
+        logActivity(
+          'export_data',
+          `Preventivo esportato in PDF: ${quote.clientName}`,
+          {
+            quoteId: quote.id,
+            clientName: quote.clientName,
+            fileType: 'PDF',
+            timestamp: new Date()
+          }
+        );
+      } catch (error) {
+        console.warn("Impossibile registrare l'attività:", error);
+      }
+      
       toast({
         title: "PDF generato",
         description: "Il preventivo è stato esportato in PDF con successo.",
