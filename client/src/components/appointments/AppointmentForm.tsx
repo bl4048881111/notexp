@@ -86,6 +86,8 @@ export default function AppointmentForm({
   const [isSearching, setIsSearching] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingVehicle, setIsLoadingVehicle] = useState(false);
+  const [vehiclePlate, setVehiclePlate] = useState("");
   
   const form = useForm<CreateAppointmentInput>({
     resolver: zodResolver(createAppointmentSchema),
@@ -205,6 +207,52 @@ export default function AppointmentForm({
     }
   };
   
+  const handleLookupVehicle = async (plate: string) => {
+    if (!plate || plate.length < 3) {
+      toast({
+        title: "Targa non valida",
+        description: "Inserisci una targa valida per cercare le informazioni sul veicolo.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsLoadingVehicle(true);
+    
+    try {
+      const vehicleDetails = await lookupVehicleByPlate(plate);
+      
+      if (!vehicleDetails) {
+        toast({
+          title: "Veicolo non trovato",
+          description: "Non è stato possibile trovare informazioni per questa targa.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      const formattedDetails = formatVehicleDetails(vehicleDetails);
+      
+      // Aggiorna i campi del form con i dettagli del veicolo
+      const model = `${formattedDetails.make} ${formattedDetails.model} ${formattedDetails.year}`;
+      form.setValue("model", model);
+      
+      toast({
+        title: "Veicolo trovato",
+        description: `${formattedDetails.make} ${formattedDetails.fullModel} ${formattedDetails.power ? `(${formattedDetails.power})` : ''}`,
+      });
+    } catch (error) {
+      console.error("Errore durante la ricerca del veicolo:", error);
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore durante la ricerca del veicolo.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingVehicle(false);
+    }
+  };
+
   const handleDeleteAppointment = async () => {
     if (!appointment?.id) return;
     
