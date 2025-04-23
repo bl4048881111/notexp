@@ -267,13 +267,11 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
     setIsLoading(true);
     
     try {
-      const laborPrice = form.getValues("laborPrice");
-      const laborHours = form.getValues("laborHours");
+      // Ottieni tutti i valori dal form necessari per il preventivo
+      const laborPrice = form.getValues("laborPrice") || 0;
+      const laborHours = form.getValues("laborHours") || 0;
       
       console.log("Salvataggio preventivo - items:", items);
-      items.forEach(item => {
-        console.log(`Servizio ${item.serviceType.name} ha ${item.parts?.length || 0} ricambi:`, item.parts);
-      });
       
       // Assicuriamoci che tutti gli item.parts siano array validi (non undefined o null)
       const cleanedItems = items.map(item => ({
@@ -281,55 +279,75 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
         parts: Array.isArray(item.parts) ? item.parts : [] // Se parts è undefined o null, impostiamo un array vuoto
       }));
       
-      // Log dettagliato prima del salvataggio
-      console.log("Items prima del salvataggio:");
+      // Calcola totali in tempo reale
+      let itemsSubtotal = 0;
+      
+      // Calcola il totale dei ricambi
       cleanedItems.forEach(item => {
-        console.log(`- Servizio ${item.serviceType.name} ha ${item.parts.length} ricambi`);
-        item.parts.forEach((part, idx) => {
-          console.log(`  ${idx+1}. ${part.code} - ${part.name}, ${part.quantity} × ${part.unitPrice}€ = ${part.finalPrice}€`);
-        });
+        if (item.parts && Array.isArray(item.parts)) {
+          item.parts.forEach(part => {
+            itemsSubtotal += part.finalPrice || 0;
+          });
+        }
       });
       
-      // Aggiorna i dati del form con gli items aggiornati
-      const quoteData = {
-        ...data,
+      // Aggiungi manodopera extra
+      const laborTotal = laborPrice * laborHours;
+      
+      // Calcola subtotale
+      const subtotal = itemsSubtotal + laborTotal;
+      
+      // Calcola IVA
+      const taxRate = form.getValues('taxRate') || 22;
+      const taxAmount = (subtotal * taxRate) / 100;
+      
+      // Calcola totale finale
+      const total = subtotal + taxAmount;
+      
+      // Prepara i dati per il salvataggio
+      const quoteData: Omit<Quote, 'id'> = {
+        clientId: data.clientId,
+        clientName: data.clientName,
+        phone: data.phone,
+        plate: data.plate,
+        model: data.model,
+        kilometrage: data.kilometrage || 0,
+        date: data.date,
         items: cleanedItems,
-        laborPrice,
-        laborHours
+        notes: data.notes || '',
+        laborPrice: laborPrice,
+        laborHours: laborHours,
+        subtotal: subtotal,
+        taxRate: taxRate,
+        taxAmount: taxAmount,
+        total: total,
+        status: data.status || 'bozza',
+        validUntil: data.validUntil || '',
+        createdAt: Date.now()
       };
       
-      // Calcola i totali finali manualmente
-      console.log("QuoteData prima di salvare:", quoteData);
-      
-      // Calcoliamo manualmente i totali per assicurarci che siano corretti
-      const calcTotals = calculateTotals(cleanedItems);
-      
-      // Aggiorniamo i totali nel quoteData
-      quoteData.subtotal = calcTotals.subtotal;
-      quoteData.taxAmount = calcTotals.taxAmount;
-      quoteData.total = calcTotals.total;
-      
-      console.log("Totali calcolati manualmente:", calcTotals);
-      
-      const finalQuote = quoteData as Quote;
+      console.log("Dati del preventivo da salvare:", quoteData);
       
       // Salva il preventivo
       if (quote) {
-        await updateQuote(quote.id, finalQuote);
+        // Se è un aggiornamento, mantieni l'ID esistente
+        const updateData = { ...quoteData, id: quote.id };
+        await updateQuote(quote.id, updateData);
         toast({
           title: "Preventivo aggiornato",
           description: "Il preventivo è stato aggiornato con successo.",
         });
       } else {
-        await createQuote(finalQuote);
+        // Se è nuovo, il createQuote genererà un nuovo ID
+        await createQuote(quoteData);
         toast({
           title: "Preventivo creato",
           description: "Il preventivo è stato creato con successo.",
         });
       }
       
-      onSuccess();
-      onClose();
+      if (onSuccess) onSuccess();
+      if (onClose) onClose();
     } catch (error) {
       console.error("Errore durante il salvataggio del preventivo:", error);
       toast({
