@@ -100,26 +100,28 @@ export default function QuotesPage() {
           icon="quotes"
         />
         
-        <div className="flex flex-wrap gap-2">
-          <Button onClick={handleExportToExcel} variant="outline" className="gap-1">
+        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+          <Button onClick={handleExportToExcel} variant="outline" className="gap-1 w-full sm:w-auto">
             <FileDown className="h-4 w-4" />
-            <span>Esporta Excel</span>
+            <span className="sm:inline">Esporta Excel</span>
+            <span className="inline sm:hidden">Esporta</span>
           </Button>
           
-          <Button onClick={handleCreateQuote} className="gap-1">
+          <Button onClick={handleCreateQuote} className="gap-1 w-full sm:w-auto">
             <FilePlus className="h-4 w-4" />
-            <span>Nuovo Preventivo</span>
+            <span className="sm:inline">Nuovo Preventivo</span>
+            <span className="inline sm:hidden">Nuovo</span>
           </Button>
         </div>
       </div>
       
       <Tabs defaultValue="all" onValueChange={handleTabChange}>
-        <TabsList className="mb-4">
-          <TabsTrigger value="all">Tutti</TabsTrigger>
-          <TabsTrigger value="bozza">Bozze</TabsTrigger>
-          <TabsTrigger value="inviato">Inviati</TabsTrigger>
-          <TabsTrigger value="accettato">Accettati</TabsTrigger>
-          <TabsTrigger value="rifiutato">Rifiutati</TabsTrigger>
+        <TabsList className="mb-4 w-full overflow-x-auto flex-nowrap">
+          <TabsTrigger value="all" className="text-xs sm:text-sm">Tutti</TabsTrigger>
+          <TabsTrigger value="bozza" className="text-xs sm:text-sm">Bozze</TabsTrigger>
+          <TabsTrigger value="inviato" className="text-xs sm:text-sm">Inviati</TabsTrigger>
+          <TabsTrigger value="accettato" className="text-xs sm:text-sm">Accettati</TabsTrigger>
+          <TabsTrigger value="rifiutato" className="text-xs sm:text-sm">Rifiutati</TabsTrigger>
         </TabsList>
         
         <TabsContent value="all" className="space-y-4">

@@ -213,11 +213,11 @@ export default function QuoteTable({
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <div className="relative w-full md:w-72">
+        <div className="relative w-full">
           <Search className="absolute top-2.5 left-3 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Cerca preventivi..."
-            className="pl-9"
+            className="pl-9 w-full"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -229,10 +229,10 @@ export default function QuoteTable({
           <TableHeader>
             <TableRow>
               <TableHead>Cliente</TableHead>
-              <TableHead>Veicolo</TableHead>
-              <TableHead>Data</TableHead>
-              <TableHead>Ricambi</TableHead>
-              <TableHead>Totale</TableHead>
+              <TableHead className="hidden sm:table-cell">Veicolo</TableHead>
+              <TableHead className="hidden md:table-cell">Data</TableHead>
+              <TableHead className="hidden lg:table-cell">Ricambi</TableHead>
+              <TableHead className="hidden sm:table-cell">Totale</TableHead>
               <TableHead>Stato</TableHead>
               <TableHead className="text-right">Azioni</TableHead>
             </TableRow>
@@ -258,15 +258,22 @@ export default function QuoteTable({
                     <div className="text-xs text-muted-foreground mt-1">
                       {quote.phone}
                     </div>
+                    {/* Informazioni extra visibili solo su mobile */}
+                    <div className="sm:hidden mt-1">
+                      <div className="text-xs text-muted-foreground flex items-center gap-1">
+                        <span>{quote.model} - {quote.plate}</span>
+                      </div>
+                      <div className="text-xs font-medium mt-1">{formatCurrency(quote.total)}</div>
+                    </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden sm:table-cell">
                     {quote.model}
                     <div className="text-xs text-muted-foreground mt-1">
                       {quote.plate}
                     </div>
                   </TableCell>
-                  <TableCell>{formatDate(quote.date)}</TableCell>
-                  <TableCell>
+                  <TableCell className="hidden md:table-cell">{formatDate(quote.date)}</TableCell>
+                  <TableCell className="hidden lg:table-cell">
                     {quote.items && quote.items.some(item => Array.isArray(item.parts) && item.parts.length > 0) ? (
                       <div className="flex flex-col gap-1">
                         <span className="text-xs font-medium text-primary">
@@ -289,11 +296,11 @@ export default function QuoteTable({
                       <span className="text-xs text-muted-foreground">Nessun ricambio</span>
                     )}
                   </TableCell>
-                  <TableCell>{formatCurrency(quote.total)}</TableCell>
+                  <TableCell className="hidden sm:table-cell">{formatCurrency(quote.total)}</TableCell>
                   <TableCell>
                     <Badge 
                       variant={getStatusBadgeVariant(quote.status)}
-                      className="gap-1"
+                      className="gap-1 whitespace-nowrap"
                     >
                       {getStatusIcon(quote.status)}
                       <span>{getStatusLabel(quote.status)}</span>

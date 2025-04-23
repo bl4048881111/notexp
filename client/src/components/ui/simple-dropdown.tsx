@@ -31,9 +31,11 @@ export function SimpleDropdown({
 }: SimpleDropdownProps) {
   return (
     <DropdownMenuPrimitive.Root open={open} onOpenChange={onOpenChange}>
-      <div className="inline-block">
-        {trigger}
-      </div>
+      <DropdownMenuPrimitive.Trigger asChild>
+        <div className="inline-block">
+          {trigger}
+        </div>
+      </DropdownMenuPrimitive.Trigger>
       <DropdownMenuPrimitive.Portal>
         <DropdownMenuPrimitive.Content
           align={align}
