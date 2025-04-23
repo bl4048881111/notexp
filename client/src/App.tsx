@@ -16,6 +16,7 @@ import ServiceManagementPage from "./pages/ServiceManagementPage";
 import NotFound from "@/pages/not-found";
 import { useAuth } from "./hooks/useAuth";
 import DevLogger, { devLogger } from "./components/dev/DevLogger";
+import { ActivityLoggerProvider } from "./components/dev/ActivityLogger";
 
 // Import global styles
 import "@/styles/globals.css";
@@ -128,7 +129,9 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <AppContent />
+        <ActivityLoggerProvider>
+          <AppContent />
+        </ActivityLoggerProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
