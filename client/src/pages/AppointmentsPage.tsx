@@ -24,10 +24,11 @@ export default function AppointmentsPage() {
   const [dateFilter, setDateFilter] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isQuoteFormOpen, setIsQuoteFormOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | null>(format(new Date(), 'yyyy-MM-dd'));
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [editingQuote, setEditingQuote] = useState<Quote | null>(null);
   const [clientIdForQuote, setClientIdForQuote] = useState<string | null>(null);
+  const [initialViewDay, setInitialViewDay] = useState(true);
   
   const { toast } = useToast();
   
@@ -123,39 +124,42 @@ export default function AppointmentsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Appuntamenti</h2>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0">
+        <h2 className="text-xl md:text-2xl font-bold">Appuntamenti</h2>
         
-        <div className="flex space-x-3">
-          <Button onClick={() => handleAddAppointment()}>
+        <div className="flex flex-wrap w-full sm:w-auto gap-2 sm:space-x-3">
+          <Button className="w-full sm:w-auto" onClick={() => handleAddAppointment()}>
             <Plus className="mr-2 h-4 w-4" />
-            Nuovo Appuntamento
+            <span className="sm:inline">Nuovo Appuntamento</span>
+            <span className="inline sm:hidden">Nuovo</span>
           </Button>
           
-          <div className="flex border border-border rounded-md overflow-hidden">
+          <div className="flex w-full sm:w-auto border border-border rounded-md overflow-hidden">
             <Button 
               variant={view === "calendar" ? "default" : "ghost"}
               onClick={() => setView("calendar")}
-              className="rounded-none"
+              className="rounded-none flex-1"
             >
               <Calendar className="mr-2 h-4 w-4" />
-              Calendario
+              <span className="hidden sm:inline">Calendario</span>
+              <span className="inline sm:hidden">Cal</span>
             </Button>
             
             <Button 
               variant={view === "table" ? "default" : "ghost"}
               onClick={() => setView("table")}
-              className="rounded-none"
+              className="rounded-none flex-1"
             >
               <List className="mr-2 h-4 w-4" />
-              Lista
+              <span className="hidden sm:inline">Lista</span>
+              <span className="inline sm:hidden">Tab</span>
             </Button>
           </div>
           
-          <div className="relative">
+          <div className="relative w-full sm:w-auto">
             <SimpleDropdown
               trigger={
-                <Button variant="outline">
+                <Button variant="outline" className="w-full sm:w-auto">
                   <Download className="mr-2 h-4 w-4" />
                   Esporta
                 </Button>

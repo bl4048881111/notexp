@@ -14,6 +14,8 @@ enum ViewType {
   Week = "week",
   Month = "month"
 }
+// Variabile di tipo stringa per utilizzare l'enum nei confronti
+type ViewTypeString = "day" | "week" | "month";
 
 // Definizione delle fasce orarie (dalle 8 alle 19)
 const TIME_SLOTS = Array.from({ length: 22 }, (_, i) => ({
@@ -344,14 +346,14 @@ export default function CalendarView({
         </div>
       </div>
 
-      <div className="grid grid-cols-7 text-center p-2 border-b border-border bg-accent/50">
-        <div className="p-2 text-xs font-medium text-muted-foreground">Lun</div>
-        <div className="p-2 text-xs font-medium text-muted-foreground">Mar</div>
-        <div className="p-2 text-xs font-medium text-muted-foreground">Mer</div>
-        <div className="p-2 text-xs font-medium text-muted-foreground">Gio</div>
-        <div className="p-2 text-xs font-medium text-muted-foreground">Ven</div>
-        <div className="p-2 text-xs font-medium text-muted-foreground">Sab</div>
-        <div className="p-2 text-xs font-medium text-muted-foreground">Dom</div>
+      <div className="grid grid-cols-7 text-center p-1 md:p-2 border-b border-border bg-accent/50">
+        <div className="p-1 md:p-2 text-[10px] md:text-xs font-medium text-muted-foreground">L</div>
+        <div className="p-1 md:p-2 text-[10px] md:text-xs font-medium text-muted-foreground">M</div>
+        <div className="p-1 md:p-2 text-[10px] md:text-xs font-medium text-muted-foreground">M</div>
+        <div className="p-1 md:p-2 text-[10px] md:text-xs font-medium text-muted-foreground">G</div>
+        <div className="p-1 md:p-2 text-[10px] md:text-xs font-medium text-muted-foreground">V</div>
+        <div className="p-1 md:p-2 text-[10px] md:text-xs font-medium text-muted-foreground">S</div>
+        <div className="p-1 md:p-2 text-[10px] md:text-xs font-medium text-muted-foreground">D</div>
       </div>
 
       <div className="grid grid-cols-7 auto-rows-fr">
@@ -365,40 +367,41 @@ export default function CalendarView({
             <div 
               key={index}
               onClick={() => handleSelectDate(day)}
-              className={`p-1 border-r border-b border-border min-h-[100px] cursor-pointer hover:bg-accent/30 transition-colors ${
+              className={`p-0.5 md:p-1 border-r border-b border-border min-h-[60px] md:min-h-[100px] cursor-pointer hover:bg-accent/30 transition-colors ${
                 !isCurrentMonth ? 'text-muted-foreground' : ''
               } ${
                 isTodayDate ? 'bg-accent/50' : ''
               }`}
             >
-              <div className={`text-right p-1 text-xs ${
+              <div className={`text-right p-0.5 md:p-1 text-[10px] md:text-xs ${
                 isTodayDate ? 'font-bold text-primary' : ''
               }`}>
                 {format(day, 'd')}
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-0.5 md:space-y-1">
                 {dayAppointments.length > 0 && dayAppointments
                   .sort((a, b) => a.time.localeCompare(b.time))
-                  .slice(0, 3)
+                  .slice(0, isCurrentMonth ? (isTodayDate ? 2 : 1) : 0)
                   .map((appointment) => (
                     <div 
                       key={appointment.id}
-                      className="text-xs p-1 rounded-sm border-l-2 border-primary bg-primary/15 truncate"
+                      className="text-[8px] md:text-xs p-0.5 md:p-1 rounded-sm border-l-2 border-primary bg-primary/15 truncate"
                       onClick={(e) => {
                         e.stopPropagation();
                         onSelectAppointment(appointment);
                       }}
                     >
                       <div className="font-medium truncate">
-                        {appointment.time} - {appointment.clientName}
+                        <span className="hidden sm:inline">{appointment.time} - </span>
+                        {appointment.clientName}
                       </div>
                     </div>
                   ))
                 }
-                {dayAppointments.length > 3 && (
-                  <div className="text-xs text-center text-primary font-medium">
-                    +{dayAppointments.length - 3} appuntamenti
+                {isCurrentMonth && dayAppointments.length > (isTodayDate ? 2 : 1) && (
+                  <div className="text-[8px] md:text-xs text-center text-primary font-medium">
+                    +{dayAppointments.length - (isTodayDate ? 2 : 1)}
                   </div>
                 )}
               </div>
