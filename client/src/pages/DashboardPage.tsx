@@ -1,19 +1,18 @@
-import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
 
 import { getAllAppointments, getRecentClients, getAllClients } from "@shared/firebase";
 import { Client, Appointment } from "@shared/types";
 
-import StatCard from "../components/dashboard/StatCard";
-import AppointmentCard from "../components/dashboard/AppointmentCard";
 import QuickActionButton from "../components/dashboard/QuickActionButton";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { CalendarIcon, Users, Clock, ClipboardList, ArrowRight, Car } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function DashboardPage() {
@@ -74,8 +73,91 @@ export default function DashboardPage() {
   const handleSearchClient = () => setLocation("/clients");
 
   return (
-    <div className="space-y-6">
-      {/* Quick access buttons */}
+    <div className="space-y-8">
+      {/* Contatori statistiche */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="border border-border">
+          <CardContent className="pt-6 pb-2 px-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-muted-foreground text-sm mb-1">Clienti</p>
+                <p className="text-3xl font-bold">
+                  {isLoadingStats ? (
+                    <Skeleton className="h-9 w-12" />
+                  ) : (
+                    statistics?.totalClients || 0
+                  )}
+                </p>
+              </div>
+              <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center">
+                <Users className="h-6 w-6 text-primary" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="border border-border">
+          <CardContent className="pt-6 pb-2 px-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-muted-foreground text-sm mb-1">Nuovi questo mese</p>
+                <p className="text-3xl font-bold">
+                  {isLoadingStats ? (
+                    <Skeleton className="h-9 w-12" />
+                  ) : (
+                    statistics?.newClientsThisMonth || 0
+                  )}
+                </p>
+              </div>
+              <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center">
+                <Car className="h-6 w-6 text-primary" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="border border-border">
+          <CardContent className="pt-6 pb-2 px-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-muted-foreground text-sm mb-1">Appuntamenti</p>
+                <p className="text-3xl font-bold">
+                  {isLoadingStats ? (
+                    <Skeleton className="h-9 w-12" />
+                  ) : (
+                    statistics?.totalAppointments || 0
+                  )}
+                </p>
+              </div>
+              <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center">
+                <ClipboardList className="h-6 w-6 text-primary" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card className="border border-border">
+          <CardContent className="pt-6 pb-2 px-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-muted-foreground text-sm mb-1">Oggi</p>
+                <p className="text-3xl font-bold">
+                  {isLoadingAppointments ? (
+                    <Skeleton className="h-9 w-12" />
+                  ) : (
+                    appointments.length
+                  )}
+                </p>
+              </div>
+              <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center">
+                <CalendarIcon className="h-6 w-6 text-primary" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+      
+      {/* Quick action buttons */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <QuickActionButton 
           icon="person_add" 
@@ -99,113 +181,73 @@ export default function DashboardPage() {
         />
       </div>
       
-      {/* Stats cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Appointments today */}
-        <div className="bg-card rounded-lg shadow-md overflow-hidden border border-border">
-          <div className="p-4 border-b border-border flex justify-between items-center">
-            <h3 className="font-bold text-lg">Appuntamenti Oggi</h3>
-            <span className="text-primary font-bold text-xl">
-              {isLoadingAppointments ? (
-                <Skeleton className="h-8 w-8" />
-              ) : (
-                appointments.length
-              )}
-            </span>
-          </div>
-          <ScrollArea className="p-4 h-80">
-            {isLoadingAppointments ? (
-              Array(3).fill(0).map((_, i) => (
-                <div key={i} className="mb-3">
-                  <Skeleton className="h-24 w-full mb-3" />
-                </div>
-              ))
-            ) : appointments.length > 0 ? (
-              appointments.map((appointment: Appointment) => (
-                <AppointmentCard key={appointment.id} appointment={appointment} />
-              ))
-            ) : (
-              <div className="text-center p-4 text-muted-foreground">
-                Nessun appuntamento per oggi
-              </div>
-            )}
-          </ScrollArea>
-        </div>
-        
-        {/* New clients */}
-        <div className="bg-card rounded-lg shadow-md overflow-hidden border border-border">
-          <div className="p-4 border-b border-border flex justify-between items-center">
-            <h3 className="font-bold text-lg">Clienti Recenti</h3>
-            <Button 
-              variant="link" 
-              size="sm" 
-              onClick={() => setLocation('/clients')}
-            >
-              Vedi tutti
+      {/* Calendar-style today's appointments */}
+      <Card className="border border-border">
+        <CardHeader className="pb-2">
+          <div className="flex justify-between items-center">
+            <CardTitle>Appuntamenti Oggi</CardTitle>
+            <Button variant="outline" size="sm" onClick={handleCalendar}>
+              <CalendarIcon className="h-4 w-4 mr-2" />
+              Visualizza Calendario
             </Button>
           </div>
-          <ScrollArea className="p-4 h-80">
-            {isLoadingClients ? (
-              Array(5).fill(0).map((_, i) => (
-                <div key={i} className="mb-3">
-                  <Skeleton className="h-20 w-full mb-3" />
-                </div>
-              ))
-            ) : recentClients.length > 0 ? (
-              recentClients.map((client: Client) => (
-                <div key={client.id} className="mb-3 p-3 bg-background rounded-md hover:bg-accent/30 transition-colors duration-200">
-                  <h4 className="font-medium">{client.name} {client.surname}</h4>
-                  <p className="text-sm text-muted-foreground">{client.model} - {client.plate}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Aggiunto: {format(new Date(client.createdAt), 'dd/MM/yyyy')}
-                  </p>
-                </div>
-              ))
-            ) : (
-              <div className="text-center p-4 text-muted-foreground">
-                Nessun cliente recente
-              </div>
-            )}
-          </ScrollArea>
-        </div>
-        
-        {/* Total active clients */}
-        <div className="bg-card rounded-lg shadow-md overflow-hidden border border-border">
-          <div className="p-4 border-b border-border">
-            <h3 className="font-bold text-lg">Statistiche Clienti</h3>
-          </div>
-          <div className="p-8 flex flex-col items-center justify-center text-center">
-            {isLoadingStats ? (
-              <>
-                <Skeleton className="h-12 w-24 mb-6" />
-                <div className="grid grid-cols-2 gap-8 w-full">
-                  <Skeleton className="h-8 w-full" />
-                  <Skeleton className="h-8 w-full" />
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="mb-6">
-                  <p className="text-muted-foreground text-sm mb-1">Totale Clienti</p>
-                  <div className="text-4xl font-bold text-primary">{statistics?.totalClients || 0}</div>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-8 w-full">
-                  <div>
-                    <p className="text-muted-foreground text-sm mb-1">Nuovi questo mese</p>
-                    <div className="text-2xl font-medium">{statistics?.newClientsThisMonth || 0}</div>
+          <CardDescription>
+            {format(new Date(), 'd MMMM yyyy', { locale: it })}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoadingAppointments ? (
+            <div className="space-y-3">
+              {Array(3).fill(0).map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full" />
+              ))}
+            </div>
+          ) : appointments.length > 0 ? (
+            <div className="space-y-3">
+              {appointments.map((appointment: Appointment) => (
+                <div 
+                  key={appointment.id} 
+                  className="flex p-3 border rounded-md bg-card hover:bg-accent/20 transition-colors"
+                >
+                  <div className="mr-3 flex flex-col items-center justify-center bg-primary/10 h-16 w-16 rounded-md">
+                    <span className="text-xs text-muted-foreground">Ore</span>
+                    <span className="text-xl font-bold text-primary">
+                      {appointment.time ? appointment.time.split(':')[0] : '--'}:{appointment.time ? appointment.time.split(':')[1] : '--'}
+                    </span>
                   </div>
-                  
-                  <div>
-                    <p className="text-muted-foreground text-sm mb-1">Appuntamenti totali</p>
-                    <div className="text-2xl font-medium">{statistics?.totalAppointments || 0}</div>
+                  <div className="flex-1">
+                    <h4 className="font-medium">{appointment.clientName}</h4>
+                    <p className="text-sm text-muted-foreground">{appointment.serviceType}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{appointment.plate} - {appointment.model}</p>
+                  </div>
+                  <div className="flex items-center">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8"
+                      onClick={() => setLocation(`/appointments`)}
+                    >
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <Clock className="h-12 w-12 mx-auto mb-4 opacity-20" />
+              <p>Nessun appuntamento programmato per oggi</p>
+              <Button 
+                variant="link" 
+                className="mt-2" 
+                onClick={handleNewAppointment}
+              >
+                Crea nuovo appuntamento
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
