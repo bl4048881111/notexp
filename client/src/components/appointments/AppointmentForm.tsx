@@ -8,7 +8,7 @@ import { createAppointment, updateAppointment, deleteAppointment, getAllClients,
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
-import { XCircle, FileText, Calendar, Check, ArrowRight, Plus, Trash2, CalendarIcon } from "lucide-react";
+import { XCircle, FileText, Check, ArrowRight, Plus, Trash2, CalendarIcon, Calendar as CalendarIcon2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import {
@@ -47,6 +47,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Calendar } from "@/components/ui/calendar";
 
 interface AppointmentFormProps {
   isOpen: boolean;
@@ -261,7 +262,7 @@ export default function AppointmentForm({
           <DialogHeader className="px-6 py-4 border-b">
             <div className="flex flex-col items-center">
               <DialogTitle className="text-2xl font-bold mb-1 flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-primary" />
+                <CalendarIcon2 className="h-5 w-5 text-primary" />
                 {appointment ? "Modifica Appuntamento" : "Nuovo Appuntamento"}
               </DialogTitle>
               <DialogDescription className="text-center">
@@ -581,7 +582,7 @@ export default function AppointmentForm({
                                     <Calendar
                                       mode="single"
                                       selected={field.value ? new Date(field.value) : undefined}
-                                      onSelect={(date) => {
+                                      onSelect={(date: Date | undefined) => {
                                         if (date) {
                                           field.onChange(format(date, "yyyy-MM-dd"));
                                         }
@@ -760,7 +761,7 @@ export default function AppointmentForm({
                         </>
                       ) : (
                         <>
-                          <Calendar className="h-4 w-4" />
+                          <CalendarIcon2 className="h-4 w-4" />
                           {appointment ? "Aggiorna" : "Fine"}
                         </>
                       )}
