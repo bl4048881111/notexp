@@ -13,6 +13,7 @@ import ClientsPage from "./pages/ClientsPage";
 import AppointmentsPage from "./pages/AppointmentsPage";
 import QuotesPage from "./pages/QuotesPage";
 import ServiceManagementPage from "./pages/ServiceManagementPage";
+import ActivityLogPage from "./pages/ActivityLogPage";
 import NotFound from "@/pages/not-found";
 import { useAuth } from "./hooks/useAuth";
 import DevLogger, { devLogger } from "./components/dev/DevLogger";
@@ -57,6 +58,9 @@ function Router() {
       </Route>
       <Route path="/services">
         {() => <ProtectedRoute component={ServiceManagementPage} path="/services" />}
+      </Route>
+      <Route path="/activity-log">
+        {() => <ProtectedRoute component={ActivityLogPage} path="/activity-log" />}
       </Route>
       <Route path="/">
         {() => {

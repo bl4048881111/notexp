@@ -19,7 +19,7 @@ export default function ActivityLogPage() {
   const [selectedTypes, setSelectedTypes] = useState<Record<string, boolean>>({
     login: true,
     logout: true,
-    page_view: true,
+    error: true,
     create_client: true,
     update_client: true,
     delete_client: true,
@@ -229,13 +229,13 @@ export default function ActivityLogPage() {
                 </div>
                 <div className="flex items-center space-x-2">
                   <Checkbox 
-                    id="filter-page_view" 
-                    checked={selectedTypes.page_view}
+                    id="filter-error" 
+                    checked={selectedTypes.error}
                     onCheckedChange={(checked) => 
-                      setSelectedTypes(prev => ({ ...prev, page_view: !!checked }))
+                      setSelectedTypes(prev => ({ ...prev, error: !!checked }))
                     }
                   />
-                  <Label htmlFor="filter-page_view">Visite Pagine</Label>
+                  <Label htmlFor="filter-error">Errori</Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Checkbox 

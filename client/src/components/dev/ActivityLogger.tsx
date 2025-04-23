@@ -106,7 +106,7 @@ export const ActivityLoggerProvider: React.FC<{ children: React.ReactNode }> = (
   const logActivity = async (type: ActivityType, description: string, details?: Record<string, any>) => {
     // Ottieni indirizzo IP solo per log di operazioni su database o errori
     let ipAddress = undefined;
-    if (type !== 'login' && type !== 'logout' && type !== 'page_view') {
+    if (type !== 'login' && type !== 'logout') {
       ipAddress = await getUserIP();
     }
     
@@ -194,7 +194,7 @@ export const RecentActivityList: React.FC<{
     if (type.includes('print')) return '🖨️';
     if (type.includes('export')) return '📤';
     if (type.includes('status')) return '🔄';
-    if (type.includes('page_view')) return '👁️';
+    if (type.includes('error')) return '⚠️';
     return '📌';
   };
 

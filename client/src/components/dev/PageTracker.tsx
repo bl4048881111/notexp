@@ -29,16 +29,12 @@ export default function PageTracker() {
     // Nome della pagina visitata (usa una mappatura se disponibile, altrimenti il percorso)
     const pageName = pageNameMap[location] || location;
     
-    // Registra l'accesso alla pagina
-    logActivity(
-      'page_view',
-      `Accesso a: ${pageName}`,
-      {
-        path: location,
-        pageName,
-        timestamp: new Date()
-      }
-    );
+    // Non registriamo più la navigazione delle pagine
+    console.log(`Navigazione a: ${pageName}`, {
+      path: location,
+      pageName,
+      timestamp: new Date()
+    });
   }, [location, logActivity]);
 
   return null; // Componente senza rendering visibile
