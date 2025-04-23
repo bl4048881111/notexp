@@ -29,14 +29,13 @@ export function SimplePopover({
   open,
   onOpenChange
 }: SimplePopoverProps) {
+  // Implementazione più semplice e robusta che evita problemi di React.Children.only
   const [internalOpen, setInternalOpen] = React.useState(false);
-  const triggerRef = React.useRef<HTMLDivElement>(null);
-  const contentRef = React.useRef<HTMLDivElement>(null);
+  const popoverRef = React.useRef<HTMLDivElement>(null);
   
   // Usa il valore controllato (open) se fornito, altrimenti usa lo stato interno
   const isOpen = open !== undefined ? open : internalOpen;
   
-  // Funzione per gestire i cambiamenti di stato
   const handleOpenChange = (newOpen: boolean) => {
     if (onOpenChange) {
       onOpenChange(newOpen);
@@ -45,22 +44,19 @@ export function SimplePopover({
     }
   };
 
-  // Gestisce il click fuori dal popover per chiuderlo
+  // Gestisce il click fuori per chiudere
   React.useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (isOpen && 
-          contentRef.current && 
-          !contentRef.current.contains(event.target as Node) &&
-          triggerRef.current && 
-          !triggerRef.current.contains(event.target as Node)) {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (isOpen && popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
         handleOpenChange(false);
       }
     };
 
-    // Previene il refresh quando si usa il tasto Invio nel calendario
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (isOpen && event.key === 'Enter') {
-        event.preventDefault();
+    // Previene il submit del form quando si preme Invio
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (isOpen && (e.key === 'Enter' || e.key === 'Escape')) {
+        if (e.key === 'Escape') handleOpenChange(false);
+        e.preventDefault();
       }
     };
 
@@ -73,50 +69,31 @@ export function SimplePopover({
     };
   }, [isOpen]);
 
-  // Calcola la posizione del popover in base all'allineamento
-  const getContentStyles = (): React.CSSProperties => {
-    if (!triggerRef.current) return {};
-    
-    const rect = triggerRef.current.getBoundingClientRect();
-    let left = 0;
-    
-    if (align === 'start') {
-      left = 0;
-    } else if (align === 'center') {
-      left = -(200 - rect.width) / 2;
-    } else if (align === 'end') {
-      left = -(200 - rect.width);
-    }
-    
-    return {
-      top: rect.height + 8,
-      left
-    };
-  };
-
   const handleTriggerClick = (e: React.MouseEvent) => {
-    e.preventDefault(); // Previene il submit del form
+    e.preventDefault();
+    e.stopPropagation();
     handleOpenChange(!isOpen);
   };
 
+  const alignmentClass = 
+    align === 'start' ? 'left-0' : 
+    align === 'end' ? 'right-0' : 
+    'left-1/2 -translate-x-1/2'; // center
+
   return (
-    <div className="relative inline-block w-full">
-      <div
-        ref={triggerRef}
-        onClick={handleTriggerClick}
-      >
+    <div className="relative w-full" ref={popoverRef}>
+      <div onClick={handleTriggerClick}>
         {trigger}
       </div>
       
       {isOpen && (
         <div
-          ref={contentRef}
-          style={getContentStyles()}
           className={cn(
-            "absolute z-50 min-w-[200px] rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-none",
+            "absolute z-50 mt-2 min-w-[200px] rounded-md border bg-popover shadow-md outline-none",
+            alignmentClass,
             className
           )}
-          onClick={(e) => e.stopPropagation()} // Evita che i click vengano propagati
+          onClick={(e) => e.stopPropagation()}
         >
           {content || children}
         </div>
