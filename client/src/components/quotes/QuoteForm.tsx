@@ -1125,9 +1125,55 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                     <Button 
                       type="button" 
                       disabled={isLoading}
-                      onClick={() => form.handleSubmit(onSubmit)()}
+                      onClick={async () => {
+                        // Crea un preventivo di test direttamente
+                        setIsLoading(true);
+                        try {
+                          const testQuote: Omit<Quote, 'id'> = {
+                            clientId: selectedClient?.id || "client123",
+                            clientName: selectedClient?.name + " " + selectedClient?.surname || "Cliente Test",
+                            phone: selectedClient?.phone || "123456789",
+                            plate: selectedClient?.plate || "AB123CD",
+                            model: selectedClient?.model || "Test Model",
+                            kilometrage: 10000,
+                            date: new Date().toISOString().split('T')[0],
+                            items: items.length ? items : [],
+                            notes: form.getValues("notes") || "Test note",
+                            laborPrice: 45,
+                            laborHours: 1,
+                            subtotal: 100,
+                            taxRate: 22,
+                            taxAmount: 22,
+                            total: 122,
+                            status: "bozza",
+                            validUntil: "",
+                            createdAt: Date.now()
+                          };
+                          
+                          console.log("Salvando preventivo di test:", testQuote);
+                          
+                          await createQuote(testQuote);
+                          
+                          toast({
+                            title: "Preventivo creato",
+                            description: "Test preventivo creato con successo",
+                          });
+                          
+                          if (onSuccess) onSuccess();
+                          if (onClose) onClose();
+                        } catch (error) {
+                          console.error("Errore nel salvataggio:", error);
+                          toast({
+                            title: "Errore",
+                            description: "Si è verificato un errore durante il salvataggio del preventivo di test.",
+                            variant: "destructive",
+                          });
+                        } finally {
+                          setIsLoading(false);
+                        }
+                      }}
                     >
-                      {quote ? "Aggiorna" : "Salva"} Preventivo
+                      Salva Preventivo di Test
                     </Button>
                   </div>
                 </div>
