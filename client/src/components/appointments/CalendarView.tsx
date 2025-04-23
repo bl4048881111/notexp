@@ -41,7 +41,7 @@ export default function CalendarView({
 }: CalendarViewProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [calendarDays, setCalendarDays] = useState<Date[]>([]);
-  const [view, setView] = useState<ViewType>("month");
+  const [view, setView] = useState<ViewType>(ViewType.Month);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   // Generate calendar days array
@@ -83,8 +83,8 @@ export default function CalendarView({
     onSelectDate(format(date, 'yyyy-MM-dd'));
     
     // Se siamo in visualizzazione mensile, passa alla visualizzazione giornaliera
-    if (view === "month") {
-      setView("day");
+    if (view === ViewType.Month) {
+      setView(ViewType.Day);
     }
   };
 
@@ -129,7 +129,7 @@ export default function CalendarView({
   }
 
   // Rendering della vista giornaliera
-  if (view === "day" && selectedDate) {
+  if (view === ViewType.Day && selectedDate) {
     return (
       <div className="bg-card rounded-lg shadow-md overflow-hidden border border-border">
         <div className="p-4 border-b border-border flex justify-between items-center">
@@ -151,26 +151,26 @@ export default function CalendarView({
             </Button>
             <div className="flex border border-border rounded-md overflow-hidden">
               <Button 
-                variant={view === "day" ? "default" : "outline"}
+                variant={view === ViewType.Day ? "default" : "outline"}
                 size="sm"
                 className="rounded-none"
-                onClick={() => setView("day")}
+                onClick={() => setView(ViewType.Day)}
               >
                 Giorno
               </Button>
               <Button 
-                variant={view === "week" ? "default" : "outline"}
+                variant={view === ViewType.Week ? "default" : "outline"}
                 size="sm"
                 className="rounded-none"
-                onClick={() => setView("week")}
+                onClick={() => setView(ViewType.Week)}
               >
                 Settimana
               </Button>
               <Button 
-                variant={view === "month" ? "default" : "outline"}
+                variant={view === ViewType.Month ? "default" : "outline"}
                 size="sm"
                 className="rounded-none"
-                onClick={() => setView("month")}
+                onClick={() => setView(ViewType.Month)}
               >
                 Mese
               </Button>
@@ -235,7 +235,7 @@ export default function CalendarView({
   }
 
   // Rendering vista settimanale (implementazione semplificata)
-  if (view === "week" && selectedDate) {
+  if (view === ViewType.Week && selectedDate) {
     // TODO: Implementazione completa della vista settimanale
     return (
       <div className="bg-card rounded-lg shadow-md overflow-hidden border border-border">
@@ -258,26 +258,26 @@ export default function CalendarView({
             </Button>
             <div className="flex border border-border rounded-md overflow-hidden">
               <Button 
-                variant={view === "day" ? "default" : "outline"}
+                variant={view === ViewType.Day ? "default" : "outline"}
                 size="sm"
                 className="rounded-none"
-                onClick={() => setView("day")}
+                onClick={() => setView(ViewType.Day)}
               >
                 Giorno
               </Button>
               <Button 
-                variant={view === "week" ? "default" : "outline"}
+                variant={view === ViewType.Week ? "default" : "outline"}
                 size="sm"
                 className="rounded-none"
-                onClick={() => setView("week")}
+                onClick={() => setView(ViewType.Week)}
               >
                 Settimana
               </Button>
               <Button 
-                variant={view === "month" ? "default" : "outline"}
+                variant={view === ViewType.Month ? "default" : "outline"}
                 size="sm"
                 className="rounded-none"
-                onClick={() => setView("month")}
+                onClick={() => setView(ViewType.Month)}
               >
                 Mese
               </Button>
@@ -287,7 +287,7 @@ export default function CalendarView({
 
         <div className="p-8 text-center">
           <p>Vista settimanale non implementata</p>
-          <Button className="mt-4" onClick={() => setView("month")}>
+          <Button className="mt-4" onClick={() => setView(ViewType.Month)}>
             Torna alla vista mensile
           </Button>
         </div>
@@ -317,26 +317,26 @@ export default function CalendarView({
           </Button>
           <div className="flex border border-border rounded-md overflow-hidden">
             <Button 
-              variant={view === "day" ? "default" : "outline"}
+              variant={view === ViewType.Day ? "default" : "outline"}
               size="sm"
               className="rounded-none"
-              onClick={() => setView("day")}
+              onClick={() => setView(ViewType.Day)}
             >
               Giorno
             </Button>
             <Button 
-              variant={view === "week" ? "default" : "outline"}
+              variant={view === ViewType.Week ? "default" : "outline"}
               size="sm"
               className="rounded-none"
-              onClick={() => setView("week")}
+              onClick={() => setView(ViewType.Week)}
             >
               Settimana
             </Button>
             <Button 
-              variant={view === "month" ? "default" : "outline"}
+              variant={view === ViewType.Month ? "default" : "outline"}
               size="sm"
               className="rounded-none"
-              onClick={() => setView("month")}
+              onClick={() => setView(ViewType.Month)}
             >
               Mese
             </Button>
