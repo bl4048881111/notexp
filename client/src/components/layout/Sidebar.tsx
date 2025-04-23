@@ -1,10 +1,15 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { LogOut, LayoutDashboard, Users, Calendar, FileText, Settings } from "lucide-react";
+import { LogOut, LayoutDashboard, Users, Calendar, FileText, Settings, X } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
+import { useIsMobile } from "../../hooks/use-mobile";
 import autoExpressLogo from "../../assets/autoexpress-logo.png";
 
-export default function Sidebar() {
+interface SidebarProps {
+  onClose?: () => void;
+}
+
+export default function Sidebar({ onClose }: SidebarProps) {
   const [location] = useLocation();
   const { logout } = useAuth();
   
@@ -14,59 +19,93 @@ export default function Sidebar() {
   
   const isActive = (path: string) => location === path;
   
+  const isMobile = useIsMobile();
+  
   return (
-    <aside className="w-64 bg-[#111111] border-r border-gray-800 flex flex-col shadow-xl">
+    <aside className="w-64 bg-[#111111] border-r border-gray-800 flex flex-col shadow-xl h-full">
       <div className="p-6 border-b border-gray-800">
-        <div className="flex items-center">
-          <div className="flex justify-center items-center w-10 h-10 bg-primary rounded-md text-3xl font-bold text-white">X</div>
-          <h1 className="ml-3 text-xl font-bold">
-            <span className="text-white">AUTO</span>
-            <span className="text-primary">X</span>
-            <span className="text-white">PRESS</span>
-          </h1>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <div className="flex justify-center items-center w-10 h-10 bg-primary rounded-md text-3xl font-bold text-white">X</div>
+            <h1 className="ml-3 text-xl font-bold">
+              <span className="text-white">AUTO</span>
+              <span className="text-primary">X</span>
+              <span className="text-white">PRESS</span>
+            </h1>
+          </div>
+          
+          {isMobile && onClose && (
+            <button 
+              onClick={onClose}
+              className="text-gray-400 hover:text-white transition-colors"
+              aria-label="Chiudi menu"
+            >
+              <X size={20} />
+            </button>
+          )}
         </div>
       </div>
       
       <nav className="flex-1 overflow-y-auto py-6">
         <ul className="space-y-2 px-3">
           <li>
-            <Link href="/dashboard" className={`flex items-center px-4 py-3 text-gray-300 hover:bg-[#222222] hover:text-white rounded-md transition-all duration-200 ${
+            <Link 
+              href="/dashboard" 
+              onClick={() => isMobile && onClose && onClose()}
+              className={`flex items-center px-4 py-3 text-gray-300 hover:bg-[#222222] hover:text-white rounded-md transition-all duration-200 ${
                 isActive("/dashboard") ? "bg-[#222222] text-white border-l-4 border-primary" : ""
-              }`}>
-                <LayoutDashboard className={`mr-3 h-5 w-5 ${isActive("/dashboard") ? "text-primary" : ""}`} />
-                Dashboard
+              }`}
+            >
+              <LayoutDashboard className={`mr-3 h-5 w-5 ${isActive("/dashboard") ? "text-primary" : ""}`} />
+              Dashboard
             </Link>
           </li>
           <li>
-            <Link href="/clients" className={`flex items-center px-4 py-3 text-gray-300 hover:bg-[#222222] hover:text-white rounded-md transition-all duration-200 ${
+            <Link 
+              href="/clients" 
+              onClick={() => isMobile && onClose && onClose()}
+              className={`flex items-center px-4 py-3 text-gray-300 hover:bg-[#222222] hover:text-white rounded-md transition-all duration-200 ${
                 isActive("/clients") ? "bg-[#222222] text-white border-l-4 border-primary" : ""
-              }`}>
-                <Users className={`mr-3 h-5 w-5 ${isActive("/clients") ? "text-primary" : ""}`} />
-                Clienti
+              }`}
+            >
+              <Users className={`mr-3 h-5 w-5 ${isActive("/clients") ? "text-primary" : ""}`} />
+              Clienti
             </Link>
           </li>
           <li>
-            <Link href="/appointments" className={`flex items-center px-4 py-3 text-gray-300 hover:bg-[#222222] hover:text-white rounded-md transition-all duration-200 ${
+            <Link 
+              href="/appointments" 
+              onClick={() => isMobile && onClose && onClose()}
+              className={`flex items-center px-4 py-3 text-gray-300 hover:bg-[#222222] hover:text-white rounded-md transition-all duration-200 ${
                 isActive("/appointments") ? "bg-[#222222] text-white border-l-4 border-primary" : ""
-              }`}>
-                <Calendar className={`mr-3 h-5 w-5 ${isActive("/appointments") ? "text-primary" : ""}`} />
-                Appuntamenti
+              }`}
+            >
+              <Calendar className={`mr-3 h-5 w-5 ${isActive("/appointments") ? "text-primary" : ""}`} />
+              Appuntamenti
             </Link>
           </li>
           <li>
-            <Link href="/quotes" className={`flex items-center px-4 py-3 text-gray-300 hover:bg-[#222222] hover:text-white rounded-md transition-all duration-200 ${
+            <Link 
+              href="/quotes" 
+              onClick={() => isMobile && onClose && onClose()}
+              className={`flex items-center px-4 py-3 text-gray-300 hover:bg-[#222222] hover:text-white rounded-md transition-all duration-200 ${
                 isActive("/quotes") ? "bg-[#222222] text-white border-l-4 border-primary" : ""
-              }`}>
-                <FileText className={`mr-3 h-5 w-5 ${isActive("/quotes") ? "text-primary" : ""}`} />
-                Preventivi
+              }`}
+            >
+              <FileText className={`mr-3 h-5 w-5 ${isActive("/quotes") ? "text-primary" : ""}`} />
+              Preventivi
             </Link>
           </li>
           <li>
-            <Link href="/services" className={`flex items-center px-4 py-3 text-gray-300 hover:bg-[#222222] hover:text-white rounded-md transition-all duration-200 ${
+            <Link 
+              href="/services" 
+              onClick={() => isMobile && onClose && onClose()}
+              className={`flex items-center px-4 py-3 text-gray-300 hover:bg-[#222222] hover:text-white rounded-md transition-all duration-200 ${
                 isActive("/services") ? "bg-[#222222] text-white border-l-4 border-primary" : ""
-              }`}>
-                <Settings className={`mr-3 h-5 w-5 ${isActive("/services") ? "text-primary" : ""}`} />
-                Gestione Servizi
+              }`}
+            >
+              <Settings className={`mr-3 h-5 w-5 ${isActive("/services") ? "text-primary" : ""}`} />
+              Gestione Servizi
             </Link>
           </li>
         </ul>

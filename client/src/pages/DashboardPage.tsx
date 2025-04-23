@@ -77,72 +77,72 @@ export default function DashboardPage() {
       {/* Contatori statistiche */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="border border-border">
-          <CardContent className="pt-6 pb-2 px-4">
+          <CardContent className="pt-4 pb-2 px-3 md:pt-6 md:px-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-muted-foreground text-sm mb-1">Clienti</p>
+                <p className="text-muted-foreground text-xs md:text-sm mb-1">Clienti</p>
                 {isLoadingStats ? (
-                  <div className="text-3xl font-bold"><Skeleton className="h-9 w-12" /></div>
+                  <div className="text-2xl md:text-3xl font-bold"><Skeleton className="h-7 md:h-9 w-10 md:w-12" /></div>
                 ) : (
-                  <div className="text-3xl font-bold">{statistics?.totalClients || 0}</div>
+                  <div className="text-2xl md:text-3xl font-bold">{statistics?.totalClients || 0}</div>
                 )}
               </div>
-              <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center">
-                <Users className="h-6 w-6 text-primary" />
+              <div className="h-10 w-10 md:h-12 md:w-12 bg-primary/10 rounded-full flex items-center justify-center">
+                <Users className="h-5 w-5 md:h-6 md:w-6 text-primary" />
               </div>
             </div>
           </CardContent>
         </Card>
         
         <Card className="border border-border">
-          <CardContent className="pt-6 pb-2 px-4">
+          <CardContent className="pt-4 pb-2 px-3 md:pt-6 md:px-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-muted-foreground text-sm mb-1">Nuovi questo mese</p>
+                <p className="text-muted-foreground text-xs md:text-sm mb-1">Nuovi mese</p>
                 {isLoadingStats ? (
-                  <div className="text-3xl font-bold"><Skeleton className="h-9 w-12" /></div>
+                  <div className="text-2xl md:text-3xl font-bold"><Skeleton className="h-7 md:h-9 w-10 md:w-12" /></div>
                 ) : (
-                  <div className="text-3xl font-bold">{statistics?.newClientsThisMonth || 0}</div>
+                  <div className="text-2xl md:text-3xl font-bold">{statistics?.newClientsThisMonth || 0}</div>
                 )}
               </div>
-              <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center">
-                <Car className="h-6 w-6 text-primary" />
+              <div className="h-10 w-10 md:h-12 md:w-12 bg-primary/10 rounded-full flex items-center justify-center">
+                <Car className="h-5 w-5 md:h-6 md:w-6 text-primary" />
               </div>
             </div>
           </CardContent>
         </Card>
         
         <Card className="border border-border">
-          <CardContent className="pt-6 pb-2 px-4">
+          <CardContent className="pt-4 pb-2 px-3 md:pt-6 md:px-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-muted-foreground text-sm mb-1">Appuntamenti</p>
+                <p className="text-muted-foreground text-xs md:text-sm mb-1">Appuntamenti</p>
                 {isLoadingStats ? (
-                  <div className="text-3xl font-bold"><Skeleton className="h-9 w-12" /></div>
+                  <div className="text-2xl md:text-3xl font-bold"><Skeleton className="h-7 md:h-9 w-10 md:w-12" /></div>
                 ) : (
-                  <div className="text-3xl font-bold">{statistics?.totalAppointments || 0}</div>
+                  <div className="text-2xl md:text-3xl font-bold">{statistics?.totalAppointments || 0}</div>
                 )}
               </div>
-              <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center">
-                <ClipboardList className="h-6 w-6 text-primary" />
+              <div className="h-10 w-10 md:h-12 md:w-12 bg-primary/10 rounded-full flex items-center justify-center">
+                <ClipboardList className="h-5 w-5 md:h-6 md:w-6 text-primary" />
               </div>
             </div>
           </CardContent>
         </Card>
         
         <Card className="border border-border">
-          <CardContent className="pt-6 pb-2 px-4">
+          <CardContent className="pt-4 pb-2 px-3 md:pt-6 md:px-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-muted-foreground text-sm mb-1">Oggi</p>
+                <p className="text-muted-foreground text-xs md:text-sm mb-1">Oggi</p>
                 {isLoadingAppointments ? (
-                  <div className="text-3xl font-bold"><Skeleton className="h-9 w-12" /></div>
+                  <div className="text-2xl md:text-3xl font-bold"><Skeleton className="h-7 md:h-9 w-10 md:w-12" /></div>
                 ) : (
-                  <div className="text-3xl font-bold">{appointments.length}</div>
+                  <div className="text-2xl md:text-3xl font-bold">{appointments.length}</div>
                 )}
               </div>
-              <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center">
-                <CalendarIcon className="h-6 w-6 text-primary" />
+              <div className="h-10 w-10 md:h-12 md:w-12 bg-primary/10 rounded-full flex items-center justify-center">
+                <CalendarIcon className="h-5 w-5 md:h-6 md:w-6 text-primary" />
               </div>
             </div>
           </CardContent>
@@ -175,19 +175,20 @@ export default function DashboardPage() {
       
       {/* Calendar-style today's appointments */}
       <Card className="border border-border">
-        <CardHeader className="pb-2">
-          <div className="flex justify-between items-center">
-            <CardTitle>Appuntamenti Oggi</CardTitle>
-            <Button variant="outline" size="sm" onClick={handleCalendar}>
+        <CardHeader className="pb-2 px-4 md:px-6">
+          <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+            <CardTitle className="text-lg md:text-xl">Appuntamenti Oggi</CardTitle>
+            <Button variant="outline" size="sm" onClick={handleCalendar} className="w-full sm:w-auto">
               <CalendarIcon className="h-4 w-4 mr-2" />
-              Visualizza Calendario
+              <span className="hidden sm:inline">Visualizza Calendario</span>
+              <span className="sm:hidden">Calendario</span>
             </Button>
           </div>
           <CardDescription>
             {format(new Date(), 'd MMMM yyyy', { locale: it })}
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 md:px-6">
           {isLoadingAppointments ? (
             <div className="space-y-3">
               {Array(3).fill(0).map((_, i) => (
@@ -199,24 +200,24 @@ export default function DashboardPage() {
               {appointments.map((appointment: Appointment) => (
                 <div 
                   key={appointment.id} 
-                  className="flex p-3 border rounded-md bg-card hover:bg-accent/20 transition-colors"
+                  className="flex p-2 md:p-3 border rounded-md bg-card hover:bg-accent/20 transition-colors"
                 >
-                  <div className="mr-3 flex flex-col items-center justify-center bg-primary/10 h-16 w-16 rounded-md">
+                  <div className="mr-2 md:mr-3 flex flex-col items-center justify-center bg-primary/10 h-14 w-14 md:h-16 md:w-16 rounded-md shrink-0">
                     <span className="text-xs text-muted-foreground">Ore</span>
-                    <span className="text-xl font-bold text-primary">
+                    <span className="text-lg md:text-xl font-bold text-primary">
                       {appointment.time ? appointment.time.split(':')[0] : '--'}:{appointment.time ? appointment.time.split(':')[1] : '--'}
                     </span>
                   </div>
-                  <div className="flex-1">
-                    <h4 className="font-medium">{appointment.clientName}</h4>
-                    <p className="text-sm text-muted-foreground">{appointment.services && appointment.services.length > 0 ? appointment.services.join(', ') : 'Nessun servizio'}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{appointment.plate} - {appointment.model}</p>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-medium truncate">{appointment.clientName}</h4>
+                    <p className="text-sm text-muted-foreground truncate">{appointment.services && appointment.services.length > 0 ? appointment.services.join(', ') : 'Nessun servizio'}</p>
+                    <p className="text-xs text-muted-foreground mt-1 truncate">{appointment.plate} - {appointment.model}</p>
                   </div>
-                  <div className="flex items-center">
+                  <div className="flex items-center ml-1">
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      className="h-8 w-8"
+                      className="h-8 w-8 shrink-0"
                       onClick={() => setLocation(`/appointments`)}
                     >
                       <ArrowRight className="h-4 w-4" />
@@ -226,12 +227,12 @@ export default function DashboardPage() {
               ))}
             </div>
           ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              <Clock className="h-12 w-12 mx-auto mb-4 opacity-20" />
-              <p>Nessun appuntamento programmato per oggi</p>
+            <div className="text-center py-6 md:py-8 text-muted-foreground">
+              <Clock className="h-10 w-10 md:h-12 md:w-12 mx-auto mb-3 md:mb-4 opacity-20" />
+              <p className="text-sm md:text-base">Nessun appuntamento programmato per oggi</p>
               <Button 
                 variant="link" 
-                className="mt-2" 
+                className="mt-1 md:mt-2 text-sm md:text-base" 
                 onClick={handleNewAppointment}
               >
                 Crea nuovo appuntamento
