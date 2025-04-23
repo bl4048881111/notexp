@@ -19,6 +19,35 @@ import { Separator } from "@/components/ui/separator";
 // Definizione delle categorie e dei servizi
 type ServiceCategory = "Tagliando" | "Frenante" | "Sospensioni" | "Accessori" | string;
 
+// Definizione servizi predefiniti per fallback
+const defaultServices: Record<ServiceCategory, Array<{id: string, name: string}>> = {
+  "Tagliando": [
+    { id: "filtro-aria", name: "Filtro Aria" },
+    { id: "filtro-olio", name: "Filtro Olio" },
+    { id: "filtro-carburante", name: "Filtro Carburante" },
+    { id: "filtro-abitacolo", name: "Filtro Abitacolo" },
+    { id: "olio-motore", name: "Olio Motore" },
+  ],
+  "Frenante": [
+    { id: "pastiglie-anteriori", name: "Pastiglie Anteriori" },
+    { id: "pastiglie-posteriori", name: "Pastiglie Posteriori" },
+    { id: "dischi-anteriori", name: "Dischi Anteriori" },
+    { id: "dischi-posteriori", name: "Dischi/Ganasce Posteriori" },
+  ],
+  "Sospensioni": [
+    { id: "ammortizzatori-anteriori", name: "Ammortizzatori Anteriori" },
+    { id: "ammortizzatori-posteriori", name: "Ammortizzatori Posteriori" },
+    { id: "bracci-sospensione", name: "Bracci Sospensione" },
+    { id: "silent-block", name: "Silent Block" },
+  ],
+  "Accessori": [
+    { id: "batteria", name: "Batteria" },
+    { id: "spazzole-tergicristallo", name: "Spazzole Tergicristallo" },
+    { id: "lampadine", name: "Lampadine" },
+    { id: "candele", name: "Candele" },
+  ]
+};
+
 interface ServiceSelectionFormProps {
   items: QuoteItem[];
   onChange: (items: QuoteItem[]) => void;
@@ -44,33 +73,44 @@ export default function ServiceSelectionForm({
       try {
         const allServiceTypes = await getAllServiceTypes();
         
-        // Organizza i servizi per categoria
-        const servicesByCategory: Record<ServiceCategory, Array<{id: string, name: string}>> = {
-          "Tagliando": [],
-          "Frenante": [],
-          "Sospensioni": [],
-          "Accessori": []
-        };
+        // Inizializza con i servizi predefiniti come fallback
+        const servicesByCategory = {...defaultServices};
         
-        // Aggiungi i servizi alle rispettive categorie
-        allServiceTypes.forEach(service => {
-          const category = service.category as ServiceCategory;
-          
-          // Se la categoria non esiste ancora, creala
-          if (!servicesByCategory[category]) {
-            servicesByCategory[category] = [];
-          }
-          
-          servicesByCategory[category].push({
-            id: service.id,
-            name: service.name
+        if (allServiceTypes && allServiceTypes.length > 0) {
+          // Reset delle categorie se abbiamo servizi dal database
+          Object.keys(servicesByCategory).forEach(key => {
+            servicesByCategory[key as ServiceCategory] = [];
           });
+          
+          // Aggiungi i servizi alle rispettive categorie
+          allServiceTypes.forEach(service => {
+            const category = service.category as ServiceCategory;
+            
+            // Se la categoria non esiste ancora, creala
+            if (!servicesByCategory[category]) {
+              servicesByCategory[category] = [];
+            }
+            
+            servicesByCategory[category].push({
+              id: service.id,
+              name: service.name
+            });
+          });
+        }
+        
+        // Se dopo il caricamento alcune categorie sono vuote, usa i servizi predefiniti
+        Object.keys(servicesByCategory).forEach(key => {
+          if (servicesByCategory[key as ServiceCategory].length === 0) {
+            servicesByCategory[key as ServiceCategory] = defaultServices[key as ServiceCategory];
+          }
         });
         
         setDynamicServices(servicesByCategory);
         console.log("Servizi caricati:", servicesByCategory);
       } catch (error) {
         console.error("Errore durante il caricamento dei servizi:", error);
+        // In caso di errore, usa i servizi predefiniti
+        setDynamicServices(defaultServices);
       }
     }
     
