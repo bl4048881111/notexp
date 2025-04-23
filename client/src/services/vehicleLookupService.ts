@@ -33,10 +33,9 @@ interface VehicleDetails {
 export async function lookupVehicleByPlate(plate: string, country: string = 'it'): Promise<VehicleDetails | null> {
   try {
     // Prima chiamata: Ottieni il vehicleNumber dalla targa
-    const lookupResponse = await fetch(`${API_BASE_URL}/vrmlookupservice?identifier=${encodeURIComponent(plate)}&country=${encodeURIComponent(country)}`, {
+    const lookupResponse = await fetch(`${API_BASE_URL}/vrmlookupservice?identifier=${encodeURIComponent(plate)}&country=${encodeURIComponent(country)}&token=${API_TOKEN}`, {
       method: 'GET',
       headers: {
-        'Token': API_TOKEN,
         'User-Agent': 'VehicleLookupSystem/1.0'
       }
     });
@@ -55,11 +54,10 @@ export async function lookupVehicleByPlate(plate: string, country: string = 'it'
     
     // Seconda chiamata: Ottieni i dettagli del veicolo dal vehicleNumber
     const vehicleNumber = lookupData.vehicleNumber;
-    const detailsResponse = await fetch(`${API_BASE_URL}/vehicleservice`, {
+    const detailsResponse = await fetch(`${API_BASE_URL}/vehicleservice?token=${API_TOKEN}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Token': API_TOKEN,
         'User-Agent': 'VehicleLookupSystem/1.0'
       },
       body: JSON.stringify({
