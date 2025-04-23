@@ -3,10 +3,13 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 interface SimplePopoverProps {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   trigger: React.ReactNode;
+  content?: React.ReactNode;
   align?: 'start' | 'center' | 'end';
   className?: string;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 /**
@@ -15,13 +18,28 @@ interface SimplePopoverProps {
  */
 export function SimplePopover({ 
   children, 
-  trigger, 
+  trigger,
+  content, 
   align = 'center',
-  className
+  className,
+  open,
+  onOpenChange
 }: SimplePopoverProps) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
   const triggerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  
+  // Usa il valore controllato (open) se fornito, altrimenti usa lo stato interno
+  const isOpen = open !== undefined ? open : internalOpen;
+  
+  // Funzione per gestire i cambiamenti di stato
+  const handleOpenChange = (newOpen: boolean) => {
+    if (onOpenChange) {
+      onOpenChange(newOpen);
+    } else {
+      setInternalOpen(newOpen);
+    }
+  };
 
   // Gestisce il click fuori dal popover per chiuderlo
   useEffect(() => {
@@ -31,7 +49,7 @@ export function SimplePopover({
           !contentRef.current.contains(event.target as Node) &&
           triggerRef.current && 
           !triggerRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
+        handleOpenChange(false);
       }
     };
 
@@ -66,7 +84,7 @@ export function SimplePopover({
     <div className="relative inline-block">
       <div
         ref={triggerRef}
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => handleOpenChange(!isOpen)}
       >
         {trigger}
       </div>
@@ -80,7 +98,7 @@ export function SimplePopover({
             className
           )}
         >
-          {children}
+          {content || children}
         </div>
       )}
     </div>
