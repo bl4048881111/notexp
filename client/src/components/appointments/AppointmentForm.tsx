@@ -175,6 +175,25 @@ export default function AppointmentForm({
     }
   }, [isOpen, form]);
   
+  // Gestisce la pressione del tasto invio a livello globale
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' && !e.shiftKey && isOpen) {
+        e.preventDefault();
+        
+        // Se siamo allo step 1 e un cliente è selezionato, passa allo step successivo
+        if (currentStep === 1 && selectedClient) {
+          setCurrentStep(prev => prev + 1);
+        }
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [currentStep, selectedClient, isOpen]);
+  
   // Gestione della ricerca clienti
   const filteredClients = useMemo(() => {
     if (!searchQuery.trim()) return [];
@@ -354,6 +373,13 @@ export default function AppointmentForm({
       });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+  
+  // Funzione per chiamare manualmente l'evento Enter quando il cliente è selezionato
+  const triggerEnterKeyPress = () => {
+    if (selectedClient && currentStep === 1) {
+      setCurrentStep(prev => prev + 1);
     }
   };
   
@@ -540,6 +566,10 @@ export default function AppointmentForm({
                                   size="sm" 
                                   variant="outline"
                                   className="gap-1"
+                                  onClick={() => {
+                                    // Funzionalità per creare un nuovo cliente (da implementare)
+                                    setIsSearching(false);
+                                  }}
                                 >
                                   <Plus className="h-4 w-4" />
                                   Crea nuovo cliente
