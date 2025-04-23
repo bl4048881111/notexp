@@ -212,11 +212,13 @@ export default function AppointmentForm({
   };
   
   const onSubmit = async (data: CreateAppointmentInput) => {
+    console.log("Iniziando salvataggio appuntamento...", data);
     setIsSubmitting(true);
     
     try {
       if (appointment?.id) {
         // Aggiornamento appuntamento esistente
+        console.log("Aggiornando appuntamento con ID:", appointment.id);
         await updateAppointment(appointment.id, data);
         toast({
           title: "Appuntamento aggiornato",
@@ -224,6 +226,7 @@ export default function AppointmentForm({
         });
       } else {
         // Creazione nuovo appuntamento
+        console.log("Creando nuovo appuntamento con dati:", data);
         await createAppointment(data);
         toast({
           title: "Appuntamento creato",
@@ -683,7 +686,26 @@ export default function AppointmentForm({
                     <Button 
                       type="button"
                       size="sm"
-                      onClick={form.handleSubmit(onSubmit)}
+                      onClick={async () => {
+                        // Otteniamo direttamente i valori dal form
+                        const formData = {
+                          clientId: selectedClient?.id || "",
+                          clientName: `${selectedClient?.name || ""} ${selectedClient?.surname || ""}`,
+                          phone: selectedClient?.phone || "",
+                          plate: selectedClient?.plate || "",
+                          model: selectedClient?.model || "",
+                          quoteId: selectedQuote?.id || "",
+                          date: form.getValues("date") || "",
+                          time: form.getValues("time") || "09:00",
+                          duration: 1,
+                          services: [],
+                          notes: form.getValues("notes") || "",
+                          status: form.getValues("status") || "programmato",
+                        };
+                        
+                        console.log("Dati appuntamento raccolti:", formData);
+                        await onSubmit(formData);
+                      }}
                       disabled={isSubmitting || !selectedClient}
                       className="gap-2 bg-primary"
                     >
