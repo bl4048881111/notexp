@@ -177,7 +177,6 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
         form.setValue("clientName", `${client.name} ${client.surname}`);
         form.setValue("phone", client.phone);
         form.setValue("plate", client.plate);
-        form.setValue("model", client.model);
       }
     } catch (error) {
       console.error("Errore nel caricamento del cliente:", error);
@@ -191,7 +190,6 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
     form.setValue("clientName", `${client.name} ${client.surname}`);
     form.setValue("phone", client.phone);
     form.setValue("plate", client.plate);
-    form.setValue("model", client.model);
     setIsSearching(false);
   };
   
@@ -782,7 +780,7 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-4">
-                    <h3 className="font-medium">Manodopera Extra e Note</h3>
+                    <h3 className="font-medium">Manodopera</h3>
                     <div className="space-y-4">
                       <div className="grid grid-cols-2 gap-4">
                         <FormField
@@ -875,7 +873,6 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                                 <SelectItem value="bozza">Bozza</SelectItem>
                                 <SelectItem value="inviato">Inviato</SelectItem>
                                 <SelectItem value="accettato">Accettato</SelectItem>
-                                <SelectItem value="rifiutato">Rifiutato</SelectItem>
                                 <SelectItem value="scaduto">Scaduto</SelectItem>
                               </SelectContent>
                             </Select>
@@ -898,7 +895,7 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                         </div>
                         
                         <div className="flex justify-between items-center">
-                          <span>Manodopera extra:</span>
+                          <span>Manodopera:</span>
                           <span className="font-medium">
                             {formatCurrency((form.getValues("laborPrice") || 0) * (form.getValues("laborHours") || 0))}
                           </span>

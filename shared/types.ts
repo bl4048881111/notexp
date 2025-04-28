@@ -25,7 +25,7 @@ export interface AuthState {
 
 export const DEFAULT_CREDENTIALS = {
   username: 'admin',
-  password: 'admin123'
+  password: '1234'
 };
 
 // Re-export from schema

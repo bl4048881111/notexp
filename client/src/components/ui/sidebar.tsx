@@ -2,6 +2,7 @@ import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { VariantProps, cva } from "class-variance-authority"
 import { PanelLeft } from "lucide-react"
+import autoExpressLogo from "../../assets/autoexpress-logo.png"
 
 import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
@@ -258,6 +259,12 @@ const Sidebar = React.forwardRef<
             data-sidebar="sidebar"
             className="flex h-full w-full flex-col bg-sidebar group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:shadow"
           >
+            <SidebarHeader>
+              <div className="flex items-center gap-2 px-2 py-4">
+                <img src={autoExpressLogo} alt="Logo AutoExpress" className="h-10 w-10 object-contain rounded" />
+                <span className="font-bold text-xl text-primary">AUTOEXPRESS</span>
+              </div>
+            </SidebarHeader>
             {children}
           </div>
         </div>

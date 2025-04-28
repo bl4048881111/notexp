@@ -236,14 +236,12 @@ export default function ServiceManagementPage() {
       </div>
       
       {/* Filtri */}
-      <Card className="mb-6 bg-gray-900 border-gray-800 text-white">
-        <CardHeader className="pb-3 border-b border-gray-800">
-          <div className="flex items-center gap-2">
-            <Filter className="h-4 w-4 text-orange-500" />
-            <CardTitle className="text-lg">Filtra Servizi</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-4">
+      <div className="mb-6 border border-gray-800 rounded-md bg-[#111111]">
+        <div className="px-4 py-3 border-b border-gray-800 flex items-center gap-2">
+          <Filter className="h-4 w-4 text-orange-500" />
+          <h3 className="text-lg font-medium text-white">Filtra Servizi</h3>
+        </div>
+        <div className="p-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label className="mb-2 block text-gray-300">Cerca per nome o descrizione</Label>
@@ -277,11 +275,11 @@ export default function ServiceManagementPage() {
               </Select>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
       
       {/* Tabella Servizi */}
-      <div className="bg-gray-900 rounded-md border border-gray-800 shadow-sm">
+      <div className="bg-[#111111] rounded-md border border-gray-800 shadow-sm">
         <div className="p-4 border-b border-gray-800">
           <h2 className="text-xl font-semibold flex items-center gap-2 text-white">
             <Settings className="h-5 w-5 text-orange-500" />
@@ -333,7 +331,7 @@ export default function ServiceManagementPage() {
                 {/* Elenco servizi per categoria */}
                 <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                   {services.map((service) => (
-                    <div key={service.id} className="bg-gray-900 border border-gray-800 rounded-md p-4 relative">
+                    <div key={service.id} className="bg-[#111111] border border-gray-800 rounded-md p-4 relative">
                       <div className="flex justify-between items-start">
                         <div>
                           <h4 className="font-medium mb-1 text-white">{service.name}</h4>
@@ -372,7 +370,7 @@ export default function ServiceManagementPage() {
       
       {/* Dialog per creare/modificare servizio */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[550px] bg-gray-900 border-gray-800 text-white">
+        <DialogContent className="sm:max-w-[550px] bg-[#111111] border-gray-800 text-white">
           <DialogHeader>
             <DialogTitle className="text-white">
               {editingService ? "Modifica Servizio" : "Nuovo Servizio"}
@@ -456,22 +454,22 @@ export default function ServiceManagementPage() {
       
       {/* Dialog per confermare l'eliminazione */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-[450px]">
+        <DialogContent className="sm:max-w-[450px] bg-[#111111] border-gray-800 text-white">
           <DialogHeader>
             <DialogTitle className="text-destructive">Elimina Servizio</DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-gray-300">
               Sei sicuro di voler eliminare questo servizio? Questa azione non può essere annullata.
             </DialogDescription>
           </DialogHeader>
           
           {serviceToDelete && (
-            <div className="p-4 border rounded-md bg-muted/30">
-              <div className="font-medium">{serviceToDelete.name}</div>
-              <div className="text-sm text-muted-foreground mt-1">
+            <div className="p-4 border rounded-md bg-gray-800/30 border-gray-700">
+              <div className="font-medium text-white">{serviceToDelete.name}</div>
+              <div className="text-sm text-gray-300 mt-1">
                 <span className="font-medium">Categoria:</span> {serviceToDelete.category}
               </div>
               {serviceToDelete.description && (
-                <div className="text-sm text-muted-foreground">
+                <div className="text-sm text-gray-300">
                   <span className="font-medium">Descrizione:</span> {serviceToDelete.description}
                 </div>
               )}

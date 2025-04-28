@@ -18,6 +18,7 @@ export default function SimpleSparePartsForm({ items, onChange }: SimpleSparePar
   const [articleDescription, setArticleDescription] = useState<string>("");
   const [articleQuantity, setArticleQuantity] = useState<number | "">(1);
   const [articlePrice, setArticlePrice] = useState<number | "">(0);
+  const [editingPartId, setEditingPartId] = useState<string | null>(null);
   
   // Trova il servizio attivo (se presente)
   const activeService = activeServiceId 
@@ -40,6 +41,7 @@ export default function SimpleSparePartsForm({ items, onChange }: SimpleSparePar
     setArticleDescription("");
     setArticleQuantity(1);
     setArticlePrice(0);
+    setEditingPartId(null);
   }
   
   // Formatta un prezzo come valuta
@@ -51,8 +53,19 @@ export default function SimpleSparePartsForm({ items, onChange }: SimpleSparePar
     }).format(amount);
   }
   
-  // Aggiunge un nuovo ricambio
-  function handleAddPart() {
+  // Carica un ricambio nel form per la modifica
+  function handleEditPart(part: SparePart) {
+    if (!activeService || !part) return;
+    
+    setEditingPartId(part.id);
+    setArticleCode(part.code || '');
+    setArticleDescription(part.name || '');
+    setArticleQuantity(part.quantity || 1);
+    setArticlePrice(part.unitPrice || 0);
+  }
+  
+  // Salva le modifiche o aggiunge un nuovo ricambio
+  function handleSavePart() {
     if (!activeService || !articleCode || articlePrice === "" || articleQuantity === "") {
       return;
     }
@@ -61,37 +74,75 @@ export default function SimpleSparePartsForm({ items, onChange }: SimpleSparePar
     const price = typeof articlePrice === "string" ? parseFloat(articlePrice) || 0 : articlePrice;
     const quantity = typeof articleQuantity === "string" ? parseFloat(articleQuantity) || 1 : articleQuantity;
     
-    // Crea il nuovo ricambio
-    const newPart: SparePart = {
-      id: uuidv4(),
-      code: articleCode,
-      name: articleDescription || `${activeService.serviceType.name} - Codice: ${articleCode}`,
-      category: activeService.serviceType.category.toLowerCase(),
-      quantity,
-      unitPrice: price,
-      finalPrice: price * quantity
-    };
+    let updatedItems;
     
-    // Crea una nuova lista di servizi
-    const updatedItems = items.map(item => {
-      if (item.id === activeServiceId) {
-        // Ensure parts is an array
-        const existingParts = Array.isArray(item.parts) ? item.parts : [];
-        
-        // Aggiungi il nuovo ricambio
-        const updatedParts = [...existingParts, newPart];
-        
-        // Calcola il totale
-        const partsTotal = updatedParts.reduce((sum, part) => sum + part.finalPrice, 0);
-        
-        return {
-          ...item,
-          parts: updatedParts,
-          totalPrice: partsTotal
-        };
-      }
-      return item;
-    });
+    // Determina se stiamo modificando o aggiungendo
+    if (editingPartId) {
+      // Modifica un ricambio esistente
+      updatedItems = items.map(item => {
+        if (item.id === activeServiceId) {
+          // Assicurati che parts sia un array
+          const existingParts = Array.isArray(item.parts) ? item.parts : [];
+          
+          // Aggiorna il ricambio specifico
+          const updatedParts = existingParts.map(part => {
+            if (part.id === editingPartId) {
+              return {
+                ...part,
+                code: articleCode,
+                name: articleDescription || `${activeService.serviceType.name} - Codice: ${articleCode}`,
+                quantity,
+                unitPrice: price,
+                finalPrice: price * quantity
+              };
+            }
+            return part;
+          });
+          
+          // Calcola il totale
+          const partsTotal = updatedParts.reduce((sum, part) => sum + part.finalPrice, 0);
+          
+          return {
+            ...item,
+            parts: updatedParts,
+            totalPrice: partsTotal
+          };
+        }
+        return item;
+      });
+    } else {
+      // Crea il nuovo ricambio
+      const newPart: SparePart = {
+        id: uuidv4(),
+        code: articleCode,
+        name: articleDescription || `${activeService.serviceType.name} - Codice: ${articleCode}`,
+        category: activeService.serviceType.category.toLowerCase(),
+        quantity,
+        unitPrice: price,
+        finalPrice: price * quantity
+      };
+      
+      // Crea una nuova lista di servizi
+      updatedItems = items.map(item => {
+        if (item.id === activeServiceId) {
+          // Ensure parts is an array
+          const existingParts = Array.isArray(item.parts) ? item.parts : [];
+          
+          // Aggiungi il nuovo ricambio
+          const updatedParts = [...existingParts, newPart];
+          
+          // Calcola il totale
+          const partsTotal = updatedParts.reduce((sum, part) => sum + part.finalPrice, 0);
+          
+          return {
+            ...item,
+            parts: updatedParts,
+            totalPrice: partsTotal
+          };
+        }
+        return item;
+      });
+    }
     
     // Notifica il cambiamento al componente parent
     onChange(updatedItems);
@@ -124,6 +175,11 @@ export default function SimpleSparePartsForm({ items, onChange }: SimpleSparePar
     
     // Notifica il cambiamento al componente parent
     onChange(updatedItems);
+    
+    // Se stavamo modificando il ricambio che è stato eliminato, resetta il form
+    if (editingPartId === partId) {
+      resetForm();
+    }
   }
   
   return (
@@ -183,7 +239,21 @@ export default function SimpleSparePartsForm({ items, onChange }: SimpleSparePar
           
           {/* Form semplificato */}
           <div className="bg-muted/20 p-4 rounded-lg mb-4">
-            <h5 className="font-medium mb-3">Aggiungi nuovo ricambio</h5>
+            <div className="flex items-center justify-between mb-3">
+              <h5 className="font-medium">
+                {editingPartId ? 'Modifica ricambio' : 'Aggiungi nuovo ricambio'}
+              </h5>
+              {editingPartId && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={resetForm}
+                  className="h-8 px-2 text-muted-foreground"
+                >
+                  Annulla modifica
+                </Button>
+              )}
+            </div>
             <div className="grid grid-cols-12 gap-4">
               <div className="col-span-3">
                 <Label htmlFor="articleCode">Codice*</Label>
@@ -232,11 +302,11 @@ export default function SimpleSparePartsForm({ items, onChange }: SimpleSparePar
               
               <div className="col-span-2 flex items-end">
                 <Button
-                  onClick={handleAddPart}
+                  onClick={handleSavePart}
                   disabled={!articleCode || articlePrice === ""}
                   className="w-full"
                 >
-                  <span>Aggiungi</span>
+                  {editingPartId ? 'Aggiorna' : 'Aggiungi'}
                 </Button>
               </div>
             </div>
@@ -256,27 +326,43 @@ export default function SimpleSparePartsForm({ items, onChange }: SimpleSparePar
                       <th className="p-2 font-medium">Qtà</th>
                       <th className="p-2 font-medium text-right">Prezzo Un.</th>
                       <th className="p-2 font-medium text-right">Totale</th>
-                      <th className="p-2"></th>
+                      <th className="p-2 text-center">Azioni</th>
                     </tr>
                   </thead>
                   <tbody>
                     {activeService.parts.map((part, index) => (
-                      <tr key={part.id} className={`border-b ${index % 2 === 0 ? 'bg-zinc-100' : 'bg-primary/10'}`}>
+                      <tr key={part.id} className={`border-b ${index % 2 === 0 ? 'bg-zinc-100' : 'bg-primary/10'} ${editingPartId === part.id ? 'bg-primary/5 outline outline-1 outline-primary' : ''}`}>
                         <td className="p-2 font-medium">{part.code}</td>
                         <td className="p-2">{part.name}</td>
                         <td className="p-2 text-center">{part.quantity}</td>
                         <td className="p-2 text-right">{formatCurrency(part.unitPrice)}</td>
                         <td className="p-2 text-right font-medium">{formatCurrency(part.finalPrice)}</td>
                         <td className="p-2 text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleRemovePart(part.id)}
-                            className="h-7 px-2 py-0 text-destructive hover:text-destructive/80"
-                            title="Elimina ricambio"
-                          >
-                            Elimina
-                          </Button>
+                          <div className="flex justify-end">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEditPart(part)}
+                              className="h-7 w-7 p-0 text-primary mr-2"
+                              title="Modifica ricambio"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M12.854.146a.5.5 0 0 0-.707 0L10.5 1.793 14.207 5.5l1.647-1.646a.5.5 0 0 0 0-.708l-3-3zm.646 6.061L9.793 2.5 3.293 9H3.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.207l6.5-6.5zm-7.468 7.468A.5.5 0 0 1 6 13.5V13h-.5a.5.5 0 0 1-.5-.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.5-.5V10h-.5a.499.499 0 0 1-.175-.032l-.179.178a.5.5 0 0 0-.11.168l-2 5a.5.5 0 0 0 .65.65l5-2a.5.5 0 0 0 .168-.11l.178-.178z"/>
+                              </svg>
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleRemovePart(part.id)}
+                              className="h-7 w-7 p-0 border-destructive"
+                              title="Elimina ricambio"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="text-destructive" viewBox="0 0 16 16">
+                                <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+                                <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM13 3H3V2h10z"/>
+                              </svg>
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))}

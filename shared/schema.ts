@@ -22,7 +22,7 @@ export const clientSchema = z.object({
   phone: z.string().min(1, "Numero di telefono è obbligatorio"),
   email: z.string().email("Email non valida").or(z.string().length(0)),
   plate: z.string().min(1, "Targa è obbligatoria"),  // Teniamo per retrocompatibilità
-  model: z.string().min(1, "Modello è obbligatorio"), // Teniamo per retrocompatibilità
+  model: z.string().optional(), // Campo reso opzionale
   vin: z.string().optional(), // Codice VIN facoltativo
   vehicles: z.array(vehicleSchema).optional(),
   createdAt: z.number()
@@ -59,7 +59,7 @@ export const appointmentSchema = z.object({
   clientName: z.string(),
   phone: z.string(),
   plate: z.string(),
-  model: z.string(),
+  model: z.string().optional(),
   date: z.string(),
   time: z.string(),
   duration: z.number(),
@@ -70,6 +70,10 @@ export const appointmentSchema = z.object({
   status: z.enum(["programmato", "completato", "annullato"]),
   // ID del preventivo collegato
   quoteId: z.string().optional(),
+  // Stato dell'ordine dei pezzi
+  partsOrdered: z.boolean().optional(),
+  // Ore di manodopera dal preventivo collegato
+  quoteLaborHours: z.number().optional(),
   // Orari dettagliati per supportare le fasce orarie
   startHour: z.number().optional(),
   startMinute: z.number().optional(),
@@ -131,7 +135,8 @@ export const quoteSchema = z.object({
   clientName: z.string(),
   phone: z.string(),
   plate: z.string(),
-  model: z.string(),
+  model: z.string().optional(),
+  vin: z.string().optional(), // Numero di telaio (VIN)
   kilometrage: z.number().default(0),
   date: z.string(),
   items: z.array(quoteItemSchema).default([]),
@@ -142,12 +147,15 @@ export const quoteSchema = z.object({
   notes: z.string().optional(),
   laborPrice: z.number().default(45), // Tariffa oraria di manodopera extra
   laborHours: z.number().default(0), // Ore di manodopera extra
-  status: z.enum(["bozza", "inviato", "accettato", "rifiutato", "scaduto"]).default("bozza"),
+  status: z.enum(["bozza", "inviato", "accettato", "scaduto"]).default("bozza"),
   validUntil: z.string().optional(), // Data di scadenza del preventivo
   createdAt: z.number()
 });
 
-export const createQuoteSchema = quoteSchema.omit({ id: true });
+export const createQuoteSchema = quoteSchema.omit({ createdAt: true }).extend({
+  id: z.string().optional(),
+  vin: z.string().optional()
+});
 export type Quote = z.infer<typeof quoteSchema>;
 export type CreateQuoteInput = z.infer<typeof createQuoteSchema>;
 

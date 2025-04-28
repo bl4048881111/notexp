@@ -5,6 +5,8 @@ import { QuoteItem, SparePart } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ChevronRight, ChevronDown, Plus, Pencil, Trash } from "lucide-react";
 
 interface SparePartsEntryFormProps {
   items: QuoteItem[];
@@ -19,7 +21,7 @@ export default function SparePartsEntryForm({
   initialActiveTab = null,
   onActiveTabChange
 }: SparePartsEntryFormProps) {
-  // Determina un tab attivo iniziale (non usiamo useEffect)
+  // Determina un tab attivo iniziale
   const firstTabId = items.length > 0 ? items[0].id : null;
   // Usa initialActiveTab se presente, altrimenti il primo tab disponibile
   const [activeTab, setActiveTab] = useState<string | null>(
@@ -31,16 +33,24 @@ export default function SparePartsEntryForm({
   const [articleQuantity, setArticleQuantity] = useState<number | "">(1);
   const [articlePrice, setArticlePrice] = useState<number | "">(0);
   const [editingPartId, setEditingPartId] = useState<string | null>(null);
+  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   
   // Raggruppo i servizi per categoria
   const servicesByCategory = useMemo(() => {
-    return items.reduce((acc, item) => {
+    const grouped = items.reduce((acc, item) => {
       const category = item.serviceType.category;
       if (!acc[category]) acc[category] = [];
       acc[category].push(item);
       return acc;
     }, {} as Record<string, QuoteItem[]>);
-  }, [items]);
+    
+    // Se non c'è una categoria espansa, espandi la prima automaticamente
+    if (expandedCategory === null && Object.keys(grouped).length > 0) {
+      setExpandedCategory(Object.keys(grouped)[0]);
+    }
+    
+    return grouped;
+  }, [items, expandedCategory]);
   
   // Trova il servizio attivo corrente
   const activeService = useMemo(() => {
@@ -71,8 +81,6 @@ export default function SparePartsEntryForm({
   const handleEditPart = useCallback((part: SparePart) => {
     if (!activeService || !part) return;
     
-    console.log('Modifica ricambio:', part);
-    
     setEditingPartId(part.id);
     setArticleCode(part.code || '');
     setArticleDescription(part.name || '');
@@ -84,7 +92,6 @@ export default function SparePartsEntryForm({
   // Salva le modifiche al ricambio o ne aggiunge uno nuovo
   const handleSavePartChanges = useCallback(() => {
     if (!activeService || !articleCode || articlePrice === "" || articleQuantity === "") {
-      console.warn("Dati ricambio incompleti:", { activeService, articleCode, articlePrice, articleQuantity });
       return;
     }
     
@@ -94,15 +101,6 @@ export default function SparePartsEntryForm({
     
     // Determina se è un'aggiunta o una modifica
     const isEditing = editingPartId !== null;
-    
-    // Debug
-    console.log(`${isEditing ? 'Modifica' : 'Aggiunta'} ricambio nel servizio:`, activeService.serviceType.name);
-    console.log(`Dati del ricambio: Codice=${articleCode}, Desc=${articleDescription}, Prezzo=${price}, Qtà=${quantity}`);
-    console.log("Items prima dell'aggiornamento:", JSON.stringify(items.map(i => ({ 
-      id: i.id, 
-      service: i.serviceType.name, 
-      partsCount: i.parts?.length || 0 
-    }))));
     
     let updatedItems;
     
@@ -132,7 +130,7 @@ export default function SparePartsEntryForm({
           return {
             ...item,
             parts: updatedParts,
-            totalPrice: partsPrice // Rimuovo il calcolo della manodopera qui, verrà aggiunta solo alla fine
+            totalPrice: partsPrice
           };
         }
         return item;
@@ -158,25 +156,13 @@ export default function SparePartsEntryForm({
           return {
             ...item,
             parts: [...item.parts, newPart],
-            totalPrice: partsPrice // Rimuovo il calcolo della manodopera qui, verrà aggiunta solo alla fine
+            totalPrice: partsPrice
           };
         }
         return item;
       });
     }
     
-    console.log("Dopo l'aggiornamento - updatedItems:", JSON.stringify(updatedItems.map(i => ({ 
-      id: i.id, 
-      service: i.serviceType.name, 
-      partsCount: i.parts?.length || 0 
-    }))));
-    
-    // Controllo che parts sia un array valido in tutti gli item
-    const allValid = updatedItems.every(item => Array.isArray(item.parts));
-    console.log("Tutti gli item hanno parts come array valido?", allValid);
-    
-    // Tracciamento quando i dati vengono inviati al parent component
-    console.log("Invio dati aggiornati al parent con onChange()");
     onChange(updatedItems);
     resetForm();
   }, [activeService, articleCode, articlePrice, articleQuantity, 
@@ -196,7 +182,7 @@ export default function SparePartsEntryForm({
         return {
           ...item,
           parts: updatedParts,
-          totalPrice: partsPrice // Rimuovo il calcolo della manodopera qui, verrà aggiunta solo alla fine
+          totalPrice: partsPrice
         };
       }
       return item;
@@ -205,230 +191,253 @@ export default function SparePartsEntryForm({
     onChange(updatedItems);
   }, [activeService, items, onChange]);
   
+  // Funzione per gestire l'apertura/chiusura delle categorie
+  const toggleCategory = (category: string) => {
+    setExpandedCategory(expandedCategory === category ? null : category);
+  };
+  
   return (
-    <div className="space-y-4">
-      <h3 className="text-xl font-medium">Inserimento Ricambi</h3>
+    <div className="space-y-6 bg-zinc-900 text-white p-4 rounded-lg">
+      <h1 className="text-xl font-bold text-primary">Inserimento Ricambi</h1>
+      <div className="text-sm text-zinc-400 mb-4">Passo 3 di 4</div>
       
-      {/* Tabs di navigazione semplici */}
-      <div className="flex overflow-x-auto">
-        {Object.entries(servicesByCategory).map(([category, services]) => (
-          <div key={category} className="mr-4 min-w-fit">
-            <h4 className="font-medium text-sm text-primary mb-2">{category}</h4>
-            <div className="flex flex-wrap gap-2">
-              {services.map(service => (
-                <button
-                  key={service.id}
-                  onClick={() => {
-                    setActiveTab(service.id);
-                    if (onActiveTabChange) {
-                      onActiveTabChange(service.id);
+      <div className="max-h-[60vh] overflow-y-auto scrollbar-hide">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+          {/* Sidebar con categorie e servizi - 4 colonne su desktop */}
+          <div className="md:col-span-4 bg-zinc-800 rounded-lg p-2 h-min">
+            <div className="space-y-2">
+              {Object.entries(servicesByCategory).map(([category, categoryServices]) => (
+                <div key={category} className="overflow-hidden rounded-md border border-zinc-700">
+                  <button
+                    className="w-full p-3 bg-zinc-800 flex justify-between items-center hover:bg-zinc-700"
+                    onClick={() => toggleCategory(category)}
+                  >
+                    <span className="font-semibold text-primary">{category}</span>
+                    {expandedCategory === category ? 
+                      <ChevronDown className="h-4 w-4" /> : 
+                      <ChevronRight className="h-4 w-4" />
                     }
-                    resetForm();
-                  }}
-                  className={`
-                    px-3 py-2 rounded-lg text-sm font-medium
-                    ${activeTab === service.id 
-                      ? 'bg-primary text-white' 
-                      : 'bg-muted hover:bg-muted/80'}
-                    flex items-center space-x-1
-                  `}
-                >
-                  <span>{service.serviceType.name}</span>
-                  {service.parts && service.parts.length > 0 && (
-                    <span className={`
-                      ml-1 px-1.5 py-0.5 rounded-full text-xs
-                      ${activeTab === service.id 
-                        ? 'bg-white text-primary' 
-                        : 'bg-primary/20 text-primary'}
-                    `}>
-                      {service.parts.length}
-                    </span>
+                  </button>
+                  
+                  {expandedCategory === category && (
+                    <div className="space-y-1 p-2 bg-zinc-850">
+                      {categoryServices.map(service => (
+                        <button
+                          key={service.id}
+                          onClick={() => {
+                            setActiveTab(service.id);
+                            if (onActiveTabChange) {
+                              onActiveTabChange(service.id);
+                            }
+                            resetForm();
+                          }}
+                          className={`w-full px-3 py-2 text-left transition-colors rounded ${
+                            activeTab === service.id 
+                              ? "bg-primary text-black font-medium" 
+                              : "text-white hover:bg-zinc-700"
+                          }`}
+                        >
+                          {service.serviceType.name}
+                        </button>
+                      ))}
+                    </div>
                   )}
-                </button>
+                </div>
               ))}
             </div>
           </div>
-        ))}
-      </div>
-      
-      {/* Contenuto principale */}
-      <div className="border rounded-lg p-4">
-        {activeService ? (
-          <div>
-            <div className="flex justify-between items-center mb-4">
-              <h4 className="font-medium text-lg">
-                {activeService.serviceType.name}
-              </h4>
-              <span className="text-sm text-muted-foreground">
-                Categoria: {activeService.serviceType.category}
-              </span>
-            </div>
-            
-            {/* Form semplice per inserimento ricambi */}
-            <div className="bg-muted/20 p-4 rounded-lg mb-4">
-              <div className="flex items-center justify-between mb-3">
-                <h5 className="font-medium">
-                  {editingPartId ? 'Modifica ricambio' : 'Aggiungi nuovo ricambio'}
-                </h5>
-                {editingPartId && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={resetForm}
-                    className="h-8 px-2 text-muted-foreground"
-                  >
-                    <span className="material-icons mr-1" style={{fontSize: "16px"}}>cancel</span>
-                    Annulla modifica
-                  </Button>
-                )}
-              </div>
-              <div className="grid grid-cols-12 gap-4">
-                <div className="col-span-3">
-                  <Label htmlFor="articleCode">Codice*</Label>
-                  <Input
-                    id="articleCode"
-                    value={articleCode}
-                    onChange={(e) => setArticleCode(e.target.value)}
-                    placeholder="Codice articolo"
-                  />
+          
+          {/* Contenuto principale - 8 colonne su desktop */}
+          <div className="md:col-span-8 bg-zinc-800 rounded-lg">
+            {activeService ? (
+              <div className="p-4 space-y-4">
+                <div className="flex justify-between items-center">
+                  <h4 className="text-lg font-semibold text-primary">{activeService.serviceType.name}</h4>
+                  <span className="text-sm text-zinc-400">
+                    {activeService.serviceType.category}
+                  </span>
                 </div>
                 
-                <div className="col-span-3">
-                  <Label htmlFor="articleDescription">Descrizione</Label>
-                  <Input
-                    id="articleDescription"
-                    value={articleDescription}
-                    onChange={(e) => setArticleDescription(e.target.value)}
-                    placeholder="Descrizione"
-                  />
-                </div>
-                
-                <div className="col-span-2">
-                  <Label htmlFor="articleBrand">Brand</Label>
-                  <Input
-                    id="articleBrand"
-                    value={articleBrand}
-                    onChange={(e) => setArticleBrand(e.target.value)}
-                    placeholder="Brand"
-                  />
-                </div>
-                
-                <div className="col-span-1">
-                  <Label htmlFor="articleQuantity">Qtà*</Label>
-                  <Input
-                    id="articleQuantity"
-                    type="number"
-                    value={articleQuantity}
-                    onChange={(e) => setArticleQuantity(e.target.value === "" ? "" : parseFloat(e.target.value))}
-                    min={1}
-                    step={1}
-                  />
-                </div>
-                
-                <div className="col-span-2">
-                  <Label htmlFor="articlePrice">Prezzo*</Label>
-                  <Input
-                    id="articlePrice"
-                    type="number"
-                    value={articlePrice}
-                    onChange={(e) => setArticlePrice(e.target.value === "" ? "" : parseFloat(e.target.value))}
-                    placeholder="€"
-                    min={0}
-                    step={0.01}
-                  />
-                </div>
-                
-                <div className="col-span-1 flex items-end">
-                  <Button
-                    onClick={handleSavePartChanges}
-                    disabled={!articleCode || articlePrice === ""}
-                    className="w-full"
-                  >
-                    <span className="material-icons">{editingPartId ? 'save' : 'add'}</span>
-                  </Button>
-                </div>
-              </div>
-            </div>
-            
-            {/* Lista ricambi */}
-            <div>
-              <h5 className="font-medium">Ricambi aggiunti</h5>
-              
-              {activeService.parts && activeService.parts.length > 0 ? (
-                <div className="mt-2">
-                  <table className="w-full border-collapse border rounded-md overflow-hidden">
-                    <thead>
-                      <tr className="bg-black text-white text-left text-sm">
-                        <th className="p-2 font-medium">Codice</th>
-                        <th className="p-2 font-medium">Descrizione</th>
-                        <th className="p-2 font-medium">Qtà</th>
-                        <th className="p-2 font-medium text-right">Prezzo Un.</th>
-                        <th className="p-2 font-medium text-right">Totale</th>
-                        <th className="p-2"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {activeService.parts.map((part, index) => (
-                        <tr key={part.id} className={`border-b ${index % 2 === 0 ? 'bg-zinc-100' : 'bg-primary/10'} ${editingPartId === part.id ? 'bg-primary/5 outline outline-1 outline-primary' : ''}`}>
-                          <td className="p-2 font-medium">{part.code}</td>
-                          <td className="p-2">
-                            {part.name}
-                            {part.brand && <span className="text-sm text-muted-foreground ml-1">({part.brand})</span>}
-                          </td>
-                          <td className="p-2 text-center">{part.quantity}</td>
-                          <td className="p-2 text-right">{formatCurrency(part.unitPrice)}</td>
-                          <td className="p-2 text-right font-medium">{formatCurrency(part.finalPrice)}</td>
-                          <td className="p-2 text-right">
-                            <div className="flex justify-end gap-1">
+                {/* Lista dei ricambi */}
+                <div className="bg-zinc-900 rounded-lg p-3">
+                  <h5 className="font-medium mb-3 flex items-center">
+                    <span>Ricambi</span>
+                    {activeService.parts.length > 0 && (
+                      <span className="ml-2 text-xs px-2 py-1 bg-primary/20 text-primary rounded-full">
+                        {activeService.parts.length}
+                      </span>
+                    )}
+                  </h5>
+                  
+                  {activeService.parts.length === 0 ? (
+                    <div className="text-center py-4 text-zinc-500 italic">
+                      Nessun ricambio aggiunto
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-[40vh] overflow-y-auto scrollbar-hide pr-1">
+                      {activeService.parts.map((part) => (
+                        <div 
+                          key={part.id} 
+                          className="bg-zinc-800 p-3 rounded-lg flex flex-col sm:flex-row justify-between gap-3"
+                        >
+                          <div className="space-y-1 flex-grow">
+                            <div className="flex items-start justify-between">
+                              <div className="font-medium">{part.code}</div>
+                              <div className="text-sm sm:hidden font-bold">
+                                {formatCurrency(part.finalPrice)}
+                              </div>
+                            </div>
+                            <div className="text-sm text-zinc-400">{part.name}</div>
+                            <div className="flex flex-wrap gap-x-4 text-sm">
+                              {part.brand && (
+                                <span className="text-zinc-400">
+                                  Brand: <span className="text-zinc-300">{part.brand}</span>
+                                </span>
+                              )}
+                              <span className="text-zinc-400">
+                                Qtà: <span className="text-zinc-300">{part.quantity}</span>
+                              </span>
+                              <span className="text-zinc-400">
+                                Prezzo: <span className="text-zinc-300">{formatCurrency(part.unitPrice)}</span>
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center space-x-2 sm:flex-col sm:space-y-2 sm:space-x-0">
+                            <div className="hidden sm:block text-right font-bold">
+                              {formatCurrency(part.finalPrice)}
+                            </div>
+                            <div className="flex space-x-1 sm:justify-end">
                               <Button
-                                variant="ghost"
-                                size="icon"
                                 onClick={() => handleEditPart(part)}
-                                className="h-6 w-6 text-primary"
-                                title="Modifica ricambio"
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 w-8 p-0 text-primary"
                               >
-                                <span className="material-icons" style={{fontSize: "16px"}}>edit</span>
+                                <Pencil className="h-4 w-4" />
                               </Button>
                               <Button
-                                variant="ghost"
-                                size="icon"
                                 onClick={() => handleRemovePart(part.id)}
-                                className="h-6 w-6 text-destructive"
-                                title="Elimina ricambio"
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 w-8 p-0 text-red-500"
                               >
-                                <span className="material-icons" style={{fontSize: "16px"}}>delete</span>
+                                <Trash className="h-4 w-4" />
                               </Button>
                             </div>
-                          </td>
-                        </tr>
+                          </div>
+                        </div>
                       ))}
-                      <tr className="border-t font-medium bg-primary/10">
-                        <td colSpan={4} className="p-2 text-right font-bold">Totale ricambi:</td>
-                        <td className="p-2 text-right text-primary font-bold">
-                          {formatCurrency(activeService.parts && Array.isArray(activeService.parts) ? 
-                            activeService.parts.reduce((sum, part) => sum + (part?.finalPrice || 0), 0) : 0)}
-                        </td>
-                        <td></td>
-                      </tr>
-                    </tbody>
-                  </table>
+                    </div>
+                  )}
+                  
+                  {/* Footer con totale */}
+                  {activeService.parts.length > 0 && (
+                    <div className="flex justify-end items-center mt-4 pt-2 border-t border-zinc-700">
+                      <div className="text-sm text-zinc-400 mr-2">Totale ricambi:</div>
+                      <div className="font-bold">
+                        {formatCurrency(
+                          activeService.parts.reduce((sum, part) => sum + part.finalPrice, 0)
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="text-center p-8 border rounded-lg mt-2 text-muted-foreground">
-                  <span className="material-icons text-4xl mb-2">inventory</span>
-                  <p>Nessun ricambio aggiunto</p>
-                  <p className="text-sm">Usa il form sopra per aggiungere ricambi</p>
+                
+                {/* Form per aggiungere/modificare ricambi */}
+                <div className="bg-zinc-900 rounded-lg p-4">
+                  <h5 className="font-medium mb-3">
+                    {editingPartId ? "Modifica ricambio" : "Aggiungi nuovo ricambio"}
+                  </h5>
+                  
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <div>
+                      <Label htmlFor="code" className="text-xs block mb-1">CODICE*</Label>
+                      <Input
+                        id="code"
+                        value={articleCode}
+                        onChange={(e) => setArticleCode(e.target.value)}
+                        placeholder="Codice ricambio"
+                        className="bg-zinc-800 border-zinc-700 h-9"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="description" className="text-xs block mb-1">DESCRIZIONE</Label>
+                      <Input
+                        id="description"
+                        value={articleDescription}
+                        onChange={(e) => setArticleDescription(e.target.value)}
+                        placeholder="Descrizione"
+                        className="bg-zinc-800 border-zinc-700 h-9"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="brand" className="text-xs block mb-1">MARCA</Label>
+                      <Input
+                        id="brand"
+                        value={articleBrand}
+                        onChange={(e) => setArticleBrand(e.target.value)}
+                        placeholder="Marca"
+                        className="bg-zinc-800 border-zinc-700 h-9"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="quantity" className="text-xs block mb-1">QUANTITÀ*</Label>
+                      <Input
+                        id="quantity"
+                        type="number"
+                        value={articleQuantity}
+                        onChange={(e) => setArticleQuantity(e.target.value === "" ? "" : parseFloat(e.target.value))}
+                        min={1}
+                        step={1}
+                        className="bg-zinc-800 border-zinc-700 h-9"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="price" className="text-xs block mb-1">PREZZO*</Label>
+                      <Input
+                        id="price"
+                        type="number"
+                        value={articlePrice}
+                        onChange={(e) => setArticlePrice(e.target.value === "" ? "" : parseFloat(e.target.value))}
+                        min={0}
+                        step={0.01}
+                        className="bg-zinc-800 border-zinc-700 h-9"
+                      />
+                    </div>
+                    
+                    <div className="flex items-end space-x-2">
+                      {editingPartId && (
+                        <Button
+                          variant="outline"
+                          onClick={resetForm}
+                          className="flex-1 h-9 border-zinc-700 text-zinc-200 hover:bg-zinc-700"
+                        >
+                          Annulla
+                        </Button>
+                      )}
+                      <Button
+                        onClick={handleSavePartChanges}
+                        disabled={!articleCode || articlePrice === ""}
+                        className={`flex-1 h-9 ${editingPartId ? 'bg-zinc-600 hover:bg-zinc-700' : 'bg-primary hover:bg-primary/90'}`}
+                      >
+                        {editingPartId ? 'Salva' : 'Aggiungi'}
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="p-8 text-center">
+                <p className="text-zinc-400 mb-4">Seleziona un servizio dalla lista per aggiungere ricambi</p>
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="text-center p-8 text-muted-foreground">
-            <span className="material-icons text-5xl mb-2">touch_app</span>
-            <p className="text-lg font-medium">Seleziona un servizio</p>
-            <p className="text-sm">Fai click su uno dei servizi sopra per aggiungere ricambi</p>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );

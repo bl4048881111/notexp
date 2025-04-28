@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Plus, Download } from "lucide-react";
 
@@ -20,6 +20,8 @@ export default function ClientsPage() {
   const [sortOrder, setSortOrder] = useState("name-asc");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [clientsCount, setClientsCount] = useState(0);
+  const [noResultsAfterCreate, setNoResultsAfterCreate] = useState(false);
   
   const { toast } = useToast();
   
@@ -33,16 +35,46 @@ export default function ClientsPage() {
     queryFn: getAllClients,
   });
   
-  // Filter clients
-  const filteredClients = clients.filter((client: Client) => {
-    const matchesSearch = 
-      client.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      client.surname.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      client.plate.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      client.model.toLowerCase().includes(searchQuery.toLowerCase());
+  // Filter clients based on searchQuery and filterValue
+  const filteredClients = useMemo(() => {
+    let result = clients;
+
+    // Apply search filter
+    if (searchQuery.trim() !== '') {
+      const query = searchQuery.toLowerCase().trim();
+      result = result.filter(client => 
+        `${client.name} ${client.surname}`.toLowerCase().includes(query) || 
+        client.phone.toLowerCase().includes(query) || 
+        (client.email && client.email.toLowerCase().includes(query)) ||
+        (client.plate && client.plate.toLowerCase().includes(query)) ||
+        (client.model && client.model.toLowerCase().includes(query)) ||
+        (client.vin && client.vin.toLowerCase().includes(query))
+      );
+    }
+
+    // Apply additional filters if needed
+    if (filterValue === 'with-appointments') {
+      // Logic for filtering clients with appointments
+    } else if (filterValue === 'without-appointments') {
+      // Logic for filtering clients without appointments
+    }
+
+    return result;
+  }, [clients, searchQuery, filterValue]);
+  
+  // Memorizza il conteggio dei clienti per rilevare aggiunte
+  useEffect(() => {
+    // Se il conteggio dei clienti è aumentato ma i risultati filtrati sono 0,
+    // è probabile che sia stato appena aggiunto un cliente che non corrisponde alla ricerca
+    if (clients.length > clientsCount && filteredClients.length === 0 && searchQuery.trim() !== '') {
+      setNoResultsAfterCreate(true);
+    } else {
+      setNoResultsAfterCreate(false);
+    }
     
-    return matchesSearch;
-  });
+    // Aggiorna il conteggio dei clienti
+    setClientsCount(clients.length);
+  }, [clients.length, filteredClients.length, clientsCount, searchQuery]);
   
   // Sort clients
   const sortedClients = [...filteredClients].sort((a, b) => {
@@ -116,7 +148,7 @@ export default function ClientsPage() {
           <div className="relative w-full">
             <Input
               type="text"
-              placeholder="Cerca cliente per nome, targa o modello..."
+              placeholder="Cerca cliente per nome, telefono, targa o VIN..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-8 w-full"
@@ -131,6 +163,21 @@ export default function ClientsPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </div>
+          
+          {/* Messaggio di suggerimento dopo la creazione */}
+          {noResultsAfterCreate && filteredClients.length === 0 && searchQuery.trim() !== '' && (
+            <div className="p-2 bg-primary/10 text-primary text-sm rounded flex items-center justify-between">
+              <span>Hai aggiunto un nuovo cliente ma la ricerca non produce risultati.</span>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="ml-2 h-7 text-xs" 
+                onClick={() => setSearchQuery("")}
+              >
+                Mostra tutti
+              </Button>
+            </div>
+          )}
           
           <div className="flex flex-col sm:flex-row gap-2 w-full">
             <Select value={filterValue} onValueChange={setFilterValue}>

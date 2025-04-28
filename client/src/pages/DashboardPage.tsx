@@ -5,6 +5,7 @@ import { it } from "date-fns/locale";
 
 import { getAllAppointments, getRecentClients, getAllClients } from "@shared/firebase";
 import { Client, Appointment } from "@shared/types";
+import { useAuth } from "../hooks/useAuth";
 
 import QuickActionButton from "../components/dashboard/QuickActionButton";
 
@@ -18,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 export default function DashboardPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { user } = useAuth();
   const today = format(new Date(), 'yyyy-MM-dd');
   
   // Fetch today's appointments
@@ -28,8 +30,16 @@ export default function DashboardPage() {
     queryKey: ['/api/appointments'],
     queryFn: async () => {
       const allAppointments = await getAllAppointments();
-      return allAppointments.filter(app => app.date === today);
-    }
+      return allAppointments.filter(app => {
+        // Utilizziamo il formato della data dell'appuntamento e lo confrontiamo con oggi
+        const appDate = typeof app.date === 'string' 
+          ? app.date.split('T')[0]  // Se è una stringa, prendiamo solo la parte della data
+          : format(new Date(app.date), 'yyyy-MM-dd');  // Altrimenti convertiamo in formato yyyy-MM-dd
+        return appDate === today;
+      });
+    },
+    refetchOnWindowFocus: false,
+    staleTime: 0
   });
 
   // Fetch recent clients
@@ -61,7 +71,8 @@ export default function DashboardPage() {
       return {
         totalClients: allClients.length,
         totalAppointments: allAppointments.length,
-        newClientsThisMonth
+        newClientsThisMonth,
+        draftQuotes: 0
       };
     }
   });
@@ -76,7 +87,10 @@ export default function DashboardPage() {
     <div className="space-y-8">
       {/* Contatori statistiche */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="border border-border">
+        <Card 
+          className="border border-border cursor-pointer transition-all hover:shadow-md hover:border-primary"
+          onClick={() => setLocation('/clients')}
+        >
           <CardContent className="pt-4 pb-2 px-3 md:pt-6 md:px-4">
             <div className="flex items-center justify-between">
               <div>
@@ -94,15 +108,18 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
         
-        <Card className="border border-border">
+        <Card 
+          className="border border-border cursor-pointer transition-all hover:shadow-md hover:border-primary"
+          onClick={() => setLocation('/quotes')}
+        >
           <CardContent className="pt-4 pb-2 px-3 md:pt-6 md:px-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-muted-foreground text-xs md:text-sm mb-1">Nuovi mese</p>
+                <p className="text-muted-foreground text-xs md:text-sm mb-1">Preventivi Incompleti</p>
                 {isLoadingStats ? (
                   <div className="text-2xl md:text-3xl font-bold"><Skeleton className="h-7 md:h-9 w-10 md:w-12" /></div>
                 ) : (
-                  <div className="text-2xl md:text-3xl font-bold">{statistics?.newClientsThisMonth || 0}</div>
+                  <div className="text-2xl md:text-3xl font-bold">{statistics?.draftQuotes || 0}</div>
                 )}
               </div>
               <div className="h-10 w-10 md:h-12 md:w-12 bg-primary/10 rounded-full flex items-center justify-center">
@@ -112,11 +129,14 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
         
-        <Card className="border border-border">
+        <Card 
+          className="border border-border cursor-pointer transition-all hover:shadow-md hover:border-primary"
+          onClick={() => setLocation('/appointments')}
+        >
           <CardContent className="pt-4 pb-2 px-3 md:pt-6 md:px-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-muted-foreground text-xs md:text-sm mb-1">Appuntamenti</p>
+                <p className="text-muted-foreground text-xs md:text-sm mb-1">Appuntamenti Totali</p>
                 {isLoadingStats ? (
                   <div className="text-2xl md:text-3xl font-bold"><Skeleton className="h-7 md:h-9 w-10 md:w-12" /></div>
                 ) : (
@@ -130,7 +150,10 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
         
-        <Card className="border border-border">
+        <Card 
+          className="border border-border cursor-pointer transition-all hover:shadow-md hover:border-primary"
+          onClick={() => setLocation('/appointments')}
+        >
           <CardContent className="pt-4 pb-2 px-3 md:pt-6 md:px-4">
             <div className="flex items-center justify-between">
               <div>
@@ -167,9 +190,9 @@ export default function DashboardPage() {
           onClick={handleCalendar} 
         />
         <QuickActionButton 
-          icon="search" 
-          label="Cerca Cliente" 
-          onClick={handleSearchClient} 
+          icon="add_chart" 
+          label="Crea Preventivo" 
+          onClick={() => setLocation('/quotes/')} 
         />
       </div>
       

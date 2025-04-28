@@ -116,7 +116,86 @@ export const createAppointment = async (appointment: Omit<Appointment, 'id'>): P
 };
 
 export const updateAppointment = async (id: string, updates: Partial<Appointment>): Promise<void> => {
-  await update(ref(database, `appointments/${id}`), updates);
+  // Log per debug
+  console.log(`FIREBASE - Debug updateAppointment ID ${id}:`, {
+    durataInviata: updates.duration,
+    tipoDurata: typeof updates.duration
+  });
+  
+  // Crea un riferimento esplicito all'appuntamento nel database
+  const appointmentRef = ref(database, `appointments/${id}`);
+  
+  try {
+    // APPROCCIO MOLTO DIRETTO: Prima recuperiamo l'intero oggetto, lo modifichiamo e poi lo risalviamo completamente
+    const snapshot = await get(appointmentRef);
+    if (snapshot.exists()) {
+      // Ottieni l'oggetto completo
+      const currentAppointment = snapshot.val() as Appointment;
+      
+      console.log(`FIREBASE - Valori attuali per appuntamento ${id}:`, {
+        durata: currentAppointment.duration,
+        tipo: typeof currentAppointment.duration,
+        qta: currentAppointment.quoteLaborHours
+      });
+      
+      // Se stiamo aggiornando la durata, forziamo la conversione in numero
+      if (updates.duration !== undefined) {
+        // Converti esplicitamente in numero
+        let numericDuration = typeof updates.duration === 'string' 
+          ? parseFloat(updates.duration) 
+          : Number(updates.duration);
+        
+        // Assicuriamoci che sia un numero valido
+        if (isNaN(numericDuration)) numericDuration = 1;
+          
+        console.log(`FIREBASE - Impostazione diretta duration = ${numericDuration}`);
+        
+        // Imposta direttamente la durata
+        currentAppointment.duration = numericDuration;
+        
+        // Sincronizza anche quoteLaborHours
+        if (updates.quoteLaborHours !== undefined) {
+          let numericLabor = typeof updates.quoteLaborHours === 'string'
+            ? parseFloat(updates.quoteLaborHours)
+            : Number(updates.quoteLaborHours);
+          
+          if (isNaN(numericLabor)) numericLabor = numericDuration;
+          currentAppointment.quoteLaborHours = numericLabor;
+        } else {
+          // Se non è specificato, usa lo stesso valore della durata
+          currentAppointment.quoteLaborHours = numericDuration;
+        }
+      }
+      
+      // Aggiorna tutte le altre proprietà
+      Object.keys(updates).forEach(key => {
+        if (key !== 'duration' && key !== 'quoteLaborHours' && key in currentAppointment) {
+          // Aggiorna solo se la chiave esiste nell'oggetto originale
+          // @ts-ignore: chiave dinamica
+          currentAppointment[key] = updates[key];
+        }
+      });
+      
+      // Salva l'intero oggetto aggiornato
+      await set(appointmentRef, currentAppointment);
+      
+      // Verifica immediata che l'aggiornamento sia avvenuto
+      const verifySnapshot = await get(appointmentRef);
+      if (verifySnapshot.exists()) {
+        const verifiedData = verifySnapshot.val();
+        console.log(`FIREBASE - Post-aggiornamento verificato:`, {
+          nuovaDurata: verifiedData.duration,
+          tipoDurata: typeof verifiedData.duration
+        });
+      }
+    } else {
+      console.error(`FIREBASE - Appuntamento ${id} non trovato!`);
+      throw new Error(`Appointment with ID ${id} not found`);
+    }
+  } catch (error) {
+    console.error(`FIREBASE - Errore durante l'aggiornamento:`, error);
+    throw error;
+  }
 };
 
 export const deleteAppointment = async (id: string): Promise<void> => {

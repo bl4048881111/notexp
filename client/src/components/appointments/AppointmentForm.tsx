@@ -1,10 +1,11 @@
+import React from "react";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
-import { XCircle, FileText, Check, ArrowRight, Plus, Trash2, CalendarIcon, Calendar as CalendarIcon2, SearchIcon } from "lucide-react";
+import { XCircle, FileText, Check, ArrowRight, Plus, Trash2, CalendarIcon, Calendar as CalendarIcon2, SearchIcon, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import {
@@ -23,12 +24,9 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { SimplePopover } from "@/components/ui/CustomUIComponents";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -52,7 +50,9 @@ import {
   deleteAppointment,
   getAllClients,
   getClientById,
-  getQuotesByClientId
+  getQuotesByClientId,
+  getQuoteById,
+  getAllAppointments
 } from "@shared/firebase";
 import { 
   Appointment, 
@@ -62,6 +62,7 @@ import {
   createAppointmentSchema
 } from "@shared/schema";
 import { lookupVehicleByPlate, formatVehicleDetails } from "@/services/vehicleLookupService";
+import { extractVehicleBrand } from '@/utils/vehicleUtils';
 
 interface AppointmentFormProps {
   isOpen: boolean;
@@ -92,7 +93,9 @@ export default function AppointmentForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingVehicle, setIsLoadingVehicle] = useState(false);
   const [vehiclePlate, setVehiclePlate] = useState("");
+  const [vehicleBrand, setVehicleBrand] = useState("");
   const nextButtonRef = useRef<HTMLButtonElement>(null);
+  const queryClient = useQueryClient();
   
   const form = useForm<CreateAppointmentInput>({
     resolver: zodResolver(createAppointmentSchema),
@@ -101,8 +104,10 @@ export default function AppointmentForm({
       quoteId: appointment?.quoteId || "",
       date: appointment?.date || selectedDate || "",
       time: appointment?.time || "09:00",
+      duration: appointment?.duration || 1,
       notes: appointment?.notes || "",
       status: appointment?.status || "programmato",
+      partsOrdered: false,
     },
   });
   
@@ -124,6 +129,32 @@ export default function AppointmentForm({
     },
     enabled: !!selectedClient?.id,
   });
+  
+  // Query per ottenere tutti gli appuntamenti attuali
+  const { data: allAppointments = [] } = useQuery({
+    queryKey: ['/appointments'],
+    queryFn: async () => {
+      try {
+        return await getAllAppointments();
+      } catch (error) {
+        console.error('Errore nel caricamento degli appuntamenti:', error);
+        return [];
+      }
+    },
+  });
+  
+  // Verifica se esiste già un appuntamento per il cliente con lo stesso preventivo
+  const checkForExistingAppointment = (clientId: string, quoteId: string) => {
+    if (!clientId || !quoteId) return null;
+    
+    const existingAppointment = allAppointments.find((app: Appointment) => 
+      app.clientId === clientId && 
+      app.quoteId === quoteId && 
+      (!appointment || app.id !== appointment.id) // Escludi l'appuntamento corrente se in modifica
+    );
+    
+    return existingAppointment;
+  };
   
   // Quando viene aperto il form per modificare un appuntamento esistente, carica i dati del cliente
   useEffect(() => {
@@ -147,6 +178,15 @@ export default function AppointmentForm({
               const quote = quotes.find(q => q.id === appointment.quoteId);
               if (quote) {
                 setSelectedQuote(quote);
+                
+                // MODIFICATO: Aggiorna SEMPRE la durata dal preventivo
+                const laborHours = quote.laborHours || 0;
+                if (laborHours > 0) {
+                  console.log(`IMPORTANTE: Impostando durata a ${laborHours} ore dal preventivo (durata precedente: ${appointment.duration})`);
+                  form.setValue("duration", laborHours);
+                } else {
+                  console.log(`Preventivo senza ore di manodopera (${laborHours}h), mantengo durata attuale: ${appointment.duration}h`);
+                }
               }
             }
           }
@@ -159,7 +199,7 @@ export default function AppointmentForm({
     if (isOpen && appointment) {
       loadClientData();
     }
-  }, [isOpen, appointment]);
+  }, [isOpen, appointment, form]);
   
   // Reset dello stato quando si chiude il dialog
   useEffect(() => {
@@ -171,6 +211,7 @@ export default function AppointmentForm({
       setIsSearching(false);
       setVehiclePlate("");
       setIsLoadingVehicle(false);
+      setVehicleBrand("");
       form.reset();
     }
   }, [isOpen, form]);
@@ -226,7 +267,8 @@ export default function AppointmentForm({
     
     // Passa automaticamente allo step successivo se richiesto
     if (goToNextStep) {
-      setCurrentStep(prev => prev + 1);
+      // Passa sempre allo step 2 (preventivi) indipendentemente da tutto
+      setCurrentStep(2);
     }
   };
   
@@ -234,14 +276,36 @@ export default function AppointmentForm({
     setSelectedClient(null);
     setSelectedQuote(null);
     setVehiclePlate("");
+    setVehicleBrand("");
     form.setValue("clientId", "");
     form.setValue("quoteId", "");
     form.setValue("model", "");
   };
   
-  const handleSelectQuote = (quote: Quote) => {
+  const handleSelectQuote = async (quote: Quote) => {
     setSelectedQuote(quote);
     form.setValue("quoteId", quote.id);
+    
+    // Verifica se esiste già un appuntamento per questo preventivo
+    const existingAppointment = checkForExistingAppointment(selectedClient?.id || '', quote.id);
+    if (existingAppointment) {
+      toast({
+        title: "Attenzione: Appuntamento esistente",
+        description: `Esiste già un appuntamento per questo preventivo programmato per il ${existingAppointment.date} alle ${existingAppointment.time}.`,
+        variant: "destructive",
+      });
+    }
+    
+    // Se il preventivo ha ore di manodopera specificate, usa quelle per la durata
+    if (quote.laborHours && quote.laborHours > 0) {
+      form.setValue("duration", quote.laborHours);
+      console.log(`Impostata durata da preventivo: ${quote.laborHours} ore`);
+    } else {
+      console.log("Il preventivo non ha ore di manodopera specificate, mantengo durata predefinita");
+    }
+    
+    // Passa allo step successivo
+    setCurrentStep(3);
   };
   
   const handleEditQuote = (quote: Quote) => {
@@ -258,8 +322,8 @@ export default function AppointmentForm({
     }
   };
   
-  const handleLookupVehicle = async (plate: string) => {
-    if (!plate || plate.length < 3) {
+  const handleLookupVehicle = async () => {
+    if (!vehiclePlate) {
       toast({
         title: "Targa non valida",
         description: "Inserisci una targa valida per cercare le informazioni sul veicolo.",
@@ -267,31 +331,35 @@ export default function AppointmentForm({
       });
       return;
     }
-    
+
     setIsLoadingVehicle(true);
-    
     try {
-      const vehicleDetails = await lookupVehicleByPlate(plate);
+      // Prima otteniamo i dettagli grezzi del veicolo
+      const rawVehicleDetails = await lookupVehicleByPlate(vehiclePlate);
       
-      if (!vehicleDetails) {
+      if (rawVehicleDetails) {
+        // Utilizziamo la funzione di formattazione per ottenere dati strutturati
+        const formattedDetails = formatVehicleDetails(rawVehicleDetails);
+        
+        // Estrai la marca usando la funzione utility
+        const brand = extractVehicleBrand(formattedDetails.make + ' ' + formattedDetails.model);
+        setVehicleBrand(brand);
+        
+        // Crea una stringa di modello ben formattata
+        const modelString = `${formattedDetails.make} ${formattedDetails.model} ${formattedDetails.year}`.trim();
+        form.setValue("model", modelString);
+        
+        toast({
+          title: "Veicolo trovato",
+          description: `${formattedDetails.make} ${formattedDetails.fullModel} ${formattedDetails.power ? `(${formattedDetails.power})` : ''}`,
+        });
+      } else {
         toast({
           title: "Veicolo non trovato",
           description: "Non è stato possibile trovare informazioni per questa targa.",
           variant: "destructive",
         });
-        return;
       }
-      
-      const formattedDetails = formatVehicleDetails(vehicleDetails);
-      
-      // Aggiorna i campi del form con i dettagli del veicolo
-      const model = `${formattedDetails.make} ${formattedDetails.model} ${formattedDetails.year}`;
-      form.setValue("model", model);
-      
-      toast({
-        title: "Veicolo trovato",
-        description: `${formattedDetails.make} ${formattedDetails.fullModel} ${formattedDetails.power ? `(${formattedDetails.power})` : ''}`,
-      });
     } catch (error) {
       console.error("Errore durante la ricerca del veicolo:", error);
       toast({
@@ -327,48 +395,191 @@ export default function AppointmentForm({
     }
   };
   
+  // Dopo il salvataggio dell'appuntamento, esegui un'operazione molto importante
+  // che ricarica forzatamente i dati e aggiorna tutte le viste
+  const forceRefreshAfterSave = async () => {
+    console.log(`DEBUG - Forzo aggiornamento dopo salvataggio di appuntamento`);
+    
+    try {
+      // 1. Invia evento di aggiornamento calendario
+      const event = new Event('calendar:update');
+      window.dispatchEvent(event);
+      
+      // 2. Ricarica forzata della pagina
+      if (window && window.parent && (window.parent as any).reloadAppointments) {
+        console.log("DEBUG - Richiamo reloadAppointments");
+        await (window.parent as any).reloadAppointments();
+      }
+      
+      // 3. Forza aggiornamento della vista calendario
+      if (window && (window as any).forceCalendarRefresh) {
+        console.log("DEBUG - Forzo refresh vista calendario");
+        (window as any).forceCalendarRefresh();
+      }
+      
+      console.log("DEBUG - Aggiornamento forzato completato");
+    } catch (error) {
+      console.error("Errore nell'aggiornamento forzato:", error);
+    }
+  };
+  
+  // Funzioni helper per formattare data e ora
+  const formatAppointmentDate = (dateStr: string): string => {
+    return dateStr || format(new Date(), "yyyy-MM-dd");
+  };
+  
+  const formatAppointmentTime = (timeStr: string): string => {
+    // Assicurati che l'ora sia nel formato corretto (24 ore)
+    const timePattern = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/;
+    if (!timePattern.test(timeStr)) {
+      // Se il formato non è valido, usa un orario predefinito
+      return "09:00";
+    }
+    return timeStr;
+  };
+  
+  // Gestisce l'evento di submit del form
   const onSubmit = async (data: CreateAppointmentInput) => {
-    console.log("Iniziando salvataggio appuntamento...", data);
     setIsSubmitting(true);
     
     try {
-      if (appointment?.id) {
-        // Aggiornamento appuntamento esistente
-        console.log("Aggiornando appuntamento con ID:", appointment.id);
-        // Aggiorna anche i dati del veicolo
-        const appointmentData = {
-          ...data,
-          plate: vehiclePlate || selectedClient?.plate || appointment.plate || "",
-        };
-        console.log("Dati finali aggiornamento:", appointmentData);
-        await updateAppointment(appointment.id, appointmentData);
-        toast({
-          title: "Appuntamento aggiornato",
-          description: "L'appuntamento è stato aggiornato con successo.",
-        });
-      } else {
-        // Creazione nuovo appuntamento
-        console.log("Creando nuovo appuntamento con dati:", data);
-        // Aggiungi dati del veicolo (targa e modello) dall'input dell'utente
-        const appointmentData = {
-          ...data,
-          plate: vehiclePlate || selectedClient?.plate || "",
-        };
-        console.log("Dati finali appuntamento:", appointmentData);
-        await createAppointment(appointmentData);
-        toast({
-          title: "Appuntamento creato",
-          description: "L'appuntamento è stato creato con successo.",
-        });
+      // Assicurati che la durata sia un valore numerico
+      let durationValue: number = 1;
+      
+      try {
+        // Tenta di convertire la durata in numero
+        durationValue = typeof data.duration === 'string' 
+          ? parseFloat(data.duration) 
+          : typeof data.duration === 'number'
+            ? data.duration
+            : 1;
+            
+        // Validazione per essere sicuri che sia un numero valido
+        if (isNaN(durationValue) || durationValue <= 0) {
+          durationValue = 1;
+        }
+      } catch (e) {
+        console.error("Errore nel parsing della durata:", e);
+        durationValue = 1;
       }
       
-      onSuccess();
+      // Stesso trattamento per quoteLaborHours
+      let quoteLaborHoursValue: number | undefined = undefined;
+      
+      if (data.quoteLaborHours !== undefined && data.quoteLaborHours !== null) {
+        try {
+          quoteLaborHoursValue = typeof data.quoteLaborHours === 'string'
+            ? parseFloat(data.quoteLaborHours)
+            : typeof data.quoteLaborHours === 'number'
+              ? data.quoteLaborHours
+              : durationValue;
+              
+          if (isNaN(quoteLaborHoursValue)) {
+            quoteLaborHoursValue = durationValue;
+          }
+        } catch (e) {
+          console.error("Errore nel parsing di quoteLaborHours:", e);
+          quoteLaborHoursValue = durationValue;
+        }
+      }
+      
+      console.log("DEBUG FORM - Valori convertiti prima dell'invio:", {
+        durata: durationValue,
+        tipoDurata: typeof durationValue,
+        quoteLaborHours: quoteLaborHoursValue,
+        tipoQuoteLaborHours: typeof quoteLaborHoursValue
+      });
+      
+      // Rimappa i dati per adattarli al formato dell'appuntamento
+      const appointmentData: Partial<Appointment> = {
+        clientId: data.clientId,
+        clientName: data.clientName,
+        plate: data.plate,
+        date: formatAppointmentDate(data.date),
+        time: formatAppointmentTime(data.time),
+        duration: durationValue, // Inviamo il valore numerico processato
+        quoteId: data.quoteId || undefined,
+        quoteLaborHours: quoteLaborHoursValue, // Inviamo il valore numerico processato
+        partsOrdered: data.partsOrdered === null ? undefined : data.partsOrdered,
+        services: data.services || [],
+        notes: data.notes || "",
+        status: data.status || "programmato",
+      };
+      
+      console.log("DEBUG AppointmentForm - Sto salvando l'appuntamento con durata:", appointmentData.duration);
+      
+      let savedId;
+      
+      // Aggiorna o crea un nuovo appuntamento
+      if (appointment?.id) {
+        // Salvataggio sincronizzato e completo per assicurarsi che i dati siano persistiti
+        await updateAppointment(appointment.id, appointmentData);
+        savedId = appointment.id;
+        
+        // Log diagnostico
+        console.log(`DEBUG - Appuntamento aggiornato, ID: ${savedId}, durata: ${appointmentData.duration}h`);
+        
+        // Notifica il calendario che ci sono stati cambiamenti
+        try {
+          const event = new Event('calendar:update');
+          window.dispatchEvent(event);
+          
+          // Aggiunta chiamata alla funzione di refresh forzato
+          await forceRefreshAfterSave();
+          
+          // Tenta anche di richiamare la funzione globale direttamente se esiste
+          if (window && (window as any).forceCalendarRefresh) {
+            console.log("DEBUG - Forzo il refresh del calendario tramite forceCalendarRefresh");
+            (window as any).forceCalendarRefresh();
+          } else if (window && window.parent && (window.parent as any).reloadAppointments) {
+            console.log("DEBUG - Forzo la ricarica degli appuntamenti tramite reloadAppointments");
+            (window.parent as any).reloadAppointments();
+          }
+          
+          console.log("DEBUG - Inviato evento di aggiornamento calendario dopo modifica appuntamento");
+        } catch (eventError) {
+          console.error("Errore nell'invio dell'evento di aggiornamento:", eventError);
+        }
+      } else {
+        // Creazione nuovo appuntamento
+        const newAppointment = await createAppointment(appointmentData as Appointment);
+        savedId = newAppointment.id;
+        
+        // Notifica il calendario che ci sono stati cambiamenti
+        try {
+          const event = new Event('calendar:update');
+          window.dispatchEvent(event);
+          
+          // Aggiunta chiamata alla funzione di refresh forzato
+          await forceRefreshAfterSave();
+          
+          // Tenta anche di richiamare la funzione globale direttamente se esiste
+          if (window && (window as any).forceCalendarRefresh) {
+            console.log("DEBUG - Forzo il refresh del calendario tramite forceCalendarRefresh");
+            (window as any).forceCalendarRefresh();
+          } else if (window && window.parent && (window.parent as any).reloadAppointments) {
+            console.log("DEBUG - Forzo la ricarica degli appuntamenti tramite reloadAppointments");
+            (window.parent as any).reloadAppointments();
+          }
+          
+          console.log("DEBUG - Inviato evento di aggiornamento calendario dopo salvataggio appuntamento");
+        } catch (eventError) {
+          console.error("Errore nell'invio dell'evento di aggiornamento:", eventError);
+        }
+      }
+      
+      // Se la funzione onSuccess è stata fornita, chiamala
+      if (onSuccess) {
+        onSuccess();
+      }
+      
+      // Chiudi il form
       onClose();
     } catch (error) {
       console.error("Errore nel salvataggio dell'appuntamento:", error);
       toast({
         title: "Errore",
-        description: "Si è verificato un errore durante il salvataggio dell'appuntamento.",
+        description: "Si è verificato un errore durante il salvataggio dell'appuntamento",
         variant: "destructive",
       });
     } finally {
@@ -383,6 +594,54 @@ export default function AppointmentForm({
     }
   };
   
+  // Effetto per verificare se ci sono preventivi accettati
+  useEffect(() => {
+    // Non passiamo più automaticamente allo step 3 se non ci sono preventivi accettati
+    if (currentStep === 2 && clientQuotes.length > 0) {
+      const acceptedQuotes = clientQuotes.filter(quote => quote.status === "accettato");
+      if (acceptedQuotes.length === 0) {
+        // Mostra un messaggio che informa l'utente che è necessario creare un preventivo
+        toast({
+          title: "Preventivo necessario",
+          description: "È necessario creare un preventivo accettato per procedere con la creazione dell'appuntamento.",
+          variant: "destructive",
+        });
+      }
+    }
+  }, [currentStep, clientQuotes]);
+  
+  // Effetto per aggiornare la lista dei preventivi quando viene creato un nuovo preventivo
+  useEffect(() => {
+    // Se siamo nello step 2 (preventivi) e ci sono dati caricati
+    if (currentStep === 2 && selectedClient) {
+      // Aggiorniamo la lista dei preventivi
+      const fetchData = async () => {
+        try {
+          const clientQuotes = await getQuotesByClientId(selectedClient.id);
+          // Utilizziamo queryClient per invalidare e aggiornare la query 
+          queryClient.setQueryData(['/quotes/client', selectedClient.id], clientQuotes);
+        } catch (error) {
+          console.error("Errore nel caricamento dei preventivi aggiornati:", error);
+        }
+      };
+      
+      fetchData();
+    }
+  }, [currentStep, isOpen, selectedClient, queryClient]);
+  
+  const renderStatusBadge = (status: string) => {
+    switch (status) {
+      case "completato":
+        return <Badge variant="outline" className="bg-green-200 text-green-800 border-green-500 font-medium">Completato</Badge>;
+      case "annullato":
+        return <Badge variant="outline" className="bg-red-200 text-red-800 border-red-500 font-medium">Annullato</Badge>;
+      case "programmato":
+        return <Badge variant="outline" className="bg-blue-200 text-blue-800 border-blue-500 font-medium">Confermato</Badge>;
+      default:
+        return <Badge variant="outline" className="bg-blue-200 text-blue-800 border-blue-500 font-medium">Confermato</Badge>;
+    }
+  };
+  
   return (
     <>
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -394,20 +653,12 @@ export default function AppointmentForm({
                 {appointment ? "Modifica Appuntamento" : "Nuovo Appuntamento"}
               </DialogTitle>
               <DialogDescription className="text-center">
-                {currentStep === 1 ? "Seleziona o cerca un cliente" :
-                 currentStep === 2 ? "Associa un preventivo all'appuntamento" :
-                 "Specifica data, ora e note"}
+                {currentStep === 1 ? "Inserisci i dati del cliente" :
+                 currentStep === 2 ? "Seleziona un preventivo" :
+                 "Dettagli dell'appuntamento"}
               </DialogDescription>
             </div>
           </DialogHeader>
-          
-          <div className="flex justify-center -mt-3 mb-2 z-10 relative">
-            <div className="bg-background px-3 py-1 rounded-full border shadow-sm flex items-center gap-2">
-              <div className={`w-3 h-3 rounded-full ${currentStep >= 1 ? "bg-primary" : "bg-gray-300"}`}></div>
-              <div className={`w-3 h-3 rounded-full ${currentStep >= 2 ? "bg-primary" : "bg-gray-300"}`}></div>
-              <div className={`w-3 h-3 rounded-full ${currentStep >= 3 ? "bg-primary" : "bg-gray-300"}`}></div>
-            </div>
-          </div>
           
           {/* Form con pulsanti di navigazione separati */}
           <div className="flex flex-col h-full">
@@ -433,7 +684,6 @@ export default function AppointmentForm({
                     <div className="space-y-8">
                       <div className="flex justify-between items-center pt-4">
                         <h2 className="text-lg font-semibold flex items-center">
-                          <div className="bg-primary text-white w-6 h-6 rounded-full flex items-center justify-center mr-2 text-sm font-bold">1</div>
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1.5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                             <circle cx="12" cy="7" r="4"></circle>
@@ -547,8 +797,6 @@ export default function AppointmentForm({
                                                   {client.plate}
                                                 </span>
                                               )}
-                                              
-                                              {client.model}
                                             </span>
                                           </div>
                                         </div>
@@ -604,7 +852,6 @@ export default function AppointmentForm({
                     <div className="space-y-6">
                       <div className="flex justify-between items-center pt-4">
                         <h2 className="text-lg font-semibold flex items-center">
-                          <div className="bg-primary text-white w-6 h-6 rounded-full flex items-center justify-center mr-2 text-sm font-bold">2</div>
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1.5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                           </svg>
@@ -615,6 +862,26 @@ export default function AppointmentForm({
                       <div className="space-y-4">
                         {selectedClient && (
                           <div className="flex flex-col gap-2">
+                            <div className="flex justify-between items-center mb-2">
+                              <div className="flex items-center gap-1.5">
+                                <div className="bg-primary/15 rounded-full p-1.5 text-primary">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                </div>
+                                <span className="font-medium">{selectedClient.name} {selectedClient.surname}</span>
+                              </div>
+                              <Button 
+                                type="button" 
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setCurrentStep(1)}
+                                className="border-primary/30 text-primary hover:bg-primary/5 gap-1 text-xs"
+                              >
+                                <XCircle className="h-3.5 w-3.5" />
+                                <span>Cambia cliente</span>
+                              </Button>
+                            </div>
                             <Label className="text-sm font-medium">Preventivi disponibili</Label>
                             
                             {isLoadingQuotes ? (
@@ -622,9 +889,11 @@ export default function AppointmentForm({
                                 <Skeleton className="h-20 w-full" />
                                 <Skeleton className="h-20 w-full" />
                               </div>
-                            ) : clientQuotes.length > 0 ? (
+                            ) : clientQuotes.filter(quote => quote.status === "accettato").length > 0 ? (
                               <div className="space-y-3">
-                                {clientQuotes.map((quote) => (
+                                {clientQuotes
+                                  .filter(quote => quote.status === "accettato")
+                                  .map((quote) => (
                                   <div 
                                     key={quote.id}
                                     className={cn(
@@ -639,17 +908,14 @@ export default function AppointmentForm({
                                       <div className="flex items-center gap-2">
                                         <FileText className="h-4 w-4 text-primary" />
                                         <div className="font-medium">{quote.plate} - {quote.model}</div>
-                                        <Badge variant="outline" className="ml-2 px-1 py-0 text-xs">
-                                          {quote.status === "bozza" ? "Bozza" : 
-                                            quote.status === "inviato" ? "Inviato" : 
-                                            quote.status === "approvato" ? "Approvato" : 
-                                            quote.status === "rifiutato" ? "Rifiutato" : "Completato"}
+                                        <Badge variant="secondary" className="ml-2 px-1 py-0 text-xs bg-green-100 text-green-800 border-green-300">
+                                          Accettato
                                         </Badge>
                                       </div>
                                       
                                       <div className="flex items-center mt-1.5 text-sm text-muted-foreground gap-3">
                                         <span>
-                                          {format(new Date(quote.date), "dd/MM/yyyy")}
+                                          {format(new Date(quote.date), "dd/MM/yyyy", { locale: it })}
                                         </span>
                                         <span className="font-semibold text-foreground">
                                           {(quote.total || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}
@@ -684,19 +950,33 @@ export default function AppointmentForm({
                                     </div>
                                   </div>
                                 ))}
+                                
+                                <div className="mt-4 flex justify-between items-center">
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline" 
+                                    className="gap-1"
+                                    onClick={handleCreateNewQuote}
+                                  >
+                                    <Plus className="h-4 w-4" />
+                                    Crea nuovo preventivo
+                                  </Button>
+                                </div>
                               </div>
                             ) : (
                               <div className="text-center py-6 border rounded-lg border-dashed bg-muted/10">
-                                <p className="text-muted-foreground mb-3">Nessun preventivo disponibile per questo cliente</p>
-                                <Button 
-                                  size="sm" 
-                                  variant="outline" 
-                                  className="gap-1"
-                                  onClick={handleCreateNewQuote}
-                                >
-                                  <Plus className="h-4 w-4" />
-                                  Crea nuovo preventivo
-                                </Button>
+                                <p className="text-muted-foreground mb-3">Nessun preventivo accettato disponibile per questo cliente</p>
+                                <div className="flex flex-col sm:flex-row justify-center gap-2">
+                                  <Button 
+                                    size="sm" 
+                                    variant="default" 
+                                    className="gap-1"
+                                    onClick={handleCreateNewQuote}
+                                  >
+                                    <Plus className="h-4 w-4" />
+                                    Crea nuovo preventivo
+                                  </Button>
+                                </div>
                               </div>
                             )}
                           </div>
@@ -709,86 +989,21 @@ export default function AppointmentForm({
                   
                   {/* Step 3: Dettagli appuntamento */}
                   {currentStep === 3 && (
-                    <div className="space-y-6">
-                      <div className="flex justify-between items-center pt-4">
-                        <h2 className="text-lg font-semibold flex items-center">
-                          <div className="bg-primary text-white w-6 h-6 rounded-full flex items-center justify-center mr-2 text-sm font-bold">3</div>
-                          <CalendarIcon className="h-5 w-5 mr-1.5 text-primary" />
-                          Dettagli
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <h2 className="text-base font-semibold flex items-center">
+                          <CalendarIcon className="h-4 w-4 mr-1.5 text-primary" />
+                          Dettagli Appuntamento
                         </h2>
                       </div>
-                      
-                      {/* Dati del veicolo */}
-                      <div className="border rounded-lg p-4 bg-muted/5 mb-4">
-                        <h3 className="text-base font-medium flex items-center mb-4">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                          </svg>
-                          Dati veicolo
-                        </h3>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <Label htmlFor="plate-search" className="mb-2 flex items-center gap-1.5">
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                              </svg>
-                              Targa
-                            </Label>
-                            <div className="flex gap-2">
-                              <Input
-                                id="plate-search"
-                                value={vehiclePlate}
-                                onChange={(e) => setVehiclePlate(e.target.value.toUpperCase())}
-                                placeholder="Inserisci la targa..."
-                                className="uppercase border-primary/20 focus-visible:ring-primary/30"
-                              />
-                              <Button 
-                                type="button" 
-                                onClick={() => handleLookupVehicle(vehiclePlate)}
-                                disabled={isLoadingVehicle || !vehiclePlate}
-                                className="min-w-[44px] bg-primary hover:bg-primary/90"
-                              >
-                                {isLoadingVehicle ? (
-                                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                  </svg>
-                                ) : (
-                                  <SearchIcon className="h-4 w-4" />
-                                )}
-                              </Button>
-                            </div>
-                          </div>
-                          
-                          <div>
-                            <Label htmlFor="vehicle-model" className="mb-2 flex items-center gap-1.5">
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
-                              </svg>
-                              Modello
-                            </Label>
-                            <Input
-                              id="vehicle-model"
-                              {...form.register("model")}
-                              placeholder="Modello veicolo"
-                              className="border-primary/20 focus-visible:ring-primary/30"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                      <div className="grid grid-cols-1 gap-4">
                         <FormField
                           control={form.control}
                           name="status"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="flex items-center gap-1.5">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
+                              <FormLabel className="text-sm font-medium">
                                 Stato
                               </FormLabel>
                               <FormControl>
@@ -796,15 +1011,13 @@ export default function AppointmentForm({
                                   value={field.value}
                                   onValueChange={field.onChange}
                                 >
-                                  <SelectTrigger className="border-primary/20 focus-visible:ring-primary/30">
+                                  <SelectTrigger className="border-primary/20 h-9 focus-visible:ring-primary/30">
                                     <SelectValue placeholder="Seleziona uno stato" />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    <SelectItem value="programmato">Programmato</SelectItem>
-                                    <SelectItem value="confermato">Confermato</SelectItem>
-                                    <SelectItem value="in-corso">In corso</SelectItem>
-                                    <SelectItem value="completato">Completato</SelectItem>
-                                    <SelectItem value="annullato">Annullato</SelectItem>
+                                    <SelectItem value="programmato" className="text-blue-600 font-medium">Confermato</SelectItem>
+                                    <SelectItem value="completato" className="text-green-600 font-medium">Completato</SelectItem>
+                                    <SelectItem value="annullato" className="text-red-600 font-medium">Annullato</SelectItem>
                                   </SelectContent>
                                 </Select>
                               </FormControl>
@@ -812,33 +1025,54 @@ export default function AppointmentForm({
                             </FormItem>
                           )}
                         />
-                        
-                        <div className="space-y-6">
+
+                        <div className="grid grid-cols-2 gap-3">
                           <FormField
                             control={form.control}
                             name="date"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="flex items-center gap-1.5">
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                  </svg>
+                                <FormLabel className="text-sm font-medium">
                                   Data
                                 </FormLabel>
                                 <FormControl>
-                                  {/* Versione semplificata temporanea per evitare errori con React.Children.only */}
-                                  <Input
-                                    type="date"
-                                    className="border-primary/20 focus-visible:ring-primary/30"
-                                    value={field.value || ""}
-                                    onChange={(e) => {
-                                      field.onChange(e.target.value);
-                                    }}
-                                  />
-                                  <Input 
-                                    type="hidden"
-                                    {...field}
-                                  />
+                                  <SimplePopover
+                                    trigger={
+                                      <div className="flex items-center w-full border border-primary/20 rounded-md h-9 px-3 focus-within:ring-1 focus-within:ring-primary/30 hover:bg-accent">
+                                        <Button
+                                          variant={"ghost"}
+                                          type="button"
+                                          className={cn(
+                                            "w-full h-full p-0 text-left text-sm font-normal flex justify-between items-center",
+                                            !field.value && "text-muted-foreground"
+                                          )}
+                                        >
+                                          {field.value ? (
+                                            <span>
+                                              {format(new Date(field.value), "d MMMM yyyy", { locale: it })}
+                                            </span>
+                                          ) : (
+                                            <span>Seleziona una data</span>
+                                          )}
+                                          <CalendarIcon className="h-4 w-4 opacity-50" />
+                                        </Button>
+                                      </div>
+                                    }
+                                    align="start"
+                                    className="p-0"
+                                  >
+                                    <Calendar
+                                      mode="single"
+                                      selected={field.value ? new Date(field.value) : undefined}
+                                      onSelect={(date: Date | undefined) => {
+                                        if (date) {
+                                          field.onChange(format(date, "yyyy-MM-dd"));
+                                        }
+                                      }}
+                                      locale={it}
+                                      initialFocus
+                                    />
+                                  </SimplePopover>
                                 </FormControl>
                                 <FormMessage />
                               </FormItem>
@@ -850,19 +1084,135 @@ export default function AppointmentForm({
                             name="time"
                             render={({ field }) => (
                               <FormItem>
-                                <FormLabel className="flex items-center gap-1.5">
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                  </svg>
+                                <FormLabel className="text-sm font-medium">
                                   Ora
                                 </FormLabel>
                                 <FormControl>
-                                  <Input 
-                                    type="time" 
-                                    {...field} 
-                                    className="border-primary/20 focus-visible:ring-primary/30" 
+                                  <div className="relative">
+                                    <Input 
+                                      type="text" 
+                                      className="border-primary/20 focus-visible:ring-primary/30 h-9 text-sm text-center font-medium tracking-widest" 
+                                      value={field.value || ""}
+                                      onChange={(e) => {
+                                        // Ottieni solo numeri dall'input
+                                        const val = e.target.value.replace(/[^0-9]/g, '');
+                                        
+                                        // Formatta automaticamente con i due punti dopo le prime due cifre
+                                        let formattedVal = val;
+                                        if (val.length > 2) {
+                                          // Inserisci i due punti dopo le prime due cifre
+                                          formattedVal = val.substring(0, 2) + ':' + val.substring(2);
+                                        }
+                                        
+                                        // Limita a 5 caratteri (formato HH:MM)
+                                        if (formattedVal.length <= 5) {
+                                          field.onChange(formattedVal);
+                                        }
+                                      }}
+                                      onBlur={(e) => {
+                                        // Quando si esce dal campo, formatta correttamente l'ora
+                                        let val = e.target.value;
+                                        
+                                        // Se c'è un valore, assicurati che sia nel formato HH:MM
+                                        if (val) {
+                                          const parts = val.split(':');
+                                          let hours = parts[0] ? parseInt(parts[0], 10) : 0;
+                                          let minutes = parts.length > 1 ? parseInt(parts[1], 10) : 0;
+                                          
+                                          // Validazione ore (0-23)
+                                          hours = Math.max(0, Math.min(23, hours));
+                                          
+                                          // Validazione minuti (0-59)
+                                          minutes = Math.max(0, Math.min(59, minutes));
+                                          
+                                          // Formatta come HH:MM
+                                          const formattedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                                          field.onChange(formattedTime);
+                                        }
+                                      }}
+                                      placeholder=""
+                                      maxLength={5}
+                                      name={field.name}
+                                      ref={field.ref}
+                                    />
+                                    
+                                    {!field.value && (
+                                      <span className="absolute inset-0 flex items-center justify-center pointer-events-none text-muted-foreground text-sm">
+                                        HH:MM
+                                      </span>
+                                    )}
+                                  </div>
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+
+                        {/* Sezione ore manodopera e stato ricambi */}
+                        <div className="grid grid-cols-2 gap-3">
+                          <FormField
+                            control={form.control}
+                            name="duration"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-sm font-medium flex items-center gap-1">
+                                  <Clock className="h-3.5 w-3.5 text-primary" />
+                                  Ore manodopera
+                                </FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="number"
+                                    className="border-primary/20 focus-visible:ring-primary/30 h-9 text-sm text-center font-medium"
+                                    min="0.5"
+                                    max="24"
+                                    step="0.5"
+                                    value={field.value?.toString() || "1"}
+                                    onChange={(e) => {
+                                      // Converti in numero e limita a numeri positivi
+                                      const value = Math.max(0.5, Math.min(24, parseFloat(e.target.value || "1")));
+                                      field.onChange(value);
+                                    }}
                                   />
                                 </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <FormField
+                            control={form.control}
+                            name="partsOrdered"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel className="text-sm font-medium flex items-center gap-1">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" />
+                                  </svg>
+                                  Stato ricambi
+                                </FormLabel>
+                                <Select 
+                                  value={field.value === true ? "true" : "false"} 
+                                  onValueChange={(v) => field.onChange(v === "true")}
+                                >
+                                  <SelectTrigger className="border-primary/20 h-9 focus-visible:ring-primary/30">
+                                    <SelectValue placeholder="Seleziona stato" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="true" className="text-green-700">
+                                      <div className="flex items-center gap-2">
+                                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                        Ricambi ordinati
+                                      </div>
+                                    </SelectItem>
+                                    <SelectItem value="false" className="text-red-700">
+                                      <div className="flex items-center gap-2">
+                                        <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                                        Ricambi da ordinare
+                                      </div>
+                                    </SelectItem>
+                                  </SelectContent>
+                                </Select>
                                 <FormMessage />
                               </FormItem>
                             )}
@@ -874,16 +1224,13 @@ export default function AppointmentForm({
                           name="notes"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="flex items-center gap-1.5">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                </svg>
+                              <FormLabel className="text-sm font-medium">
                                 Note (opzionale)
                               </FormLabel>
                               <FormControl>
                                 <Textarea 
-                                  placeholder="Aggiungi informazioni importanti riguardo l'appuntamento..." 
-                                  className="resize-none border-primary/20 focus-visible:ring-primary/30 min-h-[80px]" 
+                                  placeholder="Aggiungi informazioni importanti..." 
+                                  className="resize-none border-primary/20 focus-visible:ring-primary/30 min-h-[70px] text-sm" 
                                   {...field} 
                                 />
                               </FormControl>
@@ -965,7 +1312,7 @@ export default function AppointmentForm({
                       }}
                       className="gap-2 bg-primary"
                     >
-                      Avanti
+                      {currentStep === 1 ? "Avanti" : "Aggiungi dettagli"}
                       <ArrowRight className="h-4 w-4" />
                     </Button>
                   ) : (
@@ -975,23 +1322,91 @@ export default function AppointmentForm({
                       size="sm"
                       onClick={async (e) => {
                         e.preventDefault(); // Previene il refresh della pagina
-                        // Otteniamo direttamente i valori dal form
+                        
+                        // Validazione aggiuntiva dei dati del form
+                        const timeValue = form.getValues("time") || "";
+                        const dateValue = form.getValues("date") || "";
+                        const durationValue = form.getValues("duration") || 1;
+                        const quoteLaborHours = selectedQuote?.laborHours;
+                        const partsOrderedValue = form.getValues("partsOrdered");
+                        
+                        console.log(`DEBUG - Valore partsOrdered al momento del submit: ${partsOrderedValue === true ? 'true' : 'false'} (${typeof partsOrderedValue})`);
+                        
+                        // Controlla che l'ora sia nel formato corretto (24 ore)
+                        let timeToSave = timeValue;
+                        const timePattern = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/;
+                        
+                        if (!timePattern.test(timeToSave)) {
+                          // Formatta o usa un valore predefinito
+                          if (timeToSave.includes(':')) {
+                            const parts = timeToSave.split(':');
+                            const hours = Math.min(23, Math.max(0, parseInt(parts[0] || '0', 10)));
+                            const minutes = Math.min(59, Math.max(0, parseInt(parts[1] || '0', 10)));
+                            timeToSave = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                          } else {
+                            timeToSave = "09:00"; // Orario predefinito se non valido
+                          }
+                        }
+                        
+                        // Prepara le note con informazioni aggiuntive sulla marca
+                        let notesWithBrand = form.getValues("notes") || "";
+                        if (vehicleBrand) {
+                          notesWithBrand = `[BRAND:${vehicleBrand}] ${notesWithBrand}`;
+                        }
+                        
+                        // Usa la durata dal form sempre, ma se c'è un preventivo e la durata è diversa da quella del preventivo,
+                        // stampa un avviso nella console
+                        let finalDuration = Number(durationValue);
+                        if (quoteLaborHours && quoteLaborHours > 0 && quoteLaborHours !== finalDuration) {
+                          console.log(`ATTENZIONE: La durata dal form (${finalDuration}h) è diversa da quella del preventivo (${quoteLaborHours}h)`);
+                          
+                          // Usa la durata dal preventivo se è disponibile
+                          finalDuration = quoteLaborHours;
+                          console.log(`Usando la durata dal preventivo: ${finalDuration}h`);
+                        }
+                        
+                        // Ottieni i dati completi
                         const formData = {
                           clientId: selectedClient?.id || "",
                           clientName: `${selectedClient?.name || ""} ${selectedClient?.surname || ""}`,
                           phone: selectedClient?.phone || "",
-                          plate: selectedClient?.plate || "",
-                          model: selectedClient?.model || "",
-                          quoteId: selectedQuote?.id || "",
-                          date: form.getValues("date") || "",
-                          time: form.getValues("time") || "09:00",
-                          duration: 1,
-                          services: [],
-                          notes: form.getValues("notes") || "",
+                          plate: vehiclePlate || selectedClient?.plate || "",
+                          model: vehicleBrand || form.getValues("model") || selectedClient?.model || "",
+                          quoteId: form.getValues("quoteId") || "",
+                          date: dateValue || format(new Date(), "yyyy-MM-dd"),
+                          time: timeToSave,
+                          duration: finalDuration,
+                          quoteLaborHours: finalDuration, // Mantieni sempre sincronizzato con duration
+                          services: appointment?.services || [],
+                          notes: notesWithBrand,
                           status: form.getValues("status") || "programmato",
+                          // Usiamo direttamente il valore, senza condizionali che potrebbero convertirlo in false
+                          partsOrdered: partsOrderedValue
                         };
                         
-                        console.log("Dati appuntamento raccolti:", formData);
+                        // AGGIUNTO: Controllo esplicito per il valore di partsOrdered nei dati che saranno inviati
+                        const formDataPartsOrdered = formData.partsOrdered;
+                        console.log(`CONTROLLO FINALE - partsOrdered nei dati da inviare:`, {
+                          valore: formDataPartsOrdered,
+                          tipo: typeof formDataPartsOrdered,
+                          booleano: formDataPartsOrdered === true ? 'true' : 'false'
+                        });
+                        
+                        // Stampa di debug per verificare il valore della durata e di parts ordered
+                        console.log("DEBUG - Dati finali da inviare:", {
+                          quoteHours: quoteLaborHours,
+                          formDuration: durationValue,
+                          finalDuration: formData.duration,
+                          partsOrdered: formData.partsOrdered
+                        });
+                        
+                        console.log("Dati appuntamento completi:", formData);
+                        
+                        if (appointment?.id) {
+                          // Aggiornamento di un appuntamento esistente
+                          console.log(`Aggiornamento dell'appuntamento ${appointment.id} in corso...`);
+                        }
+                        
                         await onSubmit(formData);
                       }}
                       disabled={isSubmitting || !selectedClient}

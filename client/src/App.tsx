@@ -18,6 +18,7 @@ import NotFound from "@/pages/not-found";
 import { useAuth } from "./hooks/useAuth";
 import DevLogger, { devLogger } from "./components/dev/DevLogger";
 import { ActivityLoggerProvider } from "./components/dev/ActivityLogger";
+import OrdersPage from "@/pages/OrdersPage";
 
 // Import global styles
 import "@/styles/globals.css";
@@ -62,6 +63,7 @@ function Router() {
       <Route path="/activity-log">
         {() => <ProtectedRoute component={ActivityLogPage} path="/activity-log" />}
       </Route>
+      <Route path="/orders">{() => <ProtectedRoute component={OrdersPage} path="/orders" />}</Route>
       <Route path="/">
         {() => {
           const { isAuthenticated } = useAuth();
@@ -99,32 +101,6 @@ function AppContent() {
       )}
       <Toaster />
       <DevLogger />
-      
-      {/* Pulsante di debug nascosto - solo per test */}
-      {import.meta.env.DEV && (
-        <div className="fixed bottom-4 right-4 z-10">
-          <button
-            className="bg-zinc-900 text-white px-3 py-2 rounded-md text-xs border border-zinc-700 hover:bg-zinc-800"
-            onClick={() => {
-              // Importa dinamicamente e usa il logger
-              import('./components/dev/DevLogger').then(module => {
-                const { devLogger } = module;
-                
-                // Log di esempio
-                devLogger.log('Pulsante di debug premuto', 'info', 'App', { timestamp: Date.now() });
-                devLogger.log('Esempio di log di successo', 'success', 'App', { sample: true });
-                devLogger.log('Esempio di warning', 'warning', 'App');
-                devLogger.log('Esempio di errore', 'error', 'App', { 
-                  error: 'Questo è solo un test',
-                  stack: 'App.tsx:123 -> onClick'
-                });
-              });
-            }}
-          >
-            Test Logger
-          </button>
-        </div>
-      )}
     </TooltipProvider>
   );
 }

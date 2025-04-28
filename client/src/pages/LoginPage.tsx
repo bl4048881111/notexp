@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "../hooks/useAuth";
-import autoExpressLogo from "../assets/autoexpress-logo.png";
+import autoExpressLogo from "../assets/logo.png";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
@@ -28,7 +28,7 @@ export default function LoginPage() {
       } else {
         toast({
           title: "Errore di accesso",
-          description: "Credenziali non valide. Usa 'admin' come username e 'admin123' come password.",
+          description: "Credenziali non valide.",
           variant: "destructive",
         });
       }
@@ -49,10 +49,12 @@ export default function LoginPage() {
         <CardContent className="pt-6">
           <div className="text-center mb-8">
             <div className="flex justify-center mb-4">
-              <div className="flex justify-center items-center w-24 h-24 text-6xl font-extrabold text-primary rounded-lg">X</div>
+              <div className="flex justify-center items-center w-24 h-24 rounded-lg bg-transparent">
+                <img src={autoExpressLogo} alt="Logo AutoExpress" className="h-20 w-20 object-contain" />
+              </div>
             </div>
             <h1 className="font-bold text-3xl mb-2">
-              <span className="text-[#666666]">AUTO</span>
+              <span className="text-[#666666]">AUTOE</span>
               <span className="text-primary">X</span>
               <span className="text-[#666666]">PRESS</span>
             </h1>

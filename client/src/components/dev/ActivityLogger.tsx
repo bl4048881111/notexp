@@ -92,7 +92,20 @@ export const ActivityLoggerProvider: React.FC<{ children: React.ReactNode }> = (
   // Funzione per ottenere l'indirizzo IP dell'utente
   const getUserIP = async (): Promise<string> => {
     try {
-      // Utilizziamo un servizio esterno per ottenere l'IP
+      // Prima controlla se l'IP è già disponibile nel DevLogger
+      try {
+        const { devLogger } = require('./DevLogger');
+        const ip = devLogger.getUserIp();
+        
+        // Se l'IP è disponibile e non è il valore predefinito, lo utilizziamo
+        if (ip && ip !== "sconosciuto" && ip !== "non disponibile") {
+          return ip;
+        }
+      } catch (error) {
+        console.warn("DevLogger non disponibile:", error);
+      }
+      
+      // Fallback: utilizziamo un servizio esterno per ottenere l'IP
       const response = await fetch('https://api.ipify.org?format=json');
       const data = await response.json();
       return data.ip;
@@ -128,7 +141,7 @@ export const ActivityLoggerProvider: React.FC<{ children: React.ReactNode }> = (
         type.includes('update') ? 'info' : 
         type.includes('delete') ? 'warning' : 'info', 
         'ActivityLog',
-        details || {}
+        details ? { ...details, ipAddress } : { ipAddress }
       );
     } catch (error) {
       // Se il logger di sviluppo non è disponibile, fallback su console

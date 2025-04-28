@@ -4,6 +4,7 @@ import autoTable from 'jspdf-autotable';
 import { Client, Appointment, Quote } from '@shared/schema';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
+import { text } from 'body-parser';
 
 // Export clients to Excel
 export const exportClientsToExcel = async (clients: Client[]): Promise<void> => {
@@ -74,7 +75,7 @@ export const exportAppointmentsToPDF = async (appointments: Appointment[]): Prom
     appointment.id,
     appointment.clientName,
     appointment.phone,
-    `${appointment.model} (${appointment.plate})`,
+    `(${appointment.plate})`,
     format(new Date(appointment.date), 'dd/MM/yyyy', { locale: it }),
     appointment.time,
     appointment.status,
@@ -82,7 +83,7 @@ export const exportAppointmentsToPDF = async (appointments: Appointment[]): Prom
   
   // Add table to PDF
   autoTable(doc, {
-    head: [['ID', 'Cliente', 'Telefono', 'Veicolo', 'Data', 'Ora', 'Stato']],
+    head: [['ID', 'Cliente', 'Telefono', 'Targa', 'Data', 'Ora', 'Stato']],
     body: data,
     startY: 35,
     styles: { fontSize: 8, cellPadding: 2 },
@@ -128,123 +129,115 @@ export const exportQuoteToPDF = async (quote: Quote): Promise<void> => {
   // Add company name
   doc.setFontSize(22);
   doc.setTextColor(236, 107, 0); // Orange
-  doc.text('AutoeXpress', 14, 22);
+  doc.text('Auto eXpress', 14, 22);
   
   // Add company info
   doc.setFontSize(10);
   doc.setTextColor(100, 100, 100); // Gray
-  doc.text('Officina Meccanica', 14, 30);
-  doc.text('Via Roma 123, 00100 Roma', 14, 36);
-  doc.text('Tel: 06 123456789', 14, 42);
-  doc.text('P.IVA: 1234567890', 14, 48);
+  doc.text('AutoExpress Monopoli', 14, 30);
+  doc.text('Via Eugenio Montale 4', 14, 36);
+  doc.text('Tel: 329 9605884', 14, 42);
+  doc.text('70043 Monopoli BA', 14, 48);
   
   // Add quote title and info
   doc.setFontSize(18);
-  doc.setTextColor(0, 0, 0); // Black
-  doc.text('PREVENTIVO', 14, 64);
-  
+  doc.setTextColor(236, 107, 0);
+  doc.text('Preventivo', 14, 64);
+  doc.setTextColor(100, 100, 100);
   doc.setFontSize(10);
   doc.text(`ID: ${quote.id}`, 14, 72);
   doc.text(`Data: ${format(new Date(quote.date), 'dd/MM/yyyy', { locale: it })}`, 14, 78);
   doc.text(`Stato: ${quote.status.toUpperCase()}`, 14, 84);
   
   // Add client info
-  doc.setFontSize(12);
+  doc.setFontSize(18);
+  doc.setTextColor(236, 107, 0);
   doc.text('Dati Cliente', 120, 64);
-  
+  doc.setTextColor(100, 100, 100);
   doc.setFontSize(10);
   doc.text(`Cliente: ${quote.clientName}`, 120, 72);
   doc.text(`Telefono: ${quote.phone}`, 120, 78);
-  doc.text(`Veicolo: ${quote.model}`, 120, 84);
-  doc.text(`Targa: ${quote.plate}`, 120, 90);
+  doc.text(`Targa: ${quote.plate}`, 120, 84);
   
-  // Add services table
-  doc.setFontSize(12);
-  doc.text('Servizi', 14, 104);
+  // Aggiungi VIN solo se realmente presente
+  if (quote.vin && quote.vin.trim() !== '') {
+    doc.text(`VIN: ${quote.vin}`, 120, 90);
+  }
   
-  // Format the services data for PDF table
-  const servicesData = quote.items.map((item, index) => [
-    index + 1,
-    item.serviceType.name,
-    item.serviceType.category,
-    `€${item.serviceType.laborPrice.toFixed(2)}`,
-    `€${item.totalPrice.toFixed(2)}`,
-  ]);
+  // Aggiungi sezione manodopera se presente
+  if (quote.laborHours && quote.laborHours > 0 && quote.laborPrice && quote.laborPrice > 0) {
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Manodopera', 14, 104);
+    doc.setFont('helvetica', 'normal');
+    
+    autoTable(doc, {
+      head: [['Descrizione', 'Ore', 'Prezzo Orario', 'Totale']],
+      body: [['Manodopera', 
+              quote.laborHours.toString(), 
+              `€${quote.laborPrice.toFixed(2)}`, 
+              `€${(quote.laborHours * quote.laborPrice).toFixed(2)}`]],
+      startY: 108,
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [236, 107, 0] }, // Orange header
+    });
+  }
   
-  autoTable(doc, {
-    head: [['#', 'Servizio', 'Categoria', 'Prezzo Base', 'Totale']],
-    body: servicesData,
-    startY: 108,
-    styles: { fontSize: 8, cellPadding: 2 },
-    headStyles: { fillColor: [236, 107, 0] }, // Orange header
-  });
-  
-  // Add spare parts table grouped by services
+  // Add spare parts table
   let hasAnyParts = false;
-  let lastY = (doc as any).lastAutoTable.finalY + 10;
+  let lastY = (doc as any).lastAutoTable ? (doc as any).lastAutoTable.finalY + 10 : 108;
   
-  // Per ogni servizio, crea una tabella di ricambi se ne ha
-  quote.items.forEach((item, index) => {
-    // Verifica che l'array parts sia valido
+  // Raccolgo tutti i ricambi in un'unica tabella
+  const allParts: any[] = [];
+  
+  // Raccogliamo i ricambi da tutti i servizi
+  quote.items.forEach((item) => {
     if (Array.isArray(item.parts) && item.parts.length > 0) {
       hasAnyParts = true;
       
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`Ricambi per ${item.serviceType.name}`, 14, lastY);
-      doc.setFont('helvetica', 'normal');
-      
-      try {
-        // Format the parts data for PDF table
-        const partsData = item.parts
-          .filter(part => part && part.code) // Filtra via eventuali ricambi null/undefined o senza codice
-          .map(part => [
-            part.code || 'N/D',
-            part.brand ? `${part.name || 'Ricambio'} (${part.brand})` : (part.name || 'Ricambio'),
+      // Aggiungo ogni ricambio con riferimento al servizio
+      item.parts
+        .filter(part => part && part.code)
+        .forEach(part => {
+          allParts.push([
+            part.brand || 'N/D',
+            part.name || 'Ricambio',
+            item.serviceType.name,
             part.quantity || 1,
             `€${(part.unitPrice || 0).toFixed(2)}`,
             `€${(part.finalPrice || 0).toFixed(2)}`,
           ]);
-        
-        // Controlla che ci siano effettivamente dati da mostrare
-        if (partsData.length > 0) {
-          autoTable(doc, {
-            head: [['Codice', 'Descrizione', 'Quantità', 'Prezzo Unitario', 'Prezzo Finale']],
-            body: partsData,
-            startY: lastY + 4,
-            styles: { fontSize: 8, cellPadding: 2 },
-            headStyles: { fillColor: [236, 107, 0] }, // Orange header
-          });
-          
-          // Update the Y position for the next table
-          lastY = (doc as any).lastAutoTable.finalY + 10;
-        } else {
-          // Se non ci sono ricambi validi, passa al prossimo servizio
-          doc.setFontSize(8);
-          doc.setTextColor(100, 100, 100); // Gray
-          doc.text('(Nessun ricambio valido per questo servizio)', 14, lastY + 4);
-          lastY += 10;
-        }
-      } catch (error) {
-        console.error(`Errore nella generazione della tabella ricambi per ${item.serviceType.name}:`, error);
-        
-        // Gestisci l'errore mostrando un messaggio nel PDF
-        doc.setFontSize(8);
-        doc.setTextColor(255, 0, 0); // Red
-        doc.text(`Errore nella visualizzazione dei ricambi per ${item.serviceType.name}`, 14, lastY + 4);
-        lastY += 10;
-        
-        // Ripristina il colore per il testo successivo
-        doc.setTextColor(0, 0, 0); // Black
-      }
+        });
     }
   });
   
-  // Se non ci sono ricambi, mostra un messaggio
-  if (!hasAnyParts) {
+  // Se ci sono ricambi, mostriamo l'intestazione e la tabella
+  if (hasAnyParts) {
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Ricambi', 14, lastY);
+    doc.setFont('helvetica', 'normal');
+    
+    try {
+      // Creiamo un'unica tabella con tutti i ricambi
+      autoTable(doc, {
+        head: [['Brand', 'Descrizione', 'Servizio', 'Quantità', 'Prezzo Unitario', 'Prezzo Finale']],
+        body: allParts,
+        startY: lastY + 4,
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [236, 107, 0] },
+      });
+    } catch (error) {
+      console.error('Errore nella generazione della tabella ricambi:', error);
+      doc.setFontSize(8);
+      doc.setTextColor(255, 0, 0);
+      doc.text('Errore nella visualizzazione dei ricambi', 14, lastY + 4);
+      doc.setTextColor(0, 0, 0);
+    }
+  } else {
+    // Se non ci sono ricambi, mostra un messaggio
     doc.setFontSize(10);
     doc.text('Nessun ricambio incluso nel preventivo', 14, lastY);
-    lastY += 10;
   }
   
   // Add totals
@@ -275,9 +268,9 @@ export const exportQuoteToPDF = async (quote: Quote): Promise<void> => {
   const pageHeight = doc.internal.pageSize.height;
   doc.setFontSize(8);
   doc.setTextColor(100, 100, 100); // Gray
-  doc.text('Questo preventivo è valido per 30 giorni dalla data di emissione.', 14, pageHeight - 20);
-  doc.text('I prezzi indicati sono IVA inclusa.', 14, pageHeight - 15);
-  
+  doc.text('I prezzi indicati sono IVA esclusa.', 14, pageHeight - 6);
+  doc.text('Il presente preventivo è stato redatto sulla base di banche dati disponibili e potrebbe contenere inesattezze.', 12, pageHeight - 15);
+  doc.text(' La validazione definitiva avverrà esclusivamente al momento dell\'installazione dei ricambi.', 12, pageHeight - 12);
   // Save the PDF
   doc.save(`Preventivo_${quote.id}_${format(new Date(), 'yyyyMMdd')}.pdf`);
 };

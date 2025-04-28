@@ -48,7 +48,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { CalendarIcon, XCircle } from "lucide-react";
+import { CalendarIcon, XCircle, Pencil, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { SimplePopover } from "@/components/ui/CustomUIComponents";
 import { cn } from "@/lib/utils";
@@ -58,6 +58,8 @@ import { ComboboxDemo } from "@/components/ui/ComboboxDemoFixed";
 import ServiceSelectionForm from "./ServiceSelectionForm";
 // Utilizziamo la versione completamente statica
 import StaticSparePartsForm from "./StaticSparePartsForm";
+import { appointmentService } from "@/services/appointmentService";
+import { Appointment } from "@shared/types";
 
 interface QuoteFormProps {
   isOpen: boolean;
@@ -93,7 +95,7 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
       phone: quote?.phone || "",
       plate: quote?.plate || "",
       model: quote?.model || "",
-
+      vin: quote?.vin || "",
       date: quote?.date || format(new Date(), "yyyy-MM-dd"),
       status: quote?.status || "bozza",
       items: initialItems, // Usa gli item già processati
@@ -150,7 +152,6 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
         form.setValue("clientName", `${client.name} ${client.surname}`);
         form.setValue("phone", client.phone);
         form.setValue("plate", client.plate);
-        form.setValue("model", client.model);
       }
     } catch (error) {
       console.error("Errore nel caricamento del cliente:", error);
@@ -164,7 +165,6 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
     form.setValue("clientName", `${client.name} ${client.surname}`);
     form.setValue("phone", client.phone);
     form.setValue("plate", client.plate);
-    form.setValue("model", client.model);
     setIsSearching(false);
   };
   
@@ -184,6 +184,14 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
     }).format(amount);
   };
   
+  // Wrapper per assicurarsi che l'aggiornamento degli items avvenga correttamente
+  const updateItems = (newItems: QuoteItem[]) => {
+    // Forza un nuovo array per assicurarsi che React rilevi la modifica
+    setItems([...newItems]);
+    // Ricalcola i totali
+    calculateTotals([...newItems]);
+  };
+  
   // Gestisce l'aggiornamento degli elementi del preventivo
   const handleItemsChange = useCallback((newItems: QuoteItem[]) => {
     // Calcola i totali corretti per ogni item usando la funzione helper
@@ -193,7 +201,7 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
     }));
     
     // Aggiorna lo stato con i calcoli corretti
-    setItems(itemsWithCorrectTotals);
+    updateItems(itemsWithCorrectTotals);
     
     // Ricalcola i totali per il preventivo
     const { subtotal, taxAmount, total } = calculateTotals(itemsWithCorrectTotals);
@@ -202,7 +210,7 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
     form.setValue("total", total);
     
     console.log("Items aggiornati con totali corretti:", { subtotal, taxAmount, total });
-  }, [form]);
+  }, [form, updateItems]);
   
   // Versione migliorata che include manodopera nei totali
   function calculateTotals(quoteItems: QuoteItem[]) {
@@ -300,9 +308,12 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
     console.log("Avvio salvataggio preventivo!");
     
     try {
+      // Accedi ai valori del form direttamente tramite la proprietà interna per evitare problemi di tipo
+      const rawFormData = (form as any)._formValues;
+      
       // Ottieni tutti i valori dal form necessari per il preventivo
-      const laborPrice = parseFloat(form.getValues("laborPrice") || "0");
-      const laborHours = parseFloat(form.getValues("laborHours") || "0");
+      const laborPrice = parseFloat(String(form.getValues("laborPrice") || "0"));
+      const laborHours = parseFloat(String(form.getValues("laborHours") || "0"));
       
       console.log("Salvataggio preventivo - items:", items);
       
@@ -331,7 +342,7 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
       const subtotal = itemsSubtotal + laborTotal;
       
       // Calcola IVA
-      const taxRate = parseFloat(form.getValues('taxRate')?.toString() || "22");
+      const taxRate = parseFloat(String(form.getValues('taxRate') || "22"));
       const taxAmount = (subtotal * taxRate) / 100;
       
       // Calcola totale finale
@@ -343,110 +354,85 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
       
       const clientId = form.getValues("clientId") || "";
       const clientName = form.getValues("clientName") || "";
-      const phone = form.getValues("phone") || "";
-      const plate = form.getValues("plate") || "";
-      const model = form.getValues("model") || "";
-      const kilometrage = parseInt(form.getValues("kilometrage")?.toString() || "0");
-      const date = form.getValues("date") || new Date().toISOString().split('T')[0];
-      const notes = form.getValues("notes") || "";
-      const status = form.getValues("status") || "bozza";
-      const validUntil = form.getValues("validUntil") || "";
       
-      // Prepara i dati per il salvataggio
-      const quoteData: Omit<Quote, 'id'> = {
+      // Prepara i dati del preventivo
+      const quoteData = {
+        ...data,
         clientId,
         clientName,
-        phone,
-        plate,
-        model,
-        kilometrage,
-        date,
         items: cleanedItems,
-        notes,
         laborPrice,
         laborHours,
         subtotal,
         taxRate,
         taxAmount,
-        total,
-        status,
-        validUntil,
-        createdAt: Date.now()
+        total
       };
       
-      console.log("Dati del preventivo da salvare:", quoteData);
-      
-      // Importa dynamicamente il logger di attività
-      const activityModule = await import('../dev/ActivityLogger');
-      const { useActivityLogger } = activityModule;
-      let logActivity;
-      
-      try {
-        // Ottieni la funzione logActivity
-        logActivity = useActivityLogger().logActivity;
-      } catch (error) {
-        console.warn("ActivityLogger non disponibile:", error);
-      }
-      
-      // Salva il preventivo
+      // Se stiamo modificando un preventivo esistente
       if (quote) {
-        // Se è un aggiornamento, mantieni l'ID esistente
-        const updateData = { ...quoteData, id: quote.id };
-        await updateQuote(quote.id, updateData);
-        
-        // Registra l'attività
-        if (logActivity) {
-          logActivity(
-            'update_quote',
-            `Preventivo aggiornato: ${updateData.clientName} - ${updateData.plate}`,
-            {
-              quoteId: quote.id,
-              clientName: updateData.clientName,
-              clientId: updateData.clientId,
-              plate: updateData.plate,
-              total: updateData.total,
-              timestamp: new Date()
-            }
-          );
+        try {
+          await updateQuote(quote.id, quoteData);
+          
+          // Notifica il calendario che ci sono stati cambiamenti
+          try {
+            const event = new Event('calendar:update');
+            window.dispatchEvent(event);
+            console.log("DEBUG - Inviato evento di aggiornamento calendario dopo modifica preventivo");
+          } catch (eventError) {
+            console.error("Errore nell'invio dell'evento di aggiornamento:", eventError);
+          }
+          
+          toast({
+            title: "Preventivo aggiornato",
+            description: "Il preventivo è stato aggiornato con successo"
+          });
+          
+          // Chiamiamo onSuccess e onClose dopo l'aggiornamento
+          if (onSuccess) onSuccess();
+          if (onClose) onClose();
+        } catch (error) {
+          console.error("Errore nell'aggiornamento del preventivo:", error);
+          toast({
+            title: "Errore",
+            description: "Si è verificato un errore durante il salvataggio del preventivo.",
+            variant: "destructive",
+          });
+          return;
         }
-        
-        toast({
-          title: "Preventivo aggiornato",
-          description: "Il preventivo è stato aggiornato con successo.",
-        });
       } else {
-        // Se è nuovo, il createQuote genererà un nuovo ID
-        const newQuote = await createQuote(quoteData);
+        // Creazione nuovo preventivo
+        await createQuote(quoteData);
         
-        // Registra l'attività
-        if (logActivity) {
-          logActivity(
-            'create_quote',
-            `Nuovo preventivo: ${quoteData.clientName} - ${quoteData.plate}`,
-            {
-              quoteId: newQuote.id,
-              clientName: quoteData.clientName,
-              clientId: quoteData.clientId,
-              plate: quoteData.plate,
-              total: quoteData.total,
-              timestamp: new Date()
-            }
-          );
+        // Notifica il calendario che ci sono stati cambiamenti
+        try {
+          const event = new Event('calendar:update');
+          window.dispatchEvent(event);
+          console.log("DEBUG - Inviato evento di aggiornamento calendario dopo creazione preventivo");
+        } catch (eventError) {
+          console.error("Errore nell'invio dell'evento di aggiornamento:", eventError);
         }
         
         toast({
           title: "Preventivo creato",
-          description: "Il preventivo è stato creato con successo.",
+          description: "Il preventivo è stato creato con successo"
         });
+        
+        if (onSuccess) onSuccess();
+        if (onClose) onClose();
       }
-      
-      if (onSuccess) onSuccess();
-      if (onClose) onClose();
     } catch (error) {
       console.error("Errore durante il salvataggio del preventivo:", error);
+      
+      let errorMessage = "Si è verificato un errore durante il salvataggio del preventivo.";
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Errore",
-        description: "Si è verificato un errore durante il salvataggio del preventivo.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -491,8 +477,8 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
   
   // Controlla se il passaggio 1 è valido (dati cliente e veicolo)
   const isStep1Valid = () => {
-    const { clientName, phone, plate, model } = form.getValues();
-    return !!clientName && !!phone && !!plate && !!model;
+    const { clientName, phone, plate } = form.getValues();
+    return !!clientName && !!phone && !!plate;
   };
   
   // Controlla se il passaggio 2 è valido (servizi)
@@ -502,8 +488,8 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto scrollbar-hide">
+        <DialogHeader className="pb-2 sticky top-0 bg-background z-10">
           <DialogTitle>{quote ? "Modifica Preventivo" : "Nuovo Preventivo"}</DialogTitle>
           <DialogDescription>
             {quote ? "Aggiorna i dettagli del preventivo" : "Crea un nuovo preventivo per un cliente"}
@@ -511,18 +497,12 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
         </DialogHeader>
         
         {/* Indicatore Passaggi con pallini */}
-        <div className="flex justify-between items-center mb-6">
-          <div className="text-sm text-muted-foreground">
-            {currentStep === 1 && "Dati Cliente"}
-            {currentStep === 2 && "Selezione Servizi"}
-            {currentStep === 3 && "Gestione Ricambi"}
-            {currentStep === 4 && "Riepilogo"}
-          </div>
-          <div className="flex items-center gap-2">
+        <div className="flex justify-between items-center mb-4 sticky top-14 bg-background z-10 pb-2">
+          <div className="flex items-center gap-1">
             {[1, 2, 3, 4].map((step) => (
               <div 
                 key={step} 
-                className={`rounded-full w-3 h-3 transition-colors ${
+                className={`rounded-full w-2 h-2 transition-colors ${
                   currentStep === step 
                     ? "bg-primary" 
                     : currentStep > step
@@ -535,7 +515,7 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
         </div>
         
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             {/* STEP 1: Dati Cliente */}
             {currentStep === 1 && (
               <div className="space-y-4">
@@ -550,7 +530,7 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                       <h3 className="font-medium">{selectedClient.name} {selectedClient.surname}</h3>
                       <div className="text-sm text-muted-foreground mt-1 space-y-1">
                         <p>Tel: {selectedClient.phone}</p>
-                        <p>Veicolo: {selectedClient.model} ({selectedClient.plate})</p>
+                        <p>Veicolo: {selectedClient.plate}</p>
                       </div>
                     </div>
                     <Button 
@@ -626,7 +606,7 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                                           {client.name} {client.surname}
                                         </div>
                                         <div className="text-sm text-muted-foreground">
-                                          {client.model} ({client.plate})
+                                          {client.plate}
                                         </div>
                                       </div>
                                       <div className="text-sm text-muted-foreground">
@@ -701,6 +681,22 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                         )}
                       />
                     </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="vin"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>VIN (Numero di telaio)</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="Numero di telaio del veicolo" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                   </div>
                 )}
                 
@@ -753,16 +749,6 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                     )}
                   />
                 </div>
-                
-                <div className="flex justify-end space-x-2 pt-4">
-                  <Button 
-                    type="button" 
-                    onClick={goToNextStep} 
-                    disabled={!isStep1Valid()}
-                  >
-                    Avanti
-                  </Button>
-                </div>
               </div>
             )}
             
@@ -778,23 +764,6 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                   items={items}
                   onChange={handleItemsChange}
                 />
-                
-                <div className="flex justify-between space-x-2 pt-4">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={goToPreviousStep}
-                  >
-                    Indietro
-                  </Button>
-                  <Button 
-                    type="button" 
-                    onClick={goToNextStep} 
-                    disabled={!isStep2Valid()}
-                  >
-                    Avanti
-                  </Button>
-                </div>
               </div>
             )}
             
@@ -810,8 +779,8 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                 
                 <StaticSparePartsForm
                   items={items}
-
-                  onAddPart={(serviceId, partData) => {
+                  onUpdateItems={updateItems}
+                  onAddPart={(serviceId, partData, index = -1) => {
                     // Crea un nuovo array di servizi con il nuovo ricambio
                     const newItems = items.map(item => {
                       if (item.id === serviceId) {
@@ -821,23 +790,35 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                           id: uuidv4()
                         };
                         
-                        // Assicurati che parts sia un array
-                        const parts = Array.isArray(item.parts) ? [...item.parts, newPart] : [newPart];
+                        // Ottieni l'array delle parti esistenti
+                        let parts = Array.isArray(item.parts) ? [...item.parts] : [];
+                        
+                        // Determina se dobbiamo inserire in una posizione specifica o aggiungere in coda
+                        // Nota: index può essere 0 (inizio array)
+                        if (index >= 0 && index <= parts.length) {
+                          console.log(`Inserimento ricambio in posizione ${index}`, newPart);
+                          parts.splice(index, 0, newPart);
+                        } else {
+                          console.log(`Aggiunta ricambio in coda`, newPart);
+                          parts.push(newPart);
+                        }
                         
                         // Calcola il nuovo prezzo totale
                         const totalPrice = parts.reduce((sum, part) => sum + part.finalPrice, 0);
                         
+                        // Nota: restituiamo un oggetto completamente nuovo per forzare il re-render
                         return {
                           ...item,
-                          parts,
+                          parts: [...parts],
                           totalPrice
                         };
                       }
                       return item;
                     });
                     
-                    // Aggiorna lo stato
-                    setItems(newItems);
+                    // Aggiorna lo stato con il nuovo array
+                    console.log("Aggiornamento items in onAddPart", newItems);
+                    updateItems(newItems);
                   }}
                   onRemovePart={(serviceId, partId) => {
                     // Crea un nuovo array di servizi senza il ricambio rimosso
@@ -861,151 +842,172 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                     });
                     
                     // Aggiorna lo stato
-                    setItems(newItems);
+                    updateItems(newItems);
                   }}
                 />
-                
-                <div className="flex justify-between space-x-2 pt-4">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={goToPreviousStep}
-                  >
-                    Indietro
-                  </Button>
-                  
-                  <Button type="button" onClick={goToNextStep}>
-                    Avanti
-                  </Button>
-                </div>
               </div>
             )}
             
             {/* STEP 4: Riepilogo e Conferma */}
             {currentStep === 4 && (
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-xl font-semibold">Riepilogo e Conferma</h2>
-                  <div className="text-sm text-muted-foreground">Passo 4 di 4</div>
+              <div className="space-y-5">
+                <div className="flex justify-between items-center mb-1">
+                  <h2 className="text-xl font-bold text-primary">Riepilogo e Conferma</h2>
+                  <div className="text-sm bg-muted/30 px-3 py-1 rounded">Passo 4 di 4</div>
                 </div>
                 
-                <div className="border p-4 rounded-md bg-muted/20 mb-4">
-                  <h3 className="font-medium mb-2">Dati Cliente e Veicolo</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <p><span className="font-medium">Cliente:</span> {form.getValues("clientName")}</p>
-                      <p><span className="font-medium">Telefono:</span> {form.getValues("phone")}</p>
-                    </div>
-                    <div>
-                      <p><span className="font-medium">Veicolo:</span> {form.getValues("model")}</p>
-                      <p><span className="font-medium">Targa:</span> {form.getValues("plate")}</p>
-                    </div>
+                <div className="max-h-[60vh] overflow-y-auto scrollbar-hide border rounded-lg">
+                  <div className="sticky top-0 z-10 border-b px-4 py-3 flex justify-between items-center bg-muted/30">
+                    <h3 className="text-base font-medium">Servizi Selezionati ({items.length})</h3>
                   </div>
-                </div>
-                
-                <div className="border p-4 rounded-md bg-muted/20 mb-4">
-                  <h3 className="font-medium mb-2">Servizi Selezionati</h3>
-                  <div className="overflow-x-auto">
-                    <table className="w-full border-collapse">
-                      <thead className="bg-muted/50">
-                        <tr>
-                          <th className="text-left p-2">Servizio</th>
-                          <th className="text-left p-2">Categoria</th>
-                          <th className="text-right p-2">Prezzo Base</th>
-                          <th className="text-right p-2">Ricambi</th>
-                          <th className="text-right p-2">Totale</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {items.map((item, index) => (
-                          <tr key={index} className="border-t">
-                            <td className="p-2">{item.serviceType.name}</td>
-                            <td className="p-2">{item.serviceType.category}</td>
-                            <td className="p-2 text-right">{formatCurrency(item.serviceType.laborPrice || 0)}</td>
-                            <td className="p-2 text-right">
-                              <div className="flex flex-col items-end">
-                                {/* Mostra la lista dei ricambi se presenti */}
-                                {item.parts && item.parts.length > 0 ? (
-                                  <div className="mb-1 text-sm text-left">
-                                    <table className="w-full text-xs">
-                                      <thead className="bg-muted text-muted-foreground">
-                                        <tr>
-                                          <th className="px-1 py-0.5 text-left">Codice</th>
-                                          <th className="px-1 py-0.5 text-center">Qtà</th>
-                                          <th className="px-1 py-0.5 text-right">Prezzo</th>
-                                          <th className="px-1 py-0.5 text-right">Totale</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {item.parts.map((part, idx) => (
-                                          <tr key={idx} className={idx % 2 === 0 ? 'bg-primary/5' : ''}>
-                                            <td className="px-1 py-0.5 text-left font-medium">{part.code}</td>
-                                            <td className="px-1 py-0.5 text-center">{part.quantity}</td>
-                                            <td className="px-1 py-0.5 text-right">{formatCurrency(part.unitPrice)}</td>
-                                            <td className="px-1 py-0.5 text-right font-medium">{formatCurrency(part.finalPrice)}</td>
-                                          </tr>
-                                        ))}
-                                      </tbody>
-                                    </table>
+                  <div className="w-full">
+                    {/* Versione desktop della tabella (nascondi su mobile) */}
+                    <div className="w-full hidden md:block">
+                      <table className="w-full border-collapse text-sm">
+                        <thead className="bg-muted/50 sticky top-[48px] z-10">
+                          <tr>
+                            <th className="text-left p-3 font-medium">Servizio</th>
+                            <th className="text-left p-3 font-medium">Categoria</th>
+                            <th className="text-right p-3 font-medium">Prezzo</th>
+                            <th className="text-right p-3 font-medium">Ricambi</th>
+                            <th className="text-right p-3 font-medium">Totale</th>
+                            <th className="w-12"></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {items.map((item, index) => (
+                            <tr key={index} className={`border-t ${index % 2 === 0 ? '' : 'bg-muted/10'} hover:bg-muted/20`}>
+                              <td className="p-3 font-medium text-primary">{item.serviceType.name}</td>
+                              <td className="p-3">{item.serviceType.category}</td>
+                              <td className="p-3 text-right">{formatCurrency(item.serviceType.laborPrice || 0)}</td>
+                              <td className="p-3 text-right">
+                                {Array.isArray(item.parts) && item.parts.length > 0 ? (
+                                  <div>
+                                    {formatCurrency(item.parts.reduce((sum, part) => sum + part.finalPrice, 0))}
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                      <span className="px-1.5 py-0.5 bg-primary/10 text-primary rounded">
+                                      {item.parts.length} ricambi
+                                      </span>
+                                    </div>
                                   </div>
                                 ) : (
-                                  <div className="text-sm text-muted-foreground mb-1">Nessun ricambio</div>
+                                  <span className="text-muted-foreground">-</span>
                                 )}
-                                
+                              </td>
+                              <td className="p-3 text-right font-medium">{formatCurrency(item.totalPrice)}</td>
+                              <td className="p-3 text-center">
                                 <Button 
-                                  variant="link" 
-                                  size="sm" 
-                                  className="p-0 h-auto font-normal underline-offset-4 text-primary"
+                                  variant="ghost" 
+                                  size="icon"
+                                  className="h-8 w-8 text-primary"
                                   onClick={() => {
-                                    // Imposta lo step 3 (ricambi) e seleziona questo servizio
                                     setCurrentStep(3);
                                     setActiveTab(item.id);
-                                    console.log("Modifica ricambi per", item.serviceType.name);
                                   }}
                                 >
-                                  {Array.isArray(item.parts) && item.parts.length > 0 ? 
-                                    `Modifica ricambi (${item.parts.length})` : 
-                                    'Aggiungi ricambi'
-                                }
+                                  <Pencil className="h-4 w-4" />
                                 </Button>
-                              </div>
+                              </td>
+                            </tr>
+                          ))}
+                          <tr className="border-t bg-muted/50 sticky bottom-0 z-10">
+                            <td colSpan={3} className="p-3"></td>
+                            <td className="p-3 text-right font-medium">Totale:</td>
+                            <td className="p-3 text-right font-bold">
+                              {formatCurrency(items.reduce((sum, item) => sum + item.totalPrice, 0))}
                             </td>
-                            <td className="p-2 text-right font-medium">{formatCurrency(item.totalPrice)}</td>
+                            <td></td>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </tbody>
+                      </table>
+                    </div>
+                    
+                    {/* Versione mobile (card) - visibile solo su mobile */}
+                    <div className="p-4 space-y-3 md:hidden">
+                      {items.map((item, index) => (
+                        <div key={index} className="border rounded-lg overflow-hidden">
+                          <div className="flex justify-between items-center bg-muted/20 px-3 py-2 border-b">
+                            <div className="font-medium text-primary">{item.serviceType.name}</div>
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              className="h-7 w-7 text-primary"
+                              onClick={() => {
+                                setCurrentStep(3);
+                                setActiveTab(item.id);
+                              }}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                          <div className="p-3">
+                            <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div className="text-muted-foreground">Categoria:</div>
+                              <div className="font-medium">{item.serviceType.category}</div>
+                              
+                              <div className="text-muted-foreground">Manodopera:</div>
+                              <div className="font-medium text-right">{formatCurrency(item.serviceType.laborPrice || 0)}</div>
+                            
+                            <div className="text-muted-foreground">Ricambi:</div>
+                              <div className="font-medium text-right">
+                              {Array.isArray(item.parts) && item.parts.length > 0 ? (
+                                  <div>
+                                  {formatCurrency(item.parts.reduce((sum, part) => sum + part.finalPrice, 0))}
+                                    <div className="text-xs mt-1">
+                                      <span className="px-1.5 py-0.5 bg-primary/10 text-primary rounded">
+                                    {item.parts.length} ricambi
+                                      </span>
+                                  </div>
+                                  </div>
+                              ) : (
+                                "-"
+                              )}
+                            </div>
+                          </div>
+                            <div className="flex justify-between font-medium border-t mt-2 pt-2">
+                            <div>Totale:</div>
+                              <div className="font-bold">{formatCurrency(item.totalPrice)}</div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      
+                      <div className="bg-muted/20 p-3 rounded-lg flex justify-between font-bold border sticky bottom-0">
+                        <div>Totale Servizi:</div>
+                        <div>{formatCurrency(items.reduce((sum, item) => sum + item.totalPrice, 0))}</div>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <h3 className="font-medium">Manodopera Extra e Note</h3>
-                    <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
+                  <div className="border rounded-lg overflow-hidden shadow-sm">
+                    <div className="bg-primary/10 px-4 py-3 border-b">
+                      <h3 className="font-medium text-primary">Manodopera</h3>
+                    </div>
+                    <div className="p-4 space-y-4">
                       <div className="grid grid-cols-2 gap-4">
                         <FormField
                           control={form.control}
                           name="laborPrice"
                           render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Tariffa oraria</FormLabel>
+                            <FormItem className="space-y-1.5">
+                              <FormLabel className="text-base">Tariffa oraria</FormLabel>
                               <FormControl>
                                 <div className="flex items-center space-x-2">
                                   <Input 
                                     {...field} 
                                     type="number" 
                                     min={0} 
+                                    className="h-10 text-base"
                                     onChange={(e) => {
                                       const value = parseFloat(e.target.value);
                                       field.onChange(value);
-                                      // Non utilizziamo più l'aggiornamento diretto qui
-                                      // perché potrebbe causare loop di aggiornamento infiniti
                                     }}
                                   />
-                                  <span>€/ora</span>
+                                  <span className="text-base">€/ora</span>
                                 </div>
                               </FormControl>
-                              <FormMessage />
                             </FormItem>
                           )}
                         />
@@ -1014,8 +1016,8 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                           control={form.control}
                           name="laborHours"
                           render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Ore totali</FormLabel>
+                            <FormItem className="space-y-1.5">
+                              <FormLabel className="text-base">Ore aggiuntive</FormLabel>
                               <FormControl>
                                 <div className="flex items-center space-x-2">
                                   <Input 
@@ -1023,258 +1025,188 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                                     type="number" 
                                     min={0} 
                                     step={0.5} 
+                                    className="h-10 text-base"
                                     onChange={(e) => {
                                       const value = parseFloat(e.target.value);
                                       field.onChange(value);
-                                      // Non utilizziamo più l'aggiornamento diretto qui
-                                      // perché potrebbe causare loop di aggiornamento infiniti
                                     }}
                                   />
-                                  <span>ore</span>
+                                  <span className="text-base">ore</span>
                                 </div>
                               </FormControl>
-                              <FormMessage />
                             </FormItem>
                           )}
                         />
                       </div>
                       
+                      <div className="flex justify-between items-center pt-2 border-t text-sm">
+                        <div className="text-muted-foreground">Ore totali:</div>
+                        <div className="font-medium">
+                          {form.getValues().laborHours || 0} ore
+                        </div>
+                      </div>
+                      
+                      <div className="flex justify-between items-center pt-1 text-sm">
+                        <div className="text-muted-foreground">Costo manodopera:</div>
+                        <div className="font-medium">
+                          {formatCurrency(
+                            (form.getValues().laborHours || 0) * (form.getValues().laborPrice || 0)
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="border rounded-lg overflow-hidden shadow-sm">
+                    <div className="bg-primary/10 px-4 py-3 border-b">
+                      <h3 className="font-medium text-primary">Totali</h3>
+                    </div>
+                    <div className="p-4 space-y-4">
+                      <div className="space-y-2">
                       <FormField
                         control={form.control}
-                        name="notes"
+                          name="taxRate"
                         render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Note</FormLabel>
+                          <FormItem className="space-y-1.5">
+                              <FormLabel className="text-base">Aliquota IVA (%)</FormLabel>
                             <FormControl>
-                              <Textarea 
+                                <div className="flex items-center space-x-2">
+                                  <Input 
                                 {...field} 
-                                placeholder="Note aggiuntive per il preventivo"
-                                className="h-24"
-                              />
+                                    type="number" 
+                                    min={0}
+                                    max={100}
+                                    className="h-10 text-base"
+                                    onChange={(e) => {
+                                      const value = parseFloat(e.target.value);
+                                      field.onChange(value);
+                                    }}
+                                  />
+                                  <span className="text-base">%</span>
+                                </div>
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
+                      </div>
                       
-                      <FormField
-                        control={form.control}
-                        name="status"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Stato Preventivo</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Seleziona uno stato" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="bozza">Bozza</SelectItem>
-                                <SelectItem value="inviato">Inviato</SelectItem>
-                                <SelectItem value="accettato">Accettato</SelectItem>
-                                <SelectItem value="rifiutato">Rifiutato</SelectItem>
-                                <SelectItem value="scaduto">Scaduto</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                      <div className="space-y-3 pt-3 mt-2 border-t">
+                        <div className="flex justify-between items-center py-1 text-base">
+                          <div className="text-muted-foreground">Subtotale (servizi):</div>
+                          <div className="font-medium">
+                            {formatCurrency(
+                              items.reduce((sum, item) => sum + item.totalPrice, 0)
+                            )}
                     </div>
                   </div>
                   
-                  <div>
-                    <div className="border rounded-md overflow-hidden bg-primary/5">
-                      <div className="bg-black text-white p-3">
-                        <h3 className="font-semibold text-base">Totale Preventivo</h3>
-                      </div>
-                      <div className="p-3 space-y-2 text-sm">
-                        {/* Ricalcola i totali in tempo reale anziché usare i valori memorizzati */}
-                        {(() => {
-                          // Calcolare tutti i totali direttamente qui
-                          let itemsSubtotal = 0;
-                          
-                          // Calcola il totale dei ricambi
-                          items.forEach(item => {
-                            if (item.parts && Array.isArray(item.parts)) {
-                              item.parts.forEach(part => {
-                                itemsSubtotal += part.finalPrice || 0;
-                              });
-                            }
-                          });
-                          
-                          // Aggiungi manodopera
-                          const laborPrice = form.getValues('laborPrice') || 0;
-                          const laborHours = form.getValues('laborHours') || 0;
-                          const laborTotal = laborPrice * laborHours;
-                          
-                          // Calcola subtotale
-                          const subtotal = itemsSubtotal + laborTotal;
-                          
-                          // Imposta i valori per il salvataggio
-                          form.setValue("subtotal", subtotal);
-                          
-                          // Calcola IVA
-                          const taxRate = form.getValues('taxRate') || 22;
-                          const taxAmount = (subtotal * taxRate) / 100;
-                          form.setValue("taxAmount", taxAmount);
-                          
-                          // Calcola totale finale
-                          const total = subtotal + taxAmount;
-                          form.setValue("total", total);
-                          
-                          return (
-                            <>
-                              <div className="flex justify-between items-center">
-                                <span>Subtotale Servizi:</span>
-                                <span className="font-medium">{formatCurrency(subtotal)}</span>
+                        <div className="flex justify-between items-center py-1 text-base">
+                          <div className="text-muted-foreground">Manodopera (extra):</div>
+                          <div className="font-medium">
+                            {formatCurrency(
+                              (form.getValues().laborHours || 0) * (form.getValues().laborPrice || 0)
+                            )}
+                    </div>
+                            </div>
+                            
+                        <div className="flex justify-between items-center border-t pt-2 py-1 text-base">
+                          <div className="text-muted-foreground">Subtotale:</div>
+                          <div className="font-medium">
+                            {formatCurrency(
+                              items.reduce((sum, item) => sum + item.totalPrice, 0) + 
+                              (form.getValues().laborHours || 0) * (form.getValues().laborPrice || 0)
+                            )}
                               </div>
-                              
-                              <div className="flex justify-between items-center">
-                                <span>Manodopera extra:</span>
-                                <span className="font-medium">
-                                  {formatCurrency(laborTotal)}
-                                </span>
-                              </div>
-                              
-                              <div className="flex justify-between items-center">
-                                <span>IVA ({taxRate}%):</span>
-                                <span className="font-medium">{formatCurrency(taxAmount)}</span>
-                              </div>
-                              
-                              <div className="h-px w-full bg-border my-2"></div>
-                              
-                              <div className="flex justify-between items-center bg-primary/10 p-2 rounded-sm">
-                                <span className="font-bold">TOTALE:</span>
-                                <span className="font-bold text-primary">
-                                  {formatCurrency(total)}
-                                </span>
-                              </div>
-                            </>
-                          );
-                        })()}
-                        
+                            </div>
+                            
+                        <div className="flex justify-between items-center pt-1 py-1 text-base">
+                          <div className="text-muted-foreground">IVA ({form.getValues().taxRate || 0}%):</div>
+                          <div className="font-medium">
+                            {formatCurrency(
+                              (items.reduce((sum, item) => sum + item.totalPrice, 0) + 
+                              (form.getValues().laborHours || 0) * (form.getValues().laborPrice || 0)) * 
+                              (form.getValues().taxRate || 0) / 100
+                            )}
+                            </div>
+                            </div>
+                            
+                        <div className="flex justify-between items-center bg-primary/10 p-3 rounded-md mt-3">
+                          <div className="font-bold text-lg">TOTALE:</div>
+                          <div className="font-bold text-xl">
+                            {formatCurrency(
+                              (items.reduce((sum, item) => sum + item.totalPrice, 0) + 
+                              (form.getValues().laborHours || 0) * (form.getValues().laborPrice || 0)) * 
+                              (1 + (form.getValues().taxRate || 0) / 100)
+                            )}
+                            </div>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
                 
-                <div className="flex justify-between space-x-2 pt-4">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={goToPreviousStep}
-                  >
-                    Indietro
-                  </Button>
-                  
-                  <div className="flex space-x-2">
-                    <Button type="button" variant="outline" onClick={onClose}>
-                      Annulla
-                    </Button>
-                    <Button 
-                      type="button" 
-                      disabled={isLoading}
-                      onClick={async () => {
-                        // Salva preventivo con i dati del form
-                        setIsLoading(true);
-                        try {
-                          // Calcola totali in tempo reale
-                          let itemsSubtotal = 0;
-                          
-                          // Prepara items puliti con array di parti validi
-                          const cleanedItems = items.map(item => {
-                            const cleanItem = {
-                              ...item,
-                              parts: Array.isArray(item.parts) ? item.parts : []
-                            };
-                            
-                            // Calcola total dei ricambi
-                            cleanItem.parts.forEach(part => {
-                              if (part.finalPrice) {
-                                itemsSubtotal += part.finalPrice;
-                              }
-                            });
-                            
-                            return cleanItem;
-                          });
-                          
-                          // Aggiungi manodopera
-                          const laborPrice = Number(form.getValues("laborPrice") || 45);
-                          const laborHours = Number(form.getValues("laborHours") || 0);
-                          const laborTotal = laborPrice * laborHours;
-                          
-                          // Calcola subtotale
-                          const subtotal = itemsSubtotal + laborTotal;
-                          
-                          // Calcola IVA
-                          const taxRate = Number(form.getValues("taxRate") || 22);
-                          const taxAmount = (subtotal * taxRate) / 100;
-                          
-                          // Calcola totale finale
-                          const total = subtotal + taxAmount;
-                          
-                          // Usa i dati effettivamente selezionati o presenti nel form
-                          const quoteData: Omit<Quote, 'id'> = {
-                            clientId: selectedClient?.id || form.getValues("clientId") || "",
-                            clientName: form.getValues("clientName") || "",
-                            phone: form.getValues("phone") || "",
-                            plate: form.getValues("plate") || "",
-                            model: form.getValues("model") || "",
-                            kilometrage: Number(form.getValues("kilometrage") || 0),
-                            date: form.getValues("date") || new Date().toISOString().split('T')[0],
-                            items: cleanedItems,
-                            notes: form.getValues("notes") || "",
-                            laborPrice,
-                            laborHours,
-                            subtotal,
-                            taxRate,
-                            taxAmount,
-                            total,
-                            status: form.getValues("status") || "bozza",
-                            validUntil: form.getValues("validUntil") || "",
-                            createdAt: Date.now()
-                          };
-                          
-                          console.log("Salvando preventivo reale:", quoteData);
-                          
-                          if (quote) {
-                            // Aggiornamento preventivo esistente
-                            await updateQuote(quote.id, { ...quoteData, id: quote.id });
-                            toast({
-                              title: "Preventivo aggiornato",
-                              description: "Il preventivo è stato aggiornato con successo"
-                            });
-                          } else {
-                            // Creazione nuovo preventivo
-                            await createQuote(quoteData);
-                            toast({
-                              title: "Preventivo creato",
-                              description: "Il preventivo è stato creato con successo"
-                            });
-                          }
-                          
-                          if (onSuccess) onSuccess();
-                          if (onClose) onClose();
-                        } catch (error) {
-                          console.error("Errore nel salvataggio:", error);
-                          toast({
-                            title: "Errore",
-                            description: "Si è verificato un errore durante il salvataggio del preventivo.",
-                            variant: "destructive",
-                          });
-                        } finally {
-                          setIsLoading(false);
-                        }
-                      }}
-                    >
-                      {quote ? "Aggiorna" : "Salva"} Preventivo
-                    </Button>
-                  </div>
-                </div>
+                <FormField
+                  control={form.control}
+                  name="notes"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-base font-medium">Note</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          {...field} 
+                          placeholder="Inserisci eventuali note o commenti..."
+                          className="min-h-[120px] text-base" 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
             )}
+            
+            <DialogFooter className="pt-4 border-t space-y-2 sm:space-y-0">
+              {currentStep > 1 && (
+                    <Button 
+                      type="button" 
+                      variant="outline"
+                      onClick={goToPreviousStep}
+                  className="w-full sm:w-auto text-base py-6 sm:py-2"
+                    >
+                  <ChevronLeft className="mr-2 h-4 w-4" />
+                      Indietro
+                    </Button>
+              )}
+                    
+              {currentStep < totalSteps ? (
+                      <Button 
+                        type="button" 
+                  onClick={goToNextStep}
+                  disabled={
+                    (currentStep === 1 && !isStep1Valid()) ||
+                    (currentStep === 2 && !isStep2Valid())
+                  }
+                  className="w-full sm:w-auto text-base py-6 sm:py-2"
+                >
+                  Avanti
+                  <ChevronRight className="ml-2 h-4 w-4" />
+                      </Button>
+              ) : (
+                <Button 
+                  type="submit" 
+                  disabled={isLoading}
+                  className="w-full sm:w-auto text-base py-6 sm:py-2"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Salvataggio...
+                    </>
+                  ) : quote ? "Aggiorna Preventivo" : "Crea Preventivo"}
+                </Button>
+              )}
+            </DialogFooter>
           </form>
         </Form>
       </DialogContent>

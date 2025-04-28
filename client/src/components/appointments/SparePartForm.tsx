@@ -16,9 +16,13 @@ export default function SparePartForm({ parts, onChange }: SparePartFormProps) {
   const [partsList, setPartsList] = useState<SparePart[]>(parts || []);
   const [newPart, setNewPart] = useState<CreateSparePartInput>({
     code: "",
+    name: "",
+    category: "",
+    quantity: 1,
+    unitPrice: 0,
     description: "",
     netPrice: 0,
-    markupPercentage: 10,
+    markup: 10,
     finalPrice: 0
   });
 
@@ -29,14 +33,18 @@ export default function SparePartForm({ parts, onChange }: SparePartFormProps) {
   const handleAddPart = () => {
     if (!newPart.code) return;
 
-    const finalPrice = calculateFinalPrice(newPart.netPrice, newPart.markupPercentage);
+    const finalPrice = calculateFinalPrice(newPart.netPrice || 0, newPart.markup || 10);
     
     const part: SparePart = {
       id: uuidv4(),
       code: newPart.code,
+      name: newPart.code,
+      category: newPart.category || "",
+      quantity: newPart.quantity || 1,
+      unitPrice: newPart.netPrice || 0,
       description: newPart.description,
-      netPrice: newPart.netPrice,
-      markupPercentage: newPart.markupPercentage,
+      netPrice: newPart.netPrice || 0,
+      markup: newPart.markup || 10,
       finalPrice: parseFloat(finalPrice.toFixed(2))
     };
 
@@ -47,9 +55,13 @@ export default function SparePartForm({ parts, onChange }: SparePartFormProps) {
     // Reset form
     setNewPart({
       code: "",
+      name: "",
+      category: "",
+      quantity: 1,
+      unitPrice: 0,
       description: "",
       netPrice: 0,
-      markupPercentage: 10,
+      markup: 10,
       finalPrice: 0
     });
   };
@@ -62,22 +74,23 @@ export default function SparePartForm({ parts, onChange }: SparePartFormProps) {
 
   const handleNetPriceChange = (value: string) => {
     const netPrice = parseFloat(value) || 0;
-    const finalPrice = calculateFinalPrice(netPrice, newPart.markupPercentage);
+    const finalPrice = calculateFinalPrice(netPrice, newPart.markup || 10);
     
     setNewPart({
       ...newPart,
       netPrice,
+      unitPrice: netPrice,
       finalPrice: parseFloat(finalPrice.toFixed(2))
     });
   };
 
   const handleMarkupChange = (value: string) => {
-    const markupPercentage = parseFloat(value) || 0;
-    const finalPrice = calculateFinalPrice(newPart.netPrice, markupPercentage);
+    const markup = parseFloat(value) || 0;
+    const finalPrice = calculateFinalPrice(newPart.netPrice || 0, markup);
     
     setNewPart({
       ...newPart,
-      markupPercentage,
+      markup,
       finalPrice: parseFloat(finalPrice.toFixed(2))
     });
   };
@@ -94,7 +107,7 @@ export default function SparePartForm({ parts, onChange }: SparePartFormProps) {
           <Input
             placeholder="Codice articolo"
             value={newPart.code}
-            onChange={(e) => setNewPart({ ...newPart, code: e.target.value })}
+            onChange={(e) => setNewPart({ ...newPart, code: e.target.value, name: e.target.value })}
           />
         </div>
         <div className="col-span-3">
@@ -120,7 +133,7 @@ export default function SparePartForm({ parts, onChange }: SparePartFormProps) {
             min="0"
             step="1"
             placeholder="% Markup"
-            value={newPart.markupPercentage === 0 ? "" : newPart.markupPercentage}
+            value={newPart.markup === 0 ? "" : newPart.markup}
             onChange={(e) => handleMarkupChange(e.target.value)}
           />
         </div>
@@ -129,7 +142,7 @@ export default function SparePartForm({ parts, onChange }: SparePartFormProps) {
             type="number"
             readOnly
             placeholder="Prezzo finale"
-            value={calculateFinalPrice(newPart.netPrice, newPart.markupPercentage).toFixed(2)}
+            value={calculateFinalPrice(newPart.netPrice || 0, newPart.markup || 10).toFixed(2)}
           />
         </div>
         <div className="col-span-1 flex justify-end">
@@ -157,8 +170,8 @@ export default function SparePartForm({ parts, onChange }: SparePartFormProps) {
                 <TableRow key={part.id}>
                   <TableCell className="font-medium">{part.code}</TableCell>
                   <TableCell>{part.description}</TableCell>
-                  <TableCell>€{part.netPrice.toFixed(2)}</TableCell>
-                  <TableCell>{part.markupPercentage}%</TableCell>
+                  <TableCell>€{(part.netPrice || 0).toFixed(2)}</TableCell>
+                  <TableCell>{part.markup || 0}%</TableCell>
                   <TableCell>€{part.finalPrice.toFixed(2)}</TableCell>
                   <TableCell>
                     <Button 

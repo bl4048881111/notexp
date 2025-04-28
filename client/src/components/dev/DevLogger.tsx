@@ -18,6 +18,7 @@ export class DevLoggerService {
   private static instance: DevLoggerService;
   private logs: LogEntry[] = [];
   private listeners: ((logs: LogEntry[]) => void)[] = [];
+  private userIp: string = "sconosciuto";
 
   private constructor() {
     // Carica i log dal localStorage all'inizializzazione
@@ -30,9 +31,32 @@ export class DevLoggerService {
           timestamp: new Date(log.timestamp)
         }));
       }
+      
+      // Ottiene l'IP utente al momento dell'inizializzazione
+      this.fetchUserIp();
     } catch (error) {
       console.error('Errore nel caricamento dei log salvati:', error);
     }
+  }
+  
+  // Ottiene l'indirizzo IP dell'utente
+  private async fetchUserIp(): Promise<void> {
+    try {
+      const response = await fetch('https://api.ipify.org?format=json');
+      const data = await response.json();
+      this.userIp = data.ip;
+      
+      // Registra l'accesso al sito
+      this.log(`Accesso al sito da IP: ${this.userIp}`, 'info', 'AccessLog', { ip: this.userIp });
+    } catch (error) {
+      console.warn("Impossibile ottenere l'indirizzo IP:", error);
+      this.userIp = "non disponibile";
+    }
+  }
+  
+  // Restituisce l'IP dell'utente corrente
+  public getUserIp(): string {
+    return this.userIp;
   }
 
   public static getInstance(): DevLoggerService {
@@ -55,7 +79,7 @@ export class DevLoggerService {
       message,
       type,
       component,
-      data
+      data: { ...data, userIp: this.userIp }  // Aggiungi sempre l'IP ai dati
     };
     
     this.logs.unshift(entry); // Aggiungi in cima
@@ -205,11 +229,16 @@ const DevLogger: React.FC = () => {
     >
       <Card className="w-full max-w-4xl max-h-[90vh] overflow-hidden shadow-xl border-2 border-primary">
         <div className="flex items-center justify-between p-4 border-b-2 border-border bg-zinc-900 text-white">
-          <div className="text-lg font-bold text-primary">
-            Dev Logger
-            <span className="ml-2 text-xs text-zinc-400">
-              (Premi "a" seguito da "log" per mostrare/nascondere)
-            </span>
+          <div className="flex flex-col">
+            <div className="text-lg font-bold text-primary">
+              Dev Logger
+              <span className="ml-2 text-xs text-zinc-400">
+                (Premi "a" seguito da "log" per mostrare/nascondere)
+              </span>
+            </div>
+            <div className="text-xs text-zinc-400 mt-1">
+              IP Utente: <span className="text-green-400 font-mono">{devLogger.getUserIp()}</span>
+            </div>
           </div>
           <div className="flex items-center space-x-2">
             <Button size="sm" variant="outline" onClick={handleClearLogs} className="border-zinc-700 hover:bg-zinc-800">
@@ -246,44 +275,87 @@ const DevLogger: React.FC = () => {
             <option value="error">Error</option>
           </select>
         </div>
+
+        {/* Visualizzazione dati di accesso in evidenza */}
+        <div className="p-2 border-b border-zinc-700 bg-zinc-800/50">
+          <div className="flex justify-between items-center">
+            <div className="text-xs font-medium text-primary">
+              Log di accesso
+            </div>
+            <Button 
+              size="sm" 
+              variant="ghost" 
+              className="h-6 text-xs text-zinc-400 hover:text-white"
+              onClick={() => {
+                // Filtra per visualizzare solo i log di accesso
+                setFilter({
+                  type: 'info',
+                  search: 'Accesso al sito da IP'
+                });
+              }}
+            >
+              Mostra tutti gli accessi
+            </Button>
+          </div>
+          
+          {logs.filter(log => 
+            log.component === 'AccessLog' && 
+            log.message.includes('Accesso al sito da IP')
+          ).slice(0, 1).map(log => (
+            <div 
+              key={log.id}
+              className="mt-1 p-2 rounded bg-zinc-900 border border-zinc-800 text-xs"
+            >
+              <div className="flex justify-between">
+                <span className="text-green-400">
+                  {log.message}
+                </span>
+                <span className="text-zinc-500">
+                  {new Date(log.timestamp).toLocaleString()}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
         
-        <ScrollArea className="max-h-[calc(90vh-120px)] bg-zinc-900">
-          <div className="p-4 space-y-2">
+        <ScrollArea className="max-h-[calc(90vh-170px)] bg-zinc-900">
+          <div className="p-4">
             {filteredLogs.length === 0 ? (
-              <div className="text-center text-zinc-400 p-6 border border-zinc-700 rounded-md">
-                Nessun log da visualizzare
+              <div className="text-center text-zinc-500 py-8">
+                Nessun log trovato
               </div>
             ) : (
               filteredLogs.map(log => (
                 <div
                   key={log.id}
-                  className={`p-3 rounded-md border-2 ${
-                    log.type === 'error' ? 'bg-black border-red-600' :
-                    log.type === 'warning' ? 'bg-black border-yellow-500' :
-                    log.type === 'success' ? 'bg-black border-green-500' :
-                    'bg-black border-primary'
+                  className={`mb-4 p-3 rounded-md border ${
+                    log.type === 'error' ? 'bg-red-950/30 border-red-900' :
+                    log.type === 'warning' ? 'bg-amber-950/30 border-amber-900' :
+                    log.type === 'success' ? 'bg-green-950/30 border-green-900' :
+                    'bg-zinc-800/50 border-zinc-700'
                   }`}
                 >
-                  <div className="flex justify-between items-start">
-                    <div className="text-sm font-medium">
-                      {log.component && (
-                        <span className="bg-primary/20 text-primary py-0.5 px-1.5 rounded-md text-xs mr-2 font-bold">
-                          {log.component}
-                        </span>
-                      )}
-                      <span className={`px-1.5 py-0.5 rounded-md text-xs font-bold ${
-                        log.type === 'error' ? 'bg-red-500/20 text-red-500' :
-                        log.type === 'warning' ? 'bg-yellow-500/20 text-yellow-500' :
-                        log.type === 'success' ? 'bg-green-500/20 text-green-500' :
-                        'bg-primary/20 text-primary'
+                  <div className="flex justify-between items-center text-xs">
+                    <div className="flex items-center space-x-2">
+                      <span className={`font-semibold ${
+                        log.type === 'error' ? 'text-red-400' :
+                        log.type === 'warning' ? 'text-amber-400' :
+                        log.type === 'success' ? 'text-green-400' :
+                        'text-blue-400'
                       }`}>
                         {log.type.toUpperCase()}
                       </span>
+                      {log.component && (
+                        <span className="px-2 py-0.5 rounded bg-zinc-700 text-zinc-300">
+                          {log.component}
+                        </span>
+                      )}
                     </div>
-                    <div className="text-xs text-zinc-400">
-                      {log.timestamp.toLocaleString()}
+                    <div className="text-zinc-500">
+                      {new Date(log.timestamp).toLocaleString()}
                     </div>
                   </div>
+                  
                   <div className="mt-1 whitespace-pre-wrap break-words text-sm text-white">
                     {log.message}
                   </div>

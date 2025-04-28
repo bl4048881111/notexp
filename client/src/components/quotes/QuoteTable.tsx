@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { Quote } from "@shared/schema";
@@ -43,6 +43,8 @@ import {
   Send
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { appointmentService } from "@/services/appointmentService";
+import { Appointment } from "@shared/types";
 
 interface QuoteTableProps {
   quotes: Quote[];
@@ -64,13 +66,22 @@ export default function QuoteTable({
   const [quoteToDelete, setQuoteToDelete] = useState<Quote | null>(null);
   const { toast } = useToast();
   
+  // Calcolo i preventivi non scaduti
+  const activeQuotesCount = useMemo(() => {
+    return quotes.filter(quote => quote.status !== 'scaduto').length;
+  }, [quotes]);
+  
+  // Calcolo i preventivi incompleti (in stato bozza)
+  const incompleteQuotesCount = useMemo(() => {
+    return quotes.filter(quote => quote.status === 'bozza').length;
+  }, [quotes]);
+  
   // Filtra i preventivi in base alla ricerca
   const filteredQuotes = quotes.filter(quote => {
     const searchLower = searchQuery.toLowerCase();
     return (
       quote.clientName.toLowerCase().includes(searchLower) ||
       quote.plate.toLowerCase().includes(searchLower) ||
-      quote.model.toLowerCase().includes(searchLower) ||
       quote.phone.toLowerCase().includes(searchLower)
     );
   });
@@ -103,6 +114,28 @@ export default function QuoteTable({
     if (!quoteToDelete) return;
     
     try {
+      // Prima di eliminare il preventivo, troviamo tutti gli appuntamenti collegati
+      // e aggiorniamo i loro riferimenti
+      const appointments = await appointmentService.getAll();
+      const linkedAppointments = appointments.filter(app => app.quoteId === quoteToDelete.id);
+      
+      if (linkedAppointments.length > 0) {
+        console.log(`Trovati ${linkedAppointments.length} appuntamenti collegati al preventivo ${quoteToDelete.id}`);
+        
+        // Aggiorniamo ogni appuntamento collegato
+        for (const app of linkedAppointments) {
+          const updates: Partial<Appointment> = {
+            quoteId: "", // Rimuovi il riferimento al preventivo
+            partsOrdered: false, // Reset dello stato dei pezzi
+          };
+          
+          // Aggiorna l'appuntamento rimuovendo il riferimento al preventivo
+          await appointmentService.update(app.id, updates);
+          console.log(`Appuntamento ${app.id} aggiornato: rimosso riferimento al preventivo eliminato`);
+        }
+      }
+      
+      // Ora possiamo eliminare il preventivo
       await deleteQuote(quoteToDelete.id);
       
       // Registra l'attività di eliminazione preventivo
@@ -236,7 +269,6 @@ export default function QuoteTable({
       'bozza': 'Bozza',
       'inviato': 'Inviato',
       'accettato': 'Accettato',
-      'rifiutato': 'Rifiutato',
       'scaduto': 'Scaduto'
     };
     return statusMap[status] || status;
@@ -248,7 +280,6 @@ export default function QuoteTable({
       'bozza': "outline",
       'inviato': "secondary",
       'accettato': "default",
-      'rifiutato': "destructive",
       'scaduto': "outline"
     };
     return variantMap[status];
@@ -260,7 +291,6 @@ export default function QuoteTable({
       'bozza': <Clock className="h-4 w-4" />,
       'inviato': <Send className="h-4 w-4" />,
       'accettato': <CheckCircle className="h-4 w-4" />,
-      'rifiutato': <XCircle className="h-4 w-4" />,
       'scaduto': <Clock className="h-4 w-4" />
     };
     return iconMap[status];
@@ -288,17 +318,25 @@ export default function QuoteTable({
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
+        {/* Contatori */}
+        <div className="ml-4 flex flex-col gap-2 sm:flex-row">
+          <div className="bg-yellow-500/10 text-yellow-600 rounded-md px-3 py-1.5 font-medium text-sm whitespace-nowrap">
+            {incompleteQuotesCount} preventivi incompleti
+          </div>
+          <div className="bg-primary/10 text-primary rounded-md px-3 py-1.5 font-medium text-sm whitespace-nowrap">
+            {activeQuotesCount} preventivi attivi
+          </div>
+        </div>
       </div>
       
       <div className="border rounded-md">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Cliente</TableHead>
               <TableHead className="hidden sm:table-cell">Veicolo</TableHead>
               <TableHead className="hidden md:table-cell">Data</TableHead>
-              <TableHead className="hidden lg:table-cell">Ricambi</TableHead>
               <TableHead className="hidden sm:table-cell">Totale</TableHead>
+              <TableHead>Qtà totale</TableHead>
               <TableHead>Stato</TableHead>
               <TableHead className="text-right">Azioni</TableHead>
             </TableRow>
@@ -306,7 +344,7 @@ export default function QuoteTable({
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
+                <TableCell colSpan={6} className="h-24 text-center">
                   Caricamento preventivi...
                 </TableCell>
               </TableRow>
@@ -318,51 +356,50 @@ export default function QuoteTable({
               </TableRow>
             ) : (
               filteredQuotes.map((quote) => (
-                <TableRow key={quote.id}>
-                  <TableCell className="font-medium">
-                    {quote.clientName}
-                    <div className="text-xs text-muted-foreground mt-1">
-                      {quote.phone}
-                    </div>
-                    {/* Informazioni extra visibili solo su mobile */}
-                    <div className="sm:hidden mt-1">
-                      <div className="text-xs text-muted-foreground flex items-center gap-1">
-                        <span>{quote.model} - {quote.plate}</span>
+                <TableRow 
+                  key={quote.id} 
+                  className="cursor-pointer hover:bg-muted/40 transition-colors border-l-4 border-l-primary/80"
+                  onClick={() => onEdit(quote)}
+                >
+                  <TableCell className="sm:table-cell p-4">
+                    <div className="flex flex-col">
+                      <div className="font-medium text-base">{quote.model}</div>
+                      <div className="text-sm text-muted-foreground mt-1.5 font-medium">
+                        {quote.plate}
                       </div>
-                      <div className="text-xs font-medium mt-1">{formatCurrency(quote.total)}</div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="hidden sm:table-cell">
-                    {quote.model}
-                    <div className="text-xs text-muted-foreground mt-1">
-                      {quote.plate}
+                      {/* Cliente sempre visibile, con stile diverso su mobile e desktop */}
+                      <div className="mt-2">
+                        <div className="text-base font-medium text-primary">
+                          {quote.clientName}
+                        </div>
+                        <div className="text-sm text-muted-foreground flex items-center gap-1 mt-0.5">
+                          <span>{quote.phone}</span>
+                        </div>
+                      </div>
+                      {/* Data visibile su mobile */}
+                      <div className="md:hidden text-sm text-muted-foreground mt-2">
+                        Data: {formatDate(quote.date)}
+                      </div>
+                      {/* Totale visibile su mobile */}
+                      <div className="sm:hidden text-sm font-medium mt-1.5 text-foreground">
+                        Totale: {formatCurrency(quote.total)}
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell className="hidden md:table-cell">{formatDate(quote.date)}</TableCell>
-                  <TableCell className="hidden lg:table-cell">
+                  <TableCell className="hidden sm:table-cell">{formatCurrency(quote.total)}</TableCell>
+                  <TableCell>
                     {quote.items && quote.items.some(item => Array.isArray(item.parts) && item.parts.length > 0) ? (
-                      <div className="flex flex-col gap-1">
-                        <span className="text-xs font-medium text-primary">
-                          {quote.items.reduce((count, item) => 
-                            count + (Array.isArray(item.parts) ? item.parts.length : 0), 0)} ricambi totali
-                        </span>
-                        {quote.items
-                          .filter(item => Array.isArray(item.parts) && item.parts.length > 0)
-                          .map((item, idx) => (
-                            <div key={idx} className="text-xs flex items-center gap-1">
-                              <span className="text-muted-foreground">{item.serviceType.name}:</span>
-                              <span className="bg-primary/10 text-primary text-xs px-1.5 py-0.5 rounded-sm">
-                                {item.parts.length}
-                              </span>
-                            </div>
-                          ))
-                        }
-                      </div>
+                      <span className="bg-primary/15 text-primary font-medium px-2 py-1 rounded inline-block">
+                        {quote.items.reduce((total, item) => 
+                          total + (Array.isArray(item.parts) 
+                            ? item.parts.reduce((sum, part) => sum + (part.quantity || 1), 0) 
+                            : 0), 0)} pezzi
+                      </span>
                     ) : (
-                      <span className="text-xs text-muted-foreground">Nessun ricambio</span>
+                      <span className="text-muted-foreground">0</span>
                     )}
                   </TableCell>
-                  <TableCell className="hidden sm:table-cell">{formatCurrency(quote.total)}</TableCell>
                   <TableCell>
                     <Badge 
                       variant={getStatusBadgeVariant(quote.status)}
@@ -372,7 +409,7 @@ export default function QuoteTable({
                       <span>{getStatusLabel(quote.status)}</span>
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                     <SimpleDropdown
                       trigger={
                         <Button variant="ghost" className="h-8 w-8 p-0">
@@ -416,14 +453,6 @@ export default function QuoteTable({
                             <CheckCircle className="mr-2 h-4 w-4" />
                             <span>Accettato</span>
                           </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleStatusChange(quote, 'rifiutato')}
-                            disabled={quote.status === 'rifiutato'}
-                          >
-                            <XCircle className="mr-2 h-4 w-4" />
-                            <span>Rifiutato</span>
-                          </DropdownMenuItem>
-                          
                           <DropdownMenuSeparator />
                           
                           <DropdownMenuItem 

@@ -4,11 +4,12 @@ import { getAllQuotes } from "@shared/firebase";
 import { Heading } from "@/components/ui/heading";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FilePlus, FileDown } from "lucide-react";
+import { FilePlus, FileDown, RefreshCw } from "lucide-react";
 import QuoteForm from "@/components/quotes/QuoteForm";
 import QuoteTable from "@/components/quotes/QuoteTable";
 import { exportQuotesToExcel } from "@/services/exportService";
 import { useToast } from "@/hooks/use-toast";
+import { quoteService } from "@/services/quoteService";
 
 export default function QuotesPage() {
   const [quotes, setQuotes] = useState<Quote[]>([]);
@@ -91,6 +92,52 @@ export default function QuotesPage() {
     }
   };
   
+  const handleSyncQuoteTotals = async () => {
+    toast({
+      title: "Ricalcolo preventivi avviato",
+      description: "Ricalcolo di tutti i preventivi in corso...",
+    });
+    
+    try {
+      // Ottieni tutti i preventivi
+      const allQuotes = await quoteService.getAll();
+      console.log(`Trovati ${allQuotes.length} preventivi da ricalcolare`);
+      
+      let updateCount = 0;
+      let errorCount = 0;
+      
+      // Per ogni preventivo, ricalcola i totali
+      for (const quote of allQuotes) {
+        try {
+          console.log(`Ricalcolo preventivo ${quote.id} - Cliente: ${quote.clientName}`);
+          
+          // Ricalcola i totali senza modificare le ore di manodopera
+          await quoteService.recalculateTotals(quote.id);
+          
+          updateCount++;
+        } catch (error) {
+          console.error(`Errore nel ricalcolo del preventivo ${quote.id}:`, error);
+          errorCount++;
+        }
+      }
+      
+      // Ricarica i dati
+      await fetchQuotes();
+      
+      toast({
+        title: "Ricalcolo completato",
+        description: `${updateCount} preventivi ricalcolati, ${errorCount} errori.`,
+      });
+    } catch (error) {
+      console.error("Errore nel ricalcolo dei preventivi:", error);
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore durante il ricalcolo dei preventivi.",
+        variant: "destructive",
+      });
+    }
+  };
+  
   return (
     <div className="container py-6 space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -112,6 +159,15 @@ export default function QuotesPage() {
             <span className="sm:inline">Nuovo Preventivo</span>
             <span className="inline sm:hidden">Nuovo</span>
           </Button>
+          
+          <Button 
+            variant="outline" 
+            className="w-full sm:w-auto"
+            onClick={handleSyncQuoteTotals}
+          >
+            <RefreshCw className="mr-2 h-4 w-4" />
+            <span>Ricalcola Preventivi</span>
+          </Button>
         </div>
       </div>
       
@@ -121,7 +177,6 @@ export default function QuotesPage() {
           <TabsTrigger value="bozza" className="text-xs sm:text-sm">Bozze</TabsTrigger>
           <TabsTrigger value="inviato" className="text-xs sm:text-sm">Inviati</TabsTrigger>
           <TabsTrigger value="accettato" className="text-xs sm:text-sm">Accettati</TabsTrigger>
-          <TabsTrigger value="rifiutato" className="text-xs sm:text-sm">Rifiutati</TabsTrigger>
         </TabsList>
         
         <TabsContent value="all" className="space-y-4">
@@ -155,16 +210,6 @@ export default function QuotesPage() {
         </TabsContent>
         
         <TabsContent value="accettato" className="space-y-4">
-          <QuoteTable 
-            quotes={filteredQuotes}
-            isLoading={isLoading}
-            onEdit={handleEditQuote}
-            onDeleteSuccess={fetchQuotes}
-            onStatusChange={fetchQuotes}
-          />
-        </TabsContent>
-        
-        <TabsContent value="rifiutato" className="space-y-4">
           <QuoteTable 
             quotes={filteredQuotes}
             isLoading={isLoading}

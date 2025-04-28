@@ -43,7 +43,6 @@ export default function ClientForm({ isOpen, onClose, onSuccess, client }: Clien
       phone: "",
       email: "",
       plate: "",
-      model: "",
       vin: "",
       createdAt: Date.now(),
     }
@@ -212,20 +211,6 @@ export default function ClientForm({ isOpen, onClose, onSuccess, client }: Clien
                         {...field} 
                         onChange={(e) => field.onChange(e.target.value.toUpperCase())}
                       />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="model"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Modello Veicolo</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Modello veicolo" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

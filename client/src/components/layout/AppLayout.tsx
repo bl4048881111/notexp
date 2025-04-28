@@ -14,6 +14,7 @@ interface AppLayoutProps {
 
 export default function AppLayout({ children }: AppLayoutProps) {
   const [currentDate, setCurrentDate] = useState("");
+  const [currentTime, setCurrentTime] = useState("");
   const [pageTitle, setPageTitle] = useState("Dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { isAuthenticated, logout } = useAuth();
@@ -21,9 +22,23 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const isMobile = useIsMobile();
   
   useEffect(() => {
-    // Format current date
-    setCurrentDate(format(new Date(), "d MMMM yyyy", { locale: it }));
+    // Format current date and time
+    const updateDateTime = () => {
+      const now = new Date();
+      setCurrentDate(format(now, "d MMMM yyyy", { locale: it }));
+      setCurrentTime(format(now, "HH:mm", { locale: it }));
+    };
     
+    // Aggiorna subito
+    updateDateTime();
+    
+    // Aggiorna ogni minuto
+    const timer = setInterval(updateDateTime, 60000);
+    
+    return () => clearInterval(timer);
+  }, []);
+  
+  useEffect(() => {
     // Set page title based on current route
     switch (location) {
       case "/dashboard":
@@ -42,7 +57,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
         setPageTitle("Gestione Servizi");
         break;
       default:
-        setPageTitle("La Mia Officina");
+        setPageTitle("Gestione Ordini");
     }
     
     // Close sidebar when route changes
@@ -100,6 +115,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
           <div className="flex items-center space-x-3 md:space-x-6">
             <div className="text-gray-400 font-medium hidden md:block">
               <span>{currentDate}</span>
+              <span className="ml-2 text-primary">{currentTime}</span>
             </div>
             <div className="relative group">
               <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-primary/90 hover:bg-primary transition-colors duration-200 flex items-center justify-center text-white font-medium cursor-pointer shadow-md">
@@ -108,18 +124,10 @@ export default function AppLayout({ children }: AppLayoutProps) {
               <div className="absolute right-0 mt-2 w-48 p-2 bg-[#222222] rounded-md shadow-lg border border-gray-800 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
                 {isMobile && (
                   <div className="px-3 py-1 text-sm font-medium text-gray-400 border-b border-gray-700 mb-1">
-                    {currentDate}
+                    {currentDate} <span className="text-primary">{currentTime}</span>
                   </div>
                 )}
-                <a 
-                  href="/activity-log"
-                  className="flex w-full items-center px-3 py-2 text-sm text-gray-300 hover:bg-[#333333] hover:text-white rounded-md transition-colors duration-200"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 h-4 w-4">
-                    <path d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
-                  </svg>
-                  Log Attività
-                </a>
+                
                 <button 
                   onClick={logout}
                   className="flex w-full items-center px-3 py-2 text-sm text-gray-300 hover:bg-[#333333] hover:text-white rounded-md transition-colors duration-200"

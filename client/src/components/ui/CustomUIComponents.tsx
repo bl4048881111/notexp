@@ -95,7 +95,9 @@ export function SimplePopover({
           )}
           onClick={(e) => e.stopPropagation()}
         >
-          {content || children}
+          <div>
+            {content || children}
+          </div>
         </div>
       )}
     </div>

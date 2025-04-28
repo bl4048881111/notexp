@@ -163,13 +163,14 @@ export default function TableView({
               <TableHead>Veicolo</TableHead>
               <TableHead>Servizi</TableHead>
               <TableHead>Stato</TableHead>
+              <TableHead>Ricambi</TableHead>
               <TableHead>Azioni</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {appointments.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center p-4 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center p-4 text-muted-foreground">
                   Nessun appuntamento trovato
                 </TableCell>
               </TableRow>
@@ -184,7 +185,7 @@ export default function TableView({
                       {format(new Date(appointment.date), 'EEEE d MMMM yyyy', { locale: it })}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {appointment.time} ({appointment.duration} min)
+                      {appointment.time} ({appointment.duration} ora{appointment.duration !== 1 ? 'e' : ''})
                     </div>
                   </TableCell>
                   <TableCell onClick={() => handleViewAppointment(appointment)}>
@@ -202,59 +203,57 @@ export default function TableView({
                           {service}
                         </Badge>
                       ))}
+                      {(!appointment.services || appointment.services.length === 0) && (
+                        <span className="text-xs text-muted-foreground">-</span>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell onClick={() => handleViewAppointment(appointment)}>
                     {getStatusBadge(appointment.status)}
                   </TableCell>
+                  <TableCell onClick={() => handleViewAppointment(appointment)}>
+                    {appointment.quoteId ? (
+                      appointment.partsOrdered === true ? (
+                        <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">
+                          Ordinati
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="bg-red-100 text-red-800 border-red-300">
+                          Da ordinare
+                        </Badge>
+                      )
+                    ) : (
+                      <span className="text-xs text-muted-foreground">-</span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <div className="flex space-x-1">
                       <Button 
                         variant="ghost" 
-                        size="icon" 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleViewAppointment(appointment);
-                        }}
-                        title="Visualizza"
+                        size="sm" 
+                        className="h-8 w-8 p-0" 
+                        onClick={() => onEdit(appointment)}
                       >
-                        <Eye className="h-4 w-4 text-primary" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onEdit(appointment);
-                        }}
-                        title="Modifica"
-                      >
-                        <Edit className="h-4 w-4 text-primary" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteClick(appointment);
-                        }}
-                        title="Elimina"
-                      >
-                        <Trash className="h-4 w-4 text-destructive" />
+                        <Edit className="h-4 w-4" />
                       </Button>
                       {appointment.status !== "completato" && (
                         <Button 
                           variant="ghost" 
-                          size="icon" 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleCompleteAppointment(appointment);
-                          }}
-                          title="Completa"
+                          size="sm" 
+                          className="h-8 w-8 p-0 text-green-600" 
+                          onClick={() => handleCompleteAppointment(appointment)}
                         >
-                          <CheckCircle className="h-4 w-4 text-primary" />
+                          <CheckCircle className="h-4 w-4" />
                         </Button>
                       )}
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-8 w-8 p-0 text-red-600" 
+                        onClick={() => handleDeleteClick(appointment)}
+                      >
+                        <Trash className="h-4 w-4" />
+                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -328,6 +327,68 @@ export default function TableView({
                 </CardContent>
               </Card>
               
+              {/* Preventivo e Pezzi di ricambio */}
+              {viewAppointment.quoteId && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">Preventivo e Pezzi di ricambio</CardTitle>
+                  </CardHeader>
+                  <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <div className="text-sm text-muted-foreground">Preventivo</div>
+                      <div className="font-medium flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-primary" />
+                        {isLoadingQuotes ? (
+                          <Skeleton className="h-6 w-28" />
+                        ) : (
+                          <span>#{viewAppointment.quoteId.substring(0, 8)}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-muted-foreground">Stato pezzi di ricambio</div>
+                      <div className="font-medium flex items-center gap-2 mt-1">
+                        {viewAppointment.partsOrdered === true ? (
+                          <Badge className="bg-green-100 text-green-800 border-green-300">
+                            Pezzi ordinati
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-red-100 text-red-800 border-red-300">
+                            Pezzi da ordinare
+                          </Badge>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 px-2 text-xs"
+                          onClick={async () => {
+                            try {
+                              await updateAppointment(viewAppointment.id, { 
+                                partsOrdered: !viewAppointment.partsOrdered 
+                              });
+                              toast({
+                                title: "Stato aggiornato",
+                                description: "Lo stato dell'ordine dei pezzi è stato aggiornato",
+                              });
+                              onStatusChange();
+                              setViewDialogOpen(false);
+                            } catch (error) {
+                              toast({
+                                title: "Errore di aggiornamento",
+                                description: "Si è verificato un errore durante l'aggiornamento",
+                                variant: "destructive",
+                              });
+                            }
+                          }}
+                        >
+                          {viewAppointment.partsOrdered ? "Segna come da ordinare" : "Segna come ordinati"}
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+              
               {/* Servizi */}
               <Card>
                 <CardHeader className="pb-2">
@@ -369,30 +430,33 @@ export default function TableView({
                   {isLoadingQuotes ? (
                     <Skeleton className="h-20 w-full" />
                   ) : clientQuotes.length > 0 ? (
-                    <ScrollArea className="h-[200px]">
-                      <div className="space-y-2">
+                    <ScrollArea className="max-h-[220px]">
+                      <div className="space-y-3">
                         {clientQuotes.map(quote => (
-                          <div key={quote.id} className="flex items-center justify-between p-2 border rounded-md">
-                            <div>
-                              <div className="font-medium">Preventivo {quote.id.substring(0, 8)}</div>
-                              <div className="text-xs text-muted-foreground">
-                                {format(new Date(quote.createdAt), 'dd/MM/yyyy')} - 
-                                {quote.status === "bozza" ? " Bozza" : 
-                                  quote.status === "inviato" ? " Inviato" : 
-                                  quote.status === "accettato" ? " Accettato" : 
-                                  quote.status === "rifiutato" ? " Rifiutato" : 
-                                  quote.status === "scaduto" ? " Scaduto" : " Sconosciuto"}
+                          <div
+                            key={quote.id}
+                            className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-lg border border-[#2a2a2a] bg-transparent transition-all w-full"
+                            style={{ minHeight: 56 }}
+                          >
+                            <div className="flex flex-col gap-1 flex-1 min-w-0">
+                              <div className="font-semibold text-white text-base truncate">Preventivo {quote.id.substring(0, 8)}</div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-xs text-gray-400">{format(new Date(quote.createdAt), 'dd/MM/yyyy')}</span>
+                                <span className={`text-xs px-2 py-0.5 rounded font-semibold ${quote.status === 'accettato' ? 'bg-green-600 text-white' : quote.status === 'inviato' ? 'bg-blue-600 text-white' : quote.status === 'bozza' ? 'bg-yellow-600 text-black' : quote.status === 'scaduto' ? 'bg-red-600 text-white' : 'bg-gray-700 text-white'}`}>{quote.status.charAt(0).toUpperCase() + quote.status.slice(1)}</span>
                               </div>
                             </div>
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={() => handleEditQuote(quote)}
-                              className="flex items-center gap-1"
-                            >
-                              <Edit className="h-3 w-3" />
-                              <span>Modifica</span>
-                            </Button>
+                            <div className="flex-shrink-0 flex justify-end">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleEditQuote(quote)}
+                                className="flex items-center gap-1 border border-orange-500 text-orange-400 hover:bg-orange-500 hover:text-white bg-transparent font-semibold px-4 py-2 w-full sm:w-auto"
+                                style={{ minWidth: 110 }}
+                              >
+                                <Edit className="h-4 w-4" />
+                                <span>Modifica</span>
+                              </Button>
+                            </div>
                           </div>
                         ))}
                       </div>
