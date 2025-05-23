@@ -1,9 +1,20 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Plus, Download, Pencil, Trash2, RefreshCw } from "lucide-react";
+import { Link } from "wouter";
+
+import { serviceCategories, createServiceTypeSchema, ServiceType, CreateServiceTypeInput } from "@shared/schema";
+import { 
+  getAllServiceTypes, 
+  getServiceTypesByCategory, 
+  createServiceType, 
+  updateServiceType, 
+  deleteServiceType 
+} from "@shared/firebase";
+
 import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
@@ -18,7 +29,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -30,472 +40,571 @@ import {
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Heading } from "@/components/ui/heading";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { toast } from "@/hooks/use-toast";
-import { serviceCategories, createServiceTypeSchema, ServiceType, CreateServiceTypeInput } from "@shared/schema";
-import { 
-  getAllServiceTypes, 
-  getServiceTypesByCategory, 
-  createServiceType, 
-  updateServiceType, 
-  deleteServiceType 
-} from "@shared/firebase";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  PlusCircle, 
-  Pencil, 
-  Trash2, 
-  Settings, 
-  Filter, 
-  CheckCircle, 
-  XCircle,
-  Plus, 
-  Search 
-} from "lucide-react";
-import { Separator } from "@/components/ui/separator";
+import { useToast } from "@/hooks/use-toast";
 
 export default function ServiceManagementPage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [sortOrder, setSortOrder] = useState("name-asc");
   const [editingService, setEditingService] = useState<ServiceType | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [serviceToDelete, setServiceToDelete] = useState<ServiceType | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 5;
   
+  const { toast } = useToast();
   const queryClient = useQueryClient();
   
+  // Aggiunge stile CSS per nascondere la scrollbar
+  useEffect(() => {
+    // Aggiungi stili CSS per nascondere le scrollbar
+    const style = document.createElement('style');
+    style.innerHTML = `
+      .hide-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .hide-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+  
+  // Cache per i servizi filtrati per categoria
+  const serviceCache = useRef<Record<string, ServiceType[]>>({
+    all: [],
+  });
+  
+  // Stati per i servizi filtrati per tab
+  const [allServices, setAllServices] = useState<ServiceType[]>([]);
+  const [servicesByCategory, setServicesByCategory] = useState<Record<string, ServiceType[]>>({});
+  
   // Query per ottenere tutti i tipi di servizi
-  const { data: serviceTypes = [], isLoading } = useQuery({
+  const { 
+    data: serviceTypes = [], 
+    isLoading,
+    refetch
+  } = useQuery({
     queryKey: ['/serviceTypes'],
     queryFn: async () => {
       return await getAllServiceTypes();
     },
   });
   
-  // Mutation per creare un nuovo tipo di servizio
-  const createMutation = useMutation({
-    mutationFn: (serviceType: CreateServiceTypeInput) => createServiceType(serviceType),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/serviceTypes'] });
-      toast({
-        title: "Servizio creato",
-        description: "Il servizio è stato creato con successo.",
-      });
-      setIsDialogOpen(false);
-      form.reset();
-    },
-    onError: (error) => {
-      console.error("Errore nella creazione del servizio:", error);
-      toast({
-        title: "Errore",
-        description: "Si è verificato un errore durante la creazione del servizio.",
-        variant: "destructive",
-      });
-    },
-  });
+  // Filtra i servizi in base alla ricerca
+  const filteredServices = useMemo(() => {
+    let result = serviceTypes;
+
+    if (searchQuery.trim() !== '') {
+      const query = searchQuery.toLowerCase().trim();
+      result = result.filter(service => 
+        service.name.toLowerCase().includes(query) || 
+        (service.description && service.description.toLowerCase().includes(query))
+      );
+    }
+
+    return result;
+  }, [serviceTypes, searchQuery]);
   
-  // Mutation per aggiornare un tipo di servizio
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<ServiceType> }) => updateServiceType(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/serviceTypes'] });
-      toast({
-        title: "Servizio aggiornato",
-        description: "Il servizio è stato aggiornato con successo.",
-      });
-      setIsDialogOpen(false);
-      setEditingService(null);
-      form.reset();
-    },
-    onError: (error) => {
-      console.error("Errore nell'aggiornamento del servizio:", error);
-      toast({
-        title: "Errore",
-        description: "Si è verificato un errore durante l'aggiornamento del servizio.",
-        variant: "destructive",
-      });
-    },
-  });
+  // Ordina i servizi
+  const sortedServices = useMemo(() => {
+    return [...filteredServices].sort((a, b) => {
+      switch (sortOrder) {
+        case "name-asc":
+          return a.name.localeCompare(b.name);
+        case "name-desc":
+          return b.name.localeCompare(a.name);
+        case "category-asc":
+          return a.category.localeCompare(b.category);
+        case "category-desc":
+          return b.category.localeCompare(a.category);
+        default:
+          return 0;
+      }
+    });
+  }, [filteredServices, sortOrder]);
   
-  // Mutation per eliminare un tipo di servizio
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => deleteServiceType(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/serviceTypes'] });
+  // Distribuisci i servizi nei tab
+  useEffect(() => {
+    if (sortedServices.length > 0) {
+      // Aggiorna tutti i servizi
+      setAllServices(sortedServices);
+      
+      // Distribuisci i servizi per categoria
+      const categorized: Record<string, ServiceType[]> = {};
+      
+      // Inizializza array vuoti per ogni categoria
+      serviceCategories.forEach(category => {
+        categorized[category] = [];
+      });
+      
+      // Popola gli array per categoria
+      sortedServices.forEach(service => {
+        if (categorized[service.category]) {
+          categorized[service.category].push(service);
+        }
+      });
+      
+      // Aggiorna gli stati
+      setServicesByCategory(categorized);
+    }
+  }, [sortedServices]);
+  
+  const handleEditService = (service: ServiceType) => {
+    setEditingService(service);
+    setIsFormOpen(true);
+  };
+  
+  const handleDeleteService = (service: ServiceType) => {
+    setServiceToDelete(service);
+    setDeleteDialogOpen(true);
+  };
+  
+  const handleConfirmDelete = async () => {
+    if (!serviceToDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      await deleteServiceType(serviceToDelete.id);
       toast({
         title: "Servizio eliminato",
-        description: "Il servizio è stato eliminato con successo.",
+        description: "Il servizio è stato eliminato con successo",
       });
-      setIsDeleteDialogOpen(false);
-      setServiceToDelete(null);
-    },
-    onError: (error) => {
-      console.error("Errore nell'eliminazione del servizio:", error);
+      refetch();
+    } catch (error) {
       toast({
-        title: "Errore",
-        description: "Si è verificato un errore durante l'eliminazione del servizio.",
+        title: "Errore di eliminazione",
+        description: "Si è verificato un errore durante l'eliminazione del servizio",
         variant: "destructive",
       });
-    },
-  });
+    } finally {
+      setIsDeleting(false);
+      setDeleteDialogOpen(false);
+      setServiceToDelete(null);
+    }
+  };
   
+  const handleFormClose = () => {
+    setIsFormOpen(false);
+    setEditingService(null);
+  };
+  
+  const handleFormSubmit = async (data: CreateServiceTypeInput) => {
+    try {
+      if (editingService) {
+        await updateServiceType(editingService.id, data);
+        toast({
+          title: "Servizio aggiornato",
+          description: "Il servizio è stato aggiornato con successo",
+        });
+      } else {
+        await createServiceType(data);
+        toast({
+          title: "Servizio creato",
+          description: "Il servizio è stato creato con successo",
+        });
+      }
+      
+      // Aggiornare i dati
+      await queryClient.invalidateQueries({ queryKey: ['/serviceTypes'] });
+      await refetch();
+      
+      setIsFormOpen(false);
+      setEditingService(null);
+    } catch (error) {
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore durante il salvataggio del servizio",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+  };
+
+  // Componente per la tabella dei servizi
+  const ServiceTable = ({ services }: { services: ServiceType[] }) => {
+    const [page, setPage] = useState(1);
+    const totalPages = Math.ceil(services.length / ITEMS_PER_PAGE);
+    
+    const paginatedServices = services.slice(
+      (page - 1) * ITEMS_PER_PAGE, 
+      page * ITEMS_PER_PAGE
+    );
+    
+    const goToNextPage = () => {
+      if (page < totalPages) {
+        setPage(page + 1);
+      }
+    };
+    
+    const goToPrevPage = () => {
+      if (page > 1) {
+        setPage(page - 1);
+      }
+    };
+    
+    return (
+      <div className="overflow-y-hidden hide-scrollbar">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Nome Servizio</TableHead>
+              <TableHead>Categoria</TableHead>
+              <TableHead className="hidden md:table-cell">Descrizione</TableHead>
+              <TableHead>Azioni</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              Array(3).fill(0).map((_, index) => (
+                <TableRow key={`skeleton-${index}`}>
+                  <TableCell colSpan={4}>
+                    <Skeleton className="h-10 w-full" />
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : services.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center p-4 text-muted-foreground">
+                  Nessun servizio trovato
+                </TableCell>
+              </TableRow>
+            ) : (
+              paginatedServices.map((service) => (
+                <TableRow key={service.id} className="hover:bg-accent/50">
+                  <TableCell>
+                    <div className="font-medium">{service.name}</div>
+                  </TableCell>
+                  <TableCell>
+                    {service.category}
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">
+                    <div className="text-sm text-muted-foreground line-clamp-1">
+                      {service.description || 'Nessuna descrizione'}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex space-x-1 md:space-x-2">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => handleEditService(service)}
+                        title="Modifica"
+                      >
+                        <Pencil className="h-4 w-4 text-primary" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => handleDeleteService(service)}
+                        title="Elimina"
+                      >
+                        <Trash2 className="h-4 w-4 text-primary" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+        <div className="p-3 md:px-6 md:py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between border-t border-border gap-2">
+          <div className="text-xs sm:text-sm text-muted-foreground">
+            Mostrando <span className="font-medium">{services.length > 0 ? (page - 1) * ITEMS_PER_PAGE + 1 : 0}-{Math.min(page * ITEMS_PER_PAGE, services.length)}</span> di <span className="font-medium">{services.length}</span> servizi
+          </div>
+          
+          {totalPages > 1 && (
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={goToPrevPage}
+                disabled={page === 1}
+                className="h-8 w-8 p-0"
+              >
+                &lt;
+              </Button>
+              <div className="text-xs sm:text-sm">
+                Pagina {page} di {totalPages}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={goToNextPage}
+                disabled={page === totalPages}
+                className="h-8 w-8 p-0"
+              >
+                &gt;
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0">
+
+        
+        <div className="hidden sm:block">
+          <Heading title="Gestione Servizi" description="Gestisci i servizi e i pacchetti disponibili" />
+        </div>
+        
+        <div className="flex flex-wrap w-full sm:w-auto gap-2 sm:space-x-3">
+          <Button className="w-full sm:w-auto" onClick={() => setIsFormOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            <span className="sm:inline">Nuovo Servizio</span>
+            <span className="inline sm:hidden">Nuovo</span>
+          </Button>
+          
+          <Button 
+            variant="secondary" 
+            size="icon" 
+            onClick={() => refetch()} 
+            className="ml-auto sm:ml-2"
+            title="Ricarica dati"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+      
+      <div className="bg-card rounded-lg shadow-md overflow-hidden border border-border hide-scrollbar">
+        <div className="p-3 md:p-4 border-b border-border">
+          <div className="flex justify-end">
+            <Select value={sortOrder} onValueChange={setSortOrder}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Ordinamento" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="name-asc">Nome (A-Z)</SelectItem>
+                <SelectItem value="name-desc">Nome (Z-A)</SelectItem>
+                <SelectItem value="category-asc">Categoria (A-Z)</SelectItem>
+                <SelectItem value="category-desc">Categoria (Z-A)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        
+        <Tabs defaultValue="all" onValueChange={handleTabChange} className="rounded-none">
+          <TabsList className="mb-4 w-full overflow-x-auto flex-nowrap overflow-y-hidden hide-scrollbar">
+            <TabsTrigger 
+              value="all" 
+              className="text-xs sm:text-sm"
+            >
+              Tutti
+            </TabsTrigger>
+            {serviceCategories
+              .filter(category => (servicesByCategory[category] || []).length > 0)
+              .map(category => (
+                <TabsTrigger 
+                  key={category} 
+                  value={category} 
+                  className="text-xs sm:text-sm"
+                >
+                  {category}
+                </TabsTrigger>
+              ))
+            }
+          </TabsList>
+          
+          <TabsContent value="all" className="space-y-4">
+            <ServiceTable services={allServices} />
+          </TabsContent>
+          
+          {serviceCategories
+            .filter(category => (servicesByCategory[category] || []).length > 0)
+            .map(category => (
+              <TabsContent key={category} value={category} className="space-y-4">
+                <ServiceTable services={servicesByCategory[category] || []} />
+              </TabsContent>
+            ))
+          }
+        </Tabs>
+      </div>
+      
+      {isFormOpen && (
+        <ServiceForm
+          isOpen={isFormOpen}
+          onClose={handleFormClose}
+          onSubmit={handleFormSubmit}
+          service={editingService}
+        />
+      )}
+      
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sei sicuro di voler eliminare questo servizio?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Questa azione non può essere annullata. Verranno eliminati tutti i dati del servizio.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Annulla</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmDelete} 
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground"
+            >
+              {isDeleting ? "Eliminazione in corso..." : "Elimina"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+// Componente form per la creazione/modifica di un servizio
+function ServiceForm({ 
+  isOpen, 
+  onClose, 
+  onSubmit, 
+  service 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  onSubmit: (data: CreateServiceTypeInput) => void;
+  service: ServiceType | null;
+}) {
   // Form per la creazione/modifica di un servizio
   const form = useForm<CreateServiceTypeInput>({
     resolver: zodResolver(createServiceTypeSchema),
     defaultValues: {
-      name: "",
-      category: "Tagliando",
-      description: "",
-      laborPrice: 0,
+      name: service?.name || "",
+      category: service?.category || "Tagliando",
+      description: service?.description || "",
+      laborPrice: 0, // Manteniamo il campo ma impostiamo sempre a 0
     },
   });
   
   // Imposta i valori del form quando si modifica un servizio
   useEffect(() => {
-    if (editingService) {
+    if (service) {
       form.reset({
-        name: editingService.name,
-        category: editingService.category,
-        description: editingService.description || "",
-        laborPrice: editingService.laborPrice || 0,
+        name: service.name,
+        category: service.category,
+        description: service.description || "",
+        laborPrice: 0, // Manteniamo il campo ma impostiamo sempre a 0
       });
     }
-  }, [editingService, form]);
-  
-  // Gestisce la creazione o l'aggiornamento di un servizio
-  const onSubmit = (data: CreateServiceTypeInput) => {
-    if (editingService) {
-      updateMutation.mutate({ id: editingService.id, data });
-    } else {
-      createMutation.mutate(data);
-    }
-  };
-  
-  // Filtra i servizi in base alla ricerca e alla categoria
-  const filteredServices = serviceTypes.filter((service) => {
-    const matchesSearch = 
-      !searchQuery || 
-      service.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      service.description?.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesCategory = 
-      !categoryFilter || 
-      service.category === categoryFilter;
-    
-    return matchesSearch && matchesCategory;
-  });
-  
-  // Raggruppa i servizi per categoria
-  const servicesByCategory = filteredServices.reduce((acc, service) => {
-    if (!acc[service.category]) {
-      acc[service.category] = [];
-    }
-    acc[service.category].push(service);
-    return acc;
-  }, {} as Record<string, ServiceType[]>);
-  
-  // Gestisce l'apertura del form di modifica
-  const handleEditService = (service: ServiceType) => {
-    setEditingService(service);
-    setIsDialogOpen(true);
-  };
-  
-  // Gestisce l'apertura della conferma di eliminazione
-  const handleDeleteService = (service: ServiceType) => {
-    setServiceToDelete(service);
-    setIsDeleteDialogOpen(true);
-  };
-  
-  // Gestisce la chiusura del form
-  const handleCloseDialog = () => {
-    setIsDialogOpen(false);
-    setEditingService(null);
-    form.reset();
-  };
-  
+  }, [service, form]);
+
   return (
-    <div className="container mx-auto py-8">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-white">Gestione <span className="text-orange-500">Servizi</span></h1>
-          <p className="text-gray-300">Gestisci i tipi di servizi offerti dalla tua officina</p>
-        </div>
-        <Button onClick={() => setIsDialogOpen(true)} className="gap-2 bg-orange-600 hover:bg-orange-700">
-          <PlusCircle className="h-4 w-4" />
-          Nuovo Servizio
-        </Button>
-      </div>
-      
-      {/* Filtri */}
-      <div className="mb-6 border border-gray-800 rounded-md bg-[#111111]">
-        <div className="px-4 py-3 border-b border-gray-800 flex items-center gap-2">
-          <Filter className="h-4 w-4 text-orange-500" />
-          <h3 className="text-lg font-medium text-white">Filtra Servizi</h3>
-        </div>
-        <div className="p-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label className="mb-2 block text-gray-300">Cerca per nome o descrizione</Label>
-              <div className="relative">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
-                <Input
-                  placeholder="Cerca servizio..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8 bg-gray-800 border-gray-700 text-white"
-                />
-              </div>
-            </div>
-            <div>
-              <Label className="mb-2 block text-gray-300">Filtra per categoria</Label>
-              <Select
-                value={categoryFilter || "all"}
-                onValueChange={(value) => setCategoryFilter(value === "all" ? null : value)}
-              >
-                <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
-                  <SelectValue placeholder="Tutte le categorie" />
-                </SelectTrigger>
-                <SelectContent className="bg-gray-900 border-gray-800 text-white">
-                  <SelectItem value="all" className="text-white focus:bg-orange-500 focus:text-white">Tutte le categorie</SelectItem>
-                  {serviceCategories.map((category) => (
-                    <SelectItem key={category} value={category} className="text-white focus:bg-orange-500 focus:text-white">
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      {/* Tabella Servizi */}
-      <div className="bg-[#111111] rounded-md border border-gray-800 shadow-sm">
-        <div className="p-4 border-b border-gray-800">
-          <h2 className="text-xl font-semibold flex items-center gap-2 text-white">
-            <Settings className="h-5 w-5 text-orange-500" />
-            Servizi Disponibili
-          </h2>
-        </div>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>{service ? "Modifica Servizio" : "Nuovo Servizio"}</DialogTitle>
+          <DialogDescription>
+            {service ? "Modifica i dettagli del servizio esistente." : "Inserisci i dettagli del nuovo servizio."}
+          </DialogDescription>
+        </DialogHeader>
         
-        {/* Mostra avviso se non ci sono servizi */}
-        {filteredServices.length === 0 ? (
-          <div className="p-8 text-center">
-            {isLoading ? (
-              <p className="text-gray-300">Caricamento servizi in corso...</p>
-            ) : (
-              <>
-                <p className="text-lg font-medium text-orange-500">Nessun servizio trovato</p>
-                <p className="text-sm mt-1 text-gray-300">Aggiungi un nuovo servizio o modifica i filtri di ricerca.</p>
-              </>
-            )}
-          </div>
-        ) : (
-          <div className="p-4">
-            {/* Raggruppa i servizi per categoria */}
-            {Object.entries(
-              filteredServices.reduce((acc, service) => {
-                if (!acc[service.category]) {
-                  acc[service.category] = [];
-                }
-                acc[service.category].push(service);
-                return acc;
-              }, {} as Record<string, ServiceType[]>)
-            ).map(([category, services]) => (
-              <div key={category} className="mb-6">
-                {/* Intestazione categoria */}
-                <div className="mb-3 px-4 py-2 rounded-md font-semibold text-white bg-orange-600">
-                  <h3 className="text-lg flex items-center">
-                    {category === "Frenante" && <Settings className="h-5 w-5 mr-2" />}
-                    {category === "Sospensioni" && <Settings className="h-5 w-5 mr-2" />}
-                    {category === "Accessori" && <Settings className="h-5 w-5 mr-2" />}
-                    {category === "Manutenzione" && <Settings className="h-5 w-5 mr-2" />}
-                    {category === "Riparazione" && <Settings className="h-5 w-5 mr-2" />}
-                    {category === "Carrozzeria" && <Settings className="h-5 w-5 mr-2" />}
-                    {category === "Motore" && <Settings className="h-5 w-5 mr-2" />}
-                    {category === "Elettronica" && <Settings className="h-5 w-5 mr-2" />}
-                    {(category === "Altro" || category === "Personalizzato") && <Settings className="h-5 w-5 mr-2" />}
-                    {category} ({services.length})
-                  </h3>
-                </div>
-
-                {/* Elenco servizi per categoria */}
-                <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                  {services.map((service) => (
-                    <div key={service.id} className="bg-[#111111] border border-gray-800 rounded-md p-4 relative">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="font-medium mb-1 text-white">{service.name}</h4>
-                          <p className="text-sm text-gray-300 mb-2">
-                            {service.description || "Nessuna descrizione"}
-                          </p>
-
-                        </div>
-                        <div className="flex flex-col gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="h-8 w-8 p-0 text-orange-500 border-orange-500 hover:bg-orange-500/10"
-                            onClick={() => handleEditService(service)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="h-8 w-8 p-0 text-destructive border-destructive hover:bg-destructive/10" 
-                            onClick={() => handleDeleteService(service)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-      
-      {/* Dialog per creare/modificare servizio */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-[550px] bg-[#111111] border-gray-800 text-white">
-          <DialogHeader>
-            <DialogTitle className="text-white">
-              {editingService ? "Modifica Servizio" : "Nuovo Servizio"}
-            </DialogTitle>
-            <DialogDescription className="text-gray-300">
-              {editingService 
-                ? "Modifica i dettagli del servizio selezionato." 
-                : "Aggiungi un nuovo tipo di servizio alla tua officina."}
-            </DialogDescription>
-          </DialogHeader>
-          
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nome servizio*</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Es. Cambio olio" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="category"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Categoria*</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleziona una categoria" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {serviceCategories.map((category) => (
-                          <SelectItem key={category} value={category}>
-                            {category}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Descrizione</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder="Es. Sostituzione olio motore" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-
-              
-              <DialogFooter className="mt-6">
-                <Button type="button" variant="outline" onClick={handleCloseDialog}>
-                  Annulla
-                </Button>
-                <Button type="submit">
-                  {editingService ? "Aggiorna" : "Crea"} Servizio
-                </Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Dialog per confermare l'eliminazione */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-[450px] bg-[#111111] border-gray-800 text-white">
-          <DialogHeader>
-            <DialogTitle className="text-destructive">Elimina Servizio</DialogTitle>
-            <DialogDescription className="text-gray-300">
-              Sei sicuro di voler eliminare questo servizio? Questa azione non può essere annullata.
-            </DialogDescription>
-          </DialogHeader>
-          
-          {serviceToDelete && (
-            <div className="p-4 border rounded-md bg-gray-800/30 border-gray-700">
-              <div className="font-medium text-white">{serviceToDelete.name}</div>
-              <div className="text-sm text-gray-300 mt-1">
-                <span className="font-medium">Categoria:</span> {serviceToDelete.category}
-              </div>
-              {serviceToDelete.description && (
-                <div className="text-sm text-gray-300">
-                  <span className="font-medium">Descrizione:</span> {serviceToDelete.description}
-                </div>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nome Servizio</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Nome del servizio" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
               )}
-            </div>
-          )}
-          
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={() => setIsDeleteDialogOpen(false)}
-            >
-              <XCircle className="h-4 w-4 mr-2" />
-              Annulla
-            </Button>
-            <Button 
-              type="button" 
-              variant="destructive" 
-              onClick={() => serviceToDelete && deleteMutation.mutate(serviceToDelete.id)}
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Elimina Servizio
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+            />
+            
+            <FormField
+              control={form.control}
+              name="category"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Categoria</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleziona una categoria" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {serviceCategories.map((category) => (
+                        <SelectItem key={category} value={category}>
+                          {category}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Descrizione</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Descrizione (opzionale)" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            {/* Campo laborPrice nascosto: manteniamo il campo nello schema ma non lo mostriamo all'utente */}
+            <input type="hidden" {...form.register("laborPrice")} value="0" />
+            
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={onClose}>
+                Annulla
+              </Button>
+              <Button type="submit">
+                {service ? "Aggiorna Servizio" : "Crea Servizio"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
   );
 }

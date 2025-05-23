@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import React from 'react';
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, setHours, setMinutes, parseISO, startOfDay, isEqual, subDays, addDays, addMinutes, isSameDay, getDay, getDate } from 'date-fns';
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isToday, setHours, setMinutes, parseISO, startOfDay, isEqual, subDays, addDays, addMinutes, isSameDay, getDay, getDate, startOfWeek, endOfWeek, getDaysInMonth } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Clock, FileText, Plus, ViewIcon } from 'lucide-react';
@@ -11,9 +11,34 @@ import { Card } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { CalendarIcon, Calendar } from "lucide-react";
 import { raggruppaPerTipoRicambio } from '@/utils/ricambi';
+import './calendar-styles.css';
 
 // Definizione tipo di vista per il calendario
 type CalendarViewType = "day" | "week" | "month";
+
+// Hook per rilevare la dimensione dello schermo
+const useWindowSize = () => {
+  const [windowSize, setWindowSize] = useState({
+    width: typeof window !== 'undefined' ? window.innerWidth : 0,
+    height: typeof window !== 'undefined' ? window.innerHeight : 0,
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    };
+    
+    window.addEventListener('resize', handleResize);
+    handleResize(); // Chiamata iniziale
+    
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  return windowSize;
+};
 
 // Definizione delle fasce orarie (dalle 8:00 fino a +12 ore)
 const currentHour = new Date().getHours();
@@ -49,6 +74,8 @@ interface CalendarViewProps {
   onSelectDate: (date: Date | string) => void;
   onSelectAppointment: (appointment: Appointment) => void;
   initialView?: CalendarViewType;
+  showCompletedAppointments?: boolean;
+  isClient?: boolean;
 }
 
 export default function CalendarView({ 
@@ -56,21 +83,40 @@ export default function CalendarView({
   isLoading, 
   onSelectDate,
   onSelectAppointment,
-  initialView = "day" // Valore predefinito, ma può essere sovrascritto
+  initialView = "day", // Valore predefinito, ma può essere sovrascritto
+  showCompletedAppointments = false,
+  isClient = false
 }: CalendarViewProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [calendarDays, setCalendarDays] = useState<Date[]>([]);
   const [view, setView] = useState(initialView); // Ripristiniamo la possibilità di cambiare vista
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [totalAppointmentsCount, setTotalAppointmentsCount] = useState(0);
+  const { width } = useWindowSize(); // Utilizziamo il nuovo hook
+  const isMobile = width < 768; // Definiamo quando considerare il dispositivo come mobile
+
+  // Imposta automaticamente la vista giornaliera su dispositivi mobili
+  useEffect(() => {
+    if (isMobile && view !== "day") {
+      setView("day");
+    }
+  }, [isMobile]);
+
+  // Filtra gli appuntamenti in base allo stato di completamento
+  const filteredAppointments = useMemo(() => {
+    return appointments.filter(appointment => 
+      showCompletedAppointments || appointment.status !== "completato"
+    );
+  }, [appointments, showCompletedAppointments]);
 
   // Funzione per forzare l'aggiornamento della vista
   const forceRefresh = () => {
-    console.log("DEBUG - Forzato aggiornamento della vista calendario:", appointments.length);
+    console.log("DEBUG - Forzato aggiornamento della vista calendario:", filteredAppointments.length);
     
     // Log dettagliato delle durate degli appuntamenti
-    if (appointments && appointments.length > 0) {
-      console.log("DURATE APPUNTAMENTI:", appointments.map(app => ({
+    if (filteredAppointments && filteredAppointments.length > 0) {
+      console.log("DURATE APPUNTAMENTI:", filteredAppointments.map(app => ({
         id: app.id,
         cliente: app.clientName, 
         durata: getLaborHours(app),
@@ -103,8 +149,8 @@ export default function CalendarView({
     console.log("DEBUG - Trigger di aggiornamento rilevato:", refreshTrigger);
     
     // Log dettagliato delle durate degli appuntamenti (solo quando viene aggiornato effettivamente)
-    if (appointments && appointments.length > 0) {
-      console.log("DURATE APPUNTAMENTI (on refresh):", appointments.map(app => ({
+    if (filteredAppointments && filteredAppointments.length > 0) {
+      console.log("DURATE APPUNTAMENTI (on refresh):", filteredAppointments.map(app => ({
         id: app.id,
         cliente: app.clientName, 
         durata: getLaborHours(app),
@@ -138,12 +184,12 @@ export default function CalendarView({
     // Ottieni la data odierna nel formato YYYY-MM-DD
     const today = format(new Date(), 'yyyy-MM-dd');
     console.log("DEBUG CalendarView - Data odierna:", today);
-    console.log("DEBUG CalendarView - Numero totale appuntamenti:", appointments.length);
+    console.log("DEBUG CalendarView - Numero totale appuntamenti:", filteredAppointments.length);
     
     // Stampa i dettagli di tutti gli appuntamenti per debug
-    if (appointments.length > 0) {
+    if (filteredAppointments.length > 0) {
       console.log("DEBUG CalendarView - Tutti gli appuntamenti:", 
-        appointments.map(app => ({
+        filteredAppointments.map(app => ({
           id: app.id,
           date: app.date,
           time: app.time,
@@ -153,7 +199,7 @@ export default function CalendarView({
       );
       
       // Verifica il formato delle date
-      const dateFormats = appointments.map(app => {
+      const dateFormats = filteredAppointments.map(app => {
         try {
           return {
             id: app.id,
@@ -168,24 +214,26 @@ export default function CalendarView({
       });
       console.log("DEBUG - Formati delle date e durate:", dateFormats);
     }
-  }, [appointments]);
+  }, [filteredAppointments]);
 
   // Funzione helper per confrontare il valore della vista in modo sicuro
   const isView = (viewType: string): boolean => view === viewType;
 
   // Generate calendar days array
   useEffect(() => {
+    console.log("Rigenerando giorni del calendario per:", format(currentMonth, 'MMMM yyyy', { locale: it }));
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
     const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
-    const dayOfWeek = monthStart.getDay() || 7;
-    const prevMonthDays = Array.from({ length: dayOfWeek - 1 }, (_, i) => {
+    // Calcola correttamente i giorni del mese precedente
+    const firstDayOfWeek = getDay(monthStart) || 7; // Trasforma domenica (0) in 7 per il calendario italiano
+    const prevMonthDays = Array.from({ length: firstDayOfWeek - 1 }, (_, i) => {
       return new Date(monthStart.getFullYear(), monthStart.getMonth(), -i);
     }).reverse();
 
     const nextMonthDays = [];
-    const totalDaysNeeded = 42;
+    const totalDaysNeeded = 42; // 6 righe di calendario
     const daysToAdd = totalDaysNeeded - (prevMonthDays.length + daysInMonth.length);
     for (let i = 1; i <= daysToAdd; i++) {
       nextMonthDays.push(new Date(monthEnd.getFullYear(), monthEnd.getMonth(), monthEnd.getDate() + i));
@@ -197,17 +245,61 @@ export default function CalendarView({
     if (!selectedDate) {
       setSelectedDate(new Date());
     }
-  }, [currentMonth]);
+  }, [currentMonth]); // Rimuovo view e selectedDate dalle dipendenze
 
-  const handlePreviousMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
-  const handleNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
+  const handlePreviousMonth = () => {
+    const prevMonth = subMonths(currentMonth, 1);
+    setCurrentMonth(prevMonth);
+    console.log("Mese cambiato a:", format(prevMonth, 'MMMM yyyy', { locale: it }));
+    
+    // Aggiorna anche selectedDate mantenendo lo stesso giorno del mese se possibile
+    if (selectedDate) {
+      const newSelectedDate = new Date(selectedDate);
+      newSelectedDate.setFullYear(prevMonth.getFullYear());
+      newSelectedDate.setMonth(prevMonth.getMonth());
+      
+      // Verifica che il giorno sia valido nel nuovo mese
+      const daysInNewMonth = getDaysInMonth(prevMonth);
+      if (newSelectedDate.getDate() > daysInNewMonth) {
+        newSelectedDate.setDate(daysInNewMonth);
+      }
+      
+      setSelectedDate(newSelectedDate);
+    }
+  };
+  
+  const handleNextMonth = () => {
+    const nextMonth = addMonths(currentMonth, 1);
+    setCurrentMonth(nextMonth);
+    console.log("Mese cambiato a:", format(nextMonth, 'MMMM yyyy', { locale: it }));
+    
+    // Aggiorna anche selectedDate mantenendo lo stesso giorno del mese se possibile
+    if (selectedDate) {
+      const newSelectedDate = new Date(selectedDate);
+      newSelectedDate.setFullYear(nextMonth.getFullYear());
+      newSelectedDate.setMonth(nextMonth.getMonth());
+      
+      // Verifica che il giorno sia valido nel nuovo mese
+      const daysInNewMonth = getDaysInMonth(nextMonth);
+      if (newSelectedDate.getDate() > daysInNewMonth) {
+        newSelectedDate.setDate(daysInNewMonth);
+      }
+      
+      setSelectedDate(newSelectedDate);
+    }
+  };
+  
   const handleToday = () => {
-    setCurrentMonth(new Date());
-    setSelectedDate(new Date());
+    const today = new Date();
+    setCurrentMonth(today);
+    setSelectedDate(today);
   };
 
   // Seleziona una data specifica
   const handleSelectDate = (date: Date) => {
+    // Se l'utente è un cliente, non permettere la selezione della data per creare un nuovo appuntamento
+    if (isClient) return;
+    
     setSelectedDate(date);
     onSelectDate(format(date, 'yyyy-MM-dd'));
     
@@ -256,10 +348,10 @@ export default function CalendarView({
     const result = {} as Record<string, Appointment[]>;
     
     console.log("DEBUG - appointmentsByDate - Normalizzando date e durate...");
-    console.log("DEBUG - appointmentsByDate - Totale appuntamenti:", appointments.length);
+    console.log("DEBUG - appointmentsByDate - Totale appuntamenti:", filteredAppointments.length);
     console.log("DEBUG - appointmentsByDate - Refresh trigger:", refreshTrigger);
     
-    appointments.forEach(appointment => {
+    filteredAppointments.forEach(appointment => {
       try {
         // Normalizza il formato della data
         let dateObj: Date;
@@ -321,7 +413,7 @@ export default function CalendarView({
     console.log(`DEBUG - appointmentsByDate - Appuntamenti oggi (${oggi}):`, result[oggi] || 'Nessuno');
     
     return result;
-  }, [appointments, refreshTrigger]);
+  }, [filteredAppointments, refreshTrigger]);
   
   // Calcola le ore di manodopera totali prioritizzando il valore laborHours dal preventivo
   const getLaborHours = (appointment: Appointment): number => {
@@ -331,6 +423,22 @@ export default function CalendarView({
       duration = Number(appointment.duration);
       if (isNaN(duration) || duration <= 0) duration = 1;
     }
+    
+    // Prova a leggere quoteLaborHours se esiste
+    let quoteLaborHours = 0;
+    if (appointment.quoteLaborHours !== undefined && appointment.quoteLaborHours !== null) {
+      quoteLaborHours = Number(appointment.quoteLaborHours);
+      if (isNaN(quoteLaborHours) || quoteLaborHours <= 0) quoteLaborHours = 0;
+    }
+    
+    // Per garantire la compatibilità, usiamo il valore che esiste o il maggiore tra i due
+    if (quoteLaborHours > 0) {
+      // Usa sempre quoteLaborHours se disponibile
+      console.log(`DEBUG: Appuntamento ${appointment.id} (${appointment.clientName || 'N/D'}) - Usando quoteLaborHours=${quoteLaborHours} invece di duration=${duration}`);
+      return quoteLaborHours;
+    }
+    
+    console.log(`DEBUG: Appuntamento ${appointment.id} (${appointment.clientName || 'N/D'}) - Usando duration=${duration} (quoteLaborHours non disponibile)`);
     return duration;
   };
 
@@ -368,104 +476,123 @@ export default function CalendarView({
     return endDate;
   };
 
+  // Effetto per aggiornare l'indicatore dell'ora corrente
+  const updateCurrentTimeIndicator = () => {
+    if (view === "day" && isToday(selectedDate || new Date())) {
+      const now = new Date();
+      const startOfDay = 8; // Orario di inizio del calendario (8:00)
+      const currentHours = now.getHours();
+      const currentMinutes = now.getMinutes();
+      
+      // Calcola i minuti trascorsi dalle 8:00
+      const minutesFromStart = (currentHours - startOfDay) * 60 + currentMinutes;
+      // Ogni slot è alto 60px e rappresenta 30 minuti
+      const topPosition = (minutesFromStart / 30) * 60;
+      
+      // Aggiorna la posizione dell'indicatore
+      const indicator = document.getElementById("current-time-indicator");
+      if (indicator) {
+        indicator.style.top = `${topPosition}px`;
+        indicator.style.display = currentHours >= startOfDay ? "block" : "none";
+      }
+    }
+  };
+
   // Definizione del componente DailyView dopo la definizione di appointmentsByTimeSlot
   const DailyView = () => {
-    // Non possiamo usare selectedDate direttamente se è null
-    const effectiveDate = selectedDate || new Date();
-    const formattedDate = format(effectiveDate, 'yyyy-MM-dd');
-    
-    // Usa appointmentsByDate per trovare gli appuntamenti di oggi
-    const todaysAppointments = appointmentsByDate[formattedDate] || [];
-    const hasAppointmentsToday = todaysAppointments.length > 0;
-    
-    console.log(`DEBUG - Vista giornaliera - Data: ${formattedDate}`);
-    console.log(`DEBUG - Appuntamenti oggi: ${hasAppointmentsToday ? "SI" : "NO"} (${todaysAppointments.length})`);
-    
-    if (hasAppointmentsToday) {
-      console.log("DEBUG - Dettagli appuntamenti:", todaysAppointments.map(a => ({
-        id: a.id, 
-        cliente: a.clientName, 
-        orario: a.time, 
-        durata: a.duration
-      })));
-    }
+    // Aggiorna la posizione dell'indicatore dell'ora corrente ogni minuto
+    useEffect(() => {
+      const interval = setInterval(updateCurrentTimeIndicator, 60000);
+      updateCurrentTimeIndicator(); // Chiamata iniziale
+      return () => clearInterval(interval);
+    }, []);
 
     return (
-      <div className="h-full flex flex-col overflow-hidden">
-        {/* Intestazione della data corrente */}
-        <div className="flex justify-between items-center px-4 py-2 border-b">
-          <div className="text-lg font-semibold">
-            {format(effectiveDate, "EEEE d MMMM yyyy", { locale: it })}
-          </div>
-          <div className="flex gap-1">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onSelectDate(subDays(effectiveDate, 1))}
-            >
-              Giorno precedente
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => onSelectDate(new Date())}
-            >
-              Oggi
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onSelectDate(addDays(effectiveDate, 1))}
-            >
-              Giorno successivo
-            </Button>
-          </div>
-        </div>
-
-        {/* Visualizzazione dei time slots */}
-        <div className="flex-1 overflow-y-auto pb-4">
-          <div className="space-y-1 py-2">
-            {TIME_SLOTS.map((slot) => {
-              // Trova gli appuntamenti per questo slot
-              const slotAppointments = todaysAppointments.filter(app => {
-                // Controlla se l'appuntamento cade in questo slot
-                const appTime = normalizeTimeFormat(app.time);
-                const [appHour, appMinute] = appTime.split(':').map(Number);
-                
-                return appHour === slot.hour && appMinute >= slot.minute && appMinute < slot.minute + 30;
-              });
-              
-              const isCurrentHour = currentHour === slot.hour && currentMinute >= slot.minute && currentMinute < slot.minute + 30;
-              
-              return (
-                <div 
-                  key={slot.label}
-                  className={`flex items-start px-4 py-2 border-l-4 ${
-                    isCurrentHour ? "border-orange-500 bg-orange-50" : "border-transparent"
-                  } hover:bg-gray-50`}
-                >
-                  <div className="w-16 flex-shrink-0 text-sm font-medium text-gray-500">
-                    {slot.label}
-                  </div>
-                  
-                  <div className="flex-1 ml-4 space-y-2">
-                    {slotAppointments.length > 0 ? (
-                      slotAppointments.map((appointment) => (
-                        <AppointmentCardEnhanced
-                          key={appointment.id}
-                          appointment={appointment}
-                          onClick={() => onSelectAppointment(appointment)}
-                          isOverlapping={false}
-                          index={0}
-                        />
-                      ))
-                    ) : (
-                      <div className="h-6 text-sm text-gray-400">-</div>
-                    )}
-                  </div>
+      <div className="flex flex-col h-full overflow-hidden">
+        <div className="flex-1 overflow-auto">
+          <div className="relative">
+            {/* Intestazione con data selezionata */}
+            <div className={`sticky top-0 z-10 bg-background border-b border-border px-4 py-2 ${isMobile ? 'text-sm' : ''}`}>
+              <h3 className={`font-medium ${isMobile ? 'text-base' : 'text-lg'}`}>
+                {selectedDate && format(selectedDate, "EEEE d MMMM", { locale: it })}
+              </h3>
+            </div>
+            
+            {/* Contenitore delle fasce orarie */}
+            <div className={`relative ${isMobile ? 'text-xs' : 'text-sm'}`}>
+              {/* Indicatore dell'ora corrente */}
+              <div
+                id="current-time-indicator"
+                className="absolute left-0 right-0 border-t-2 border-red-500 z-10 pointer-events-none"
+                style={{
+                  top: `${getCurrentTimePosition()}px`,
+                  display: isSameDay(selectedDate || new Date(), new Date()) ? "block" : "none"
+                }}
+              >
+                <div className="absolute -top-2 -left-1 w-2 h-2 rounded-full bg-red-500"></div>
+                <div className={`absolute -top-6 -left-1 text-red-500 text-xs font-medium ${isMobile ? 'text-[10px]' : ''}`}>
+                  {format(new Date(), 'HH:mm')}
                 </div>
-              );
-            })}
+              </div>
+              
+              {/* Fasce orarie */}
+              {TIME_SLOTS.map((slot, index) => {
+                const { appointments: slotAppointments, isStartingSlot, slotSpans } = getAppointmentsForTimeSlot(filteredAppointments, slot);
+                
+                return (
+                  <div
+                    key={`${slot.hour}-${slot.minute}`}
+                    className={`flex border-b border-border ${
+                      isCurrentTimeSlot(slot) ? 'bg-accent/10' : ''
+                    }`}
+                    onClick={() => handleTimeSlotClick(slot)}
+                  >
+                    {/* Etichetta dell'ora */}
+                    <div className={`flex-shrink-0 w-16 ${isMobile ? 'w-12' : 'w-16'} py-2 px-2 text-muted-foreground border-r border-border flex items-center`}>
+                      {slot.label}
+                    </div>
+                    
+                    {/* Contenuto della fascia oraria */}
+                    <div className={`flex-1 min-h-[64px] ${isMobile ? 'min-h-[48px]' : 'min-h-[64px]'} relative`}>
+                      {/* Appuntamenti in questa fascia oraria */}
+                      {slotAppointments.length > 0 && (
+                        <div className="absolute inset-0 p-1">
+                          {slotAppointments.map((appointment, appIndex) => {
+                            // Mostra la card solo se questo è lo slot iniziale dell'appuntamento
+                            if (!isStartingSlot[appointment.id]) return null;
+                            
+                            const spanCount = slotSpans[appointment.id] || 1;
+                            const heightInPixels = spanCount * (isMobile ? 48 : 64);
+                            const isOverlapping = slotAppointments.length > 1;
+                            
+                            const colorStyles = getColorStylesForAppointment(appointment, appIndex, isOverlapping);
+                            
+                            return (
+                              <div
+                                key={appointment.id}
+                                className="absolute left-0 right-0 p-1"
+                                style={{
+                                  height: `${heightInPixels}px`,
+                                  zIndex: isOverlapping ? 10 + appIndex : 1
+                                }}
+                              >
+                                <AppointmentCardEnhanced
+                                  appointment={appointment}
+                                  onClick={() => onSelectAppointment(appointment)}
+                                  isOverlapping={isOverlapping}
+                                  index={appIndex}
+                                  isClient={isClient}
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
@@ -532,115 +659,76 @@ export default function CalendarView({
     appointment, 
     onClick, 
     isOverlapping = false,
-    index = 0
+    index = 0,
+    isClient = false
   }: { 
     appointment: Appointment, 
     onClick: () => void,
     isOverlapping?: boolean,
-    index?: number
+    index?: number,
+    isClient?: boolean
   }) => {
-    const totalLaborHours = getLaborHours(appointment);
-    
-    // Calcola l'orario di fine
-    const durataOre = typeof appointment.duration === 'number' ? appointment.duration : 1;
-    const appTime = normalizeTimeFormat(appointment.time);
-    const [appHour, appMinute] = appTime.split(':').map(Number);
-    const totalMinutes = appHour * 60 + appMinute + (durataOre * 60);
-    const endHour = Math.floor(totalMinutes / 60) % 24; // Aggiungiamo modulo 24 per gestire correttamente le ore
-    const endMinute = totalMinutes % 60;
-    const endTimeStr = `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
-    
-    // Funzione helper per generare il badge di stato dell'appuntamento
     const statusBadge = (appointment: Appointment) => {
-      let badgeClass;
-      let label;
+      const status = appointment.status?.toLowerCase() || "in attesa";
       
-      switch (appointment.status) {
+      switch(status) {
         case "completato":
-          badgeClass = "bg-orange-200 text-orange-800 border border-orange-500 font-semibold";
-          label = "Completato";
-          break;
+          return <span className={`text-xs px-1.5 py-0.5 rounded-full bg-green-500/20 text-green-500 ${isMobile ? 'text-[10px] px-1' : ''}`}>Completato</span>;
+        case "in corso":
+          return <span className={`text-xs px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-500 ${isMobile ? 'text-[10px] px-1' : ''}`}>In corso</span>;
         case "annullato":
-          badgeClass = "bg-neutral-700 text-white border border-neutral-900 font-semibold";
-          label = "Annullato";
-          break;
+          return <span className={`text-xs px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-500 ${isMobile ? 'text-[10px] px-1' : ''}`}>Annullato</span>;
         default:
-          badgeClass = "bg-orange-100 text-black border border-orange-300 font-semibold";
-          label = "Confermato";
+          return <span className={`text-xs px-1.5 py-0.5 rounded-full bg-orange-500/20 text-orange-500 ${isMobile ? 'text-[10px] px-1' : ''}`}>In attesa</span>;
       }
-      
-      return (
-        <span className={`text-xs py-0.5 px-2 rounded inline-block ${badgeClass}`}>
-          {label}
-        </span>
-      );
     };
+
+    const colorStyles = getColorStylesForAppointment(appointment, index, isOverlapping);
     
     return (
-      <div
-        onClick={onClick}
-        className={`border-l-4 p-2 mb-1 rounded-md shadow-sm cursor-pointer hover:bg-opacity-90 hover:shadow-md transition-all ${getBorderColor(appointment)}`}
+      <Card
+        className={`h-full overflow-hidden flex flex-col shadow-md transition-all border-l-4 hover:shadow-lg cursor-pointer ${isMobile ? 'p-1.5' : 'p-2'}`}
         style={{
-          backgroundColor: getBackgroundColor(appointment),
-          borderColor: getBorderLeftColor(appointment)
+          borderLeftColor: colorStyles.borderLeftColor,
+          backgroundColor: colorStyles.backgroundColor,
+          borderColor: colorStyles.borderColor,
         }}
+        onClick={onClick}
       >
-        <div className="flex-grow">
-          <div className="font-semibold text-slate-900 truncate">{appointment.clientName}</div>
-          <div className={`font-medium text-[10px] text-slate-900 truncate`}>
-            {normalizeTimeFormat(appointment.time)}-{format(endOfAppointment(appointment), 'HH:mm')}
+        <div className="flex justify-between items-start mb-1">
+          <div className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'} truncate flex-1`}>
+            {appointment.clientName || "Cliente senza nome"}
           </div>
-          <div className="font-medium text-[9px] bg-orange-600 text-white rounded px-1 w-fit mt-0.5">
-            {getLaborHours(appointment)}h
-          </div>
-          {appointment.plate && (
-            <div className="text-xs text-slate-700 truncate mt-0.5 font-medium">
-              {appointment.plate}
-            </div>
-          )}
+          {statusBadge(appointment)}
         </div>
-        <div className="mt-1 flex items-center justify-between">
-          {(() => {
-            let badgeClass;
-            let label;
-            
-            switch (appointment.status) {
-              case "completato":
-                badgeClass = "bg-orange-200 text-orange-800 border border-orange-500 font-semibold";
-                label = "Completato";
-                break;
-              case "annullato":
-                badgeClass = "bg-neutral-700 text-white border border-neutral-900 font-semibold";
-                label = "Annullato";
-                break;
-              default:
-                badgeClass = "bg-orange-100 text-black border border-orange-300 font-semibold";
-                label = "Confermato";
-            }
-            
-            return (
-              <span className={`text-xs py-0.5 px-2 rounded inline-block ${badgeClass}`}>
-                {label}
-              </span>
-            );
-          })()}
-          
-          {/* Bottone preventivo più compatto */}
-          {appointment.quoteId && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                handleOpenQuotePage(appointment.quoteId as string, e);
-              }}
-              className="bg-orange-600 hover:bg-orange-700 text-white p-1 rounded ml-1 shadow-sm"
-              title="Visualizza preventivo"
+        
+        <div className="flex items-center text-muted-foreground mb-1">
+          <Clock className={`${isMobile ? 'h-3 w-3 mr-1' : 'h-3.5 w-3.5 mr-1.5'}`} />
+          <span className={`${isMobile ? 'text-[10px]' : 'text-xs'}`}>
+            {appointment.time} ({getLaborHours(appointment)} {getLaborHours(appointment) === 1 ? 'ora' : 'ore'})
+          </span>
+        </div>
+        
+        {appointment.plate && (
+          <div className={`text-muted-foreground truncate ${isMobile ? 'text-[10px]' : 'text-xs'}`}>
+            {appointment.plate}
+          </div>
+        )}
+        
+        {appointment.quoteId && !isClient && (
+          <div className="mt-auto pt-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`h-6 text-primary hover:text-primary-foreground hover:bg-primary ${isMobile ? 'text-[10px] h-5 px-1' : ''}`}
+              onClick={(e) => handleOpenQuotePage(appointment.quoteId!, e)}
             >
-              <FileText className="h-3 w-3" />
-            </button>
-          )}
-        </div>
-      </div>
+              <FileText className={`${isMobile ? 'h-3 w-3 mr-1' : 'h-3.5 w-3.5 mr-1.5'}`} />
+              Preventivo
+            </Button>
+          </div>
+        )}
+      </Card>
     );
   };
 
@@ -658,28 +746,6 @@ export default function CalendarView({
 
   // Effetto per aggiornare l'indicatore dell'ora corrente
   useEffect(() => {
-    // Funzione per aggiornare l'ora corrente
-    const updateCurrentTimeIndicator = () => {
-      if (view === "day" && isToday(selectedDate || new Date())) {
-        const now = new Date();
-        const startOfDay = 8; // Orario di inizio del calendario (8:00)
-        const currentHours = now.getHours();
-        const currentMinutes = now.getMinutes();
-        
-        // Calcola i minuti trascorsi dalle 8:00
-        const minutesFromStart = (currentHours - startOfDay) * 60 + currentMinutes;
-        // Ogni slot è alto 60px e rappresenta 30 minuti
-        const topPosition = (minutesFromStart / 30) * 60;
-        
-        // Aggiorna la posizione dell'indicatore
-        const indicator = document.getElementById("current-time-indicator");
-        if (indicator) {
-          indicator.style.top = `${topPosition}px`;
-          indicator.style.display = currentHours >= startOfDay ? "block" : "none";
-        }
-      }
-    };
-    
     // Aggiorna subito
     updateCurrentTimeIndicator();
     
@@ -791,37 +857,26 @@ export default function CalendarView({
     // Preleva lo stato dell'appuntamento
     const status = appointment.status || 'programmato';
     
-    // Scelgo un colore base in base allo stato
-    let baseColor = 'bg-orange-100/90';
-    let textColor = 'text-orange-800';
-    let borderColor = 'border-orange-200';
+    // Scelgo colori base in base allo stato
+    let backgroundColor = 'rgba(254, 215, 170, 0.9)'; // Default: orange-100
+    let borderColor = 'rgb(234, 88, 12)'; // Default: orange-600
+    let borderLeftColor = 'rgb(234, 88, 12)'; // Default: orange-600
     
     // Personalizza i colori in base allo stato
     switch (status) {
       case 'completato':
-        baseColor = 'bg-orange-200/90';
-        textColor = 'text-orange-800';
-        borderColor = 'border-orange-500';
-        break;
-      case 'programmato':
-        baseColor = 'bg-yellow-100/90';
-        textColor = 'text-yellow-800';
-        borderColor = 'border-yellow-200';
+        backgroundColor = 'rgba(251, 146, 60, 0.95)';
+        borderColor = 'rgb(154, 52, 18)';
+        borderLeftColor = 'rgb(154, 52, 18)';
         break;
       case 'annullato':
-        baseColor = 'bg-gray-100/90';
-        textColor = 'text-gray-800';
-        borderColor = 'border-gray-200';
+        backgroundColor = 'rgba(38, 38, 38, 0.95)';
+        borderColor = 'rgb(23, 23, 23)';
+        borderLeftColor = 'rgb(23, 23, 23)';
         break;
     }
     
-    // Aggiungi variazione per appuntamenti sovrapposti
-    if (isOverlapping) {
-      const offsetX = index * 3;
-      return `${baseColor} ${textColor} ${borderColor} translate-x-${offsetX}`;
-    }
-    
-    return `${baseColor} ${textColor} ${borderColor}`;
+    return { backgroundColor, borderColor, borderLeftColor };
   };
 
   // Funzione per aprire la pagina 4 del preventivo
@@ -832,6 +887,59 @@ export default function CalendarView({
 
   // Se non hai accesso a orders e search, usa array vuoto e stringa vuota
   const ricambiPerTipo = raggruppaPerTipoRicambio([], '', appointments);
+
+  // Sincronizza gli appuntamenti in base alla proprietà showCompletedAppointments
+  useEffect(() => {
+    if (!Array.isArray(filteredAppointments)) return;
+    
+    // Calcola il numero totale di appuntamenti
+    const total = Object.values(appointmentsByDate).reduce((sum, apps) => sum + apps.length, 0);
+    setTotalAppointmentsCount(total);
+    
+  }, [filteredAppointments, appointmentsByDate]);
+
+  // Funzione per calcolare la posizione dell'ora corrente
+  const getCurrentTimePosition = (): number => {
+    const now = new Date();
+    const startHour = 8; // Calendario inizia alle 8:00
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    
+    // Calcola i minuti dall'inizio del calendario
+    const minutesFromStart = (currentHour - startHour) * 60 + currentMinute;
+    
+    // Ogni ora occupa 64px (2 slot da 32px ciascuno)
+    return (minutesFromStart / 60) * 64;
+  };
+
+  // Funzione per verificare se uno slot corrisponde all'ora corrente
+  const isCurrentTimeSlot = (slot: {hour: number, minute: number}): boolean => {
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    
+    // Verifica se l'ora corrente corrisponde all'ora dello slot
+    if (slot.hour !== currentHour) return false;
+    
+    // Verifica se i minuti correnti rientrano nell'intervallo dello slot
+    return (
+      (slot.minute === 0 && currentMinute < 30) || 
+      (slot.minute === 30 && currentMinute >= 30)
+    );
+  };
+
+  // Funzione per gestire il click su uno slot orario
+  const handleTimeSlotClick = (slot: {hour: number, minute: number}) => {
+    // Se l'utente è un cliente, non permettiamo la creazione di appuntamenti
+    if (isClient) return;
+    
+    // Altrimenti, crea un nuovo appuntamento a quest'ora
+    if (selectedDate) {
+      const newDate = new Date(selectedDate);
+      newDate.setHours(slot.hour, slot.minute, 0, 0);
+      onSelectDate(format(newDate, 'yyyy-MM-dd') + 'T' + format(newDate, 'HH:mm'));
+    }
+  };
 
   if (isLoading) {
     return (
@@ -861,9 +969,11 @@ export default function CalendarView({
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
+            
             <h3 className="text-sm font-medium text-orange-500">
               {format(selectedDate, 'EEEE d MMMM yyyy', { locale: it })}
             </h3>
+            
             <button
               onClick={() => setSelectedDate(prev => {
                 if (!prev) return new Date();
@@ -878,34 +988,42 @@ export default function CalendarView({
           </div>
 
           <div className="flex items-center space-x-1">
-            {/* Pulsanti di cambio vista */}
-            <div className="flex bg-gray-900 border border-gray-700 rounded-md overflow-hidden">
-              <button 
-                className={`px-2 py-1 text-xs font-medium ${view === "day" ? "bg-orange-600 text-white" : "text-gray-300 hover:bg-gray-800"}`}
-                onClick={() => setView("day")}
-              >
-                Giorno
-              </button>
-              <button 
-                className={`px-2 py-1 text-xs font-medium ${view === "week" ? "bg-orange-600 text-white" : "text-gray-300 hover:bg-gray-800"}`}
-                onClick={() => setView("week")}
-              >
-                Settimana
-              </button>
-              <button 
-                className={`px-2 py-1 text-xs font-medium ${view === "month" ? "bg-orange-600 text-white" : "text-gray-300 hover:bg-gray-800"}`}
-                onClick={() => setView("month")}
-              >
-                Mese
-              </button>
-            </div>
-            <Button onClick={() => {
-              const date = format(selectedDate, 'yyyy-MM-dd');
-              onSelectDate(date);
-            }} variant="outline" size="sm" className="h-7 gap-1 px-1 text-xs font-medium bg-orange-600 hover:bg-orange-700 text-white border-none hover:text-white">
-              <Plus className="h-3 w-3" />
-              <span className="hidden sm:inline">Nuovo</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleToday}
+              className="text-xs h-8 px-3 bg-orange-600 hover:bg-orange-700 text-white border-none mr-2"
+            >
+              Oggi
             </Button>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-8 border-orange-500/50 text-orange-500 hover:bg-orange-500/10 hover:text-orange-400"
+                >
+                  <CalendarIcon className="h-4 w-4 mr-2" />
+                  {view === "month" 
+                    ? "Mese" 
+                    : view === "week" 
+                    ? "Settimana" 
+                    : "Giorno"}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => setView("day")}>
+                  Giorno
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setView("week")}>
+                  Settimana
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setView("month")}>
+                  Mese
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
@@ -929,6 +1047,9 @@ export default function CalendarView({
             className="appointments-column flex-grow relative" 
             style={{ height: `${26 * 32}px`, backgroundColor: '#111111' }}
             onClick={(e) => {
+              // Se l'utente è un cliente, non permettere l'aggiunta di appuntamenti
+              if (isClient) return;
+              
               const elem = e.currentTarget;
               const rect = elem.getBoundingClientRect();
               const offsetY = e.clientY - rect.top + elem.scrollTop;
@@ -1058,7 +1179,7 @@ export default function CalendarView({
                     justifyContent: 'space-between',
                     border: '1px solid rgba(0,0,0,0.05)',
                     pointerEvents: 'auto',
-                    zIndex: 9999 + (isLongAppointment ? 10 : 0) + Number(overlappingIndex),
+                    zIndex: 10 + (isLongAppointment ? 1 : 0) + Number(overlappingIndex),
                     padding: '0.25rem'
                   }}
                   onClick={(e) => {
@@ -1137,8 +1258,8 @@ export default function CalendarView({
 
     return (
       <div className="bg-black rounded-lg shadow-md overflow-hidden border border-gray-800">
-        <div className="p-2 border-b border-gray-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0">
-          <div className="flex items-center space-x-2 w-full sm:w-auto">
+        <div className="p-4 border-b border-gray-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0">
+          <div className="flex items-center space-x-3 w-full sm:w-auto">
             <button
               onClick={() => setSelectedDate(prev => {
                 if (!prev) return new Date();
@@ -1146,11 +1267,12 @@ export default function CalendarView({
                 newDate.setDate(newDate.getDate() - 7);
                 return newDate;
               })}
-              className="p-1 rounded-full hover:bg-gray-800 text-orange-500"
+              className="p-2 rounded-md hover:bg-orange-600/20 text-orange-500 border border-orange-500/30"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <h3 className="text-sm font-medium text-orange-500 truncate">
+            <h3 className="text-base font-medium text-orange-400 truncate flex items-center">
+              <CalendarIcon className="h-4 w-4 mr-2 text-orange-500" />
               {format(weekDays[0], 'd MMM', { locale: it })} - {format(weekDays[6], 'd MMM yyyy', { locale: it })}
             </h3>
             <button
@@ -1160,41 +1282,49 @@ export default function CalendarView({
                 newDate.setDate(newDate.getDate() + 7);
                 return newDate;
               })}
-              className="p-1 rounded-full hover:bg-gray-800 text-orange-500"
+              className="p-2 rounded-md hover:bg-orange-600/20 text-orange-500 border border-orange-500/30"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>
 
           <div className="flex items-center space-x-1">
-            {/* Pulsanti di cambio vista */}
-            <div className="flex bg-gray-900 border border-gray-700 rounded-md overflow-hidden">
-              <button 
-                className={`px-2 py-1 text-xs font-medium ${view === "day" ? "bg-orange-600 text-white" : "text-gray-300 hover:bg-gray-800"}`}
-                onClick={() => setView("day")}
-              >
-                Giorno
-              </button>
-              <button 
-                className={`px-2 py-1 text-xs font-medium ${view === "week" ? "bg-orange-600 text-white" : "text-gray-300 hover:bg-gray-800"}`}
-                onClick={() => setView("week")}
-              >
-                Settimana
-              </button>
-              <button 
-                className={`px-2 py-1 text-xs font-medium ${view === "month" ? "bg-orange-600 text-white" : "text-gray-300 hover:bg-gray-800"}`}
-                onClick={() => setView("month")}
-              >
-                Mese
-              </button>
-            </div>
-            <Button onClick={() => {
-              const date = format(new Date(), 'yyyy-MM-dd');
-              onSelectDate(date);
-            }} variant="outline" size="sm" className="h-7 gap-1 px-1 text-xs font-medium bg-orange-600 hover:bg-orange-700 text-white border-none hover:text-white">
-              <Plus className="h-3 w-3" />
-              <span className="hidden sm:inline">Nuovo</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleToday}
+              className="text-xs h-8 px-3 bg-orange-600 hover:bg-orange-700 text-white border-none mr-2"
+            >
+              Oggi
             </Button>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-8 border-orange-500/50 text-orange-500 hover:bg-orange-500/10 hover:text-orange-400"
+                >
+                  <CalendarIcon className="h-4 w-4 mr-2" />
+                  {view === "month" 
+                    ? "Mese" 
+                    : view === "week" 
+                    ? "Settimana" 
+                    : "Giorno"}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => setView("day")}>
+                  Giorno
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setView("week")}>
+                  Settimana
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setView("month")}>
+                  Mese
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
         
@@ -1206,20 +1336,23 @@ export default function CalendarView({
           {weekDays.map((day, dayIndex) => (
             <div 
               key={dayIndex} 
-              className={`p-2 text-center border-r border-gray-700 ${isToday(day) ? 'bg-orange-900/30 font-semibold' : ''} hover:bg-gray-800 cursor-pointer transition-colors`}
-              onClick={() => handleSelectDate(day)}
+              className={`text-center py-2 border-r border-gray-700 cursor-pointer ${isToday(day) ? 'bg-orange-900/30' : 'hover:bg-gray-800'}`}
+              onClick={() => {
+                setSelectedDate(day);
+                setView("day");
+              }}
             >
-              <div className="text-xs font-medium text-gray-300">
-                {format(day, 'E', { locale: it })}
+              <div className="text-sm font-medium text-orange-400">
+                {format(day, 'EEE', { locale: it })}
               </div>
-              <div className={`text-xs font-bold ${isToday(day) ? 'text-orange-500' : 'text-white'}`}>
+              <div className={`text-base font-semibold ${isToday(day) ? 'text-orange-500' : 'text-white'}`}>
                 {format(day, 'd')}
               </div>
             </div>
           ))}
         </div>
 
-        <div className="h-[600px] overflow-y-auto bg-black">
+        <div className="h-[600px] overflow-y-auto bg-black scrollbar-hide">
           <div className="min-h-[600px]">
             {/* Fasce orarie con appuntamenti per ogni giorno */}
             {TIME_SLOTS.map((slot, slotIndex) => (
@@ -1255,7 +1388,7 @@ export default function CalendarView({
                       } hover:bg-gray-800/50 transition-colors`}
                       onClick={() => {
                         // Quando si clicca su uno slot vuoto, crea un nuovo appuntamento
-                        if (slotAppointments.length === 0) {
+                        if (slotAppointments.length === 0 && !isClient) {
                           const date = format(day, 'yyyy-MM-dd');
                           onSelectDate(`${date}T${slot.label}`);
                         }
@@ -1307,7 +1440,7 @@ export default function CalendarView({
                     </div>
                   );
                 })}
-              </div>
+             </div>
             ))}
           </div>
         </div>
@@ -1323,177 +1456,270 @@ export default function CalendarView({
     const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
     return (
-      <div className="bg-black rounded-lg shadow-md overflow-hidden border border-gray-800">
-        <div className="p-2 border-b border-gray-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0">
-          <div className="flex items-center space-x-2 w-full sm:w-auto">
-            <button
-              onClick={() => setSelectedDate(prev => {
-                if (!prev) return new Date();
-                const newDate = new Date(prev);
-                newDate.setMonth(newDate.getMonth() - 1);
-                return newDate;
-              })}
-              className="p-1 rounded-full hover:bg-gray-800 text-orange-500"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <h3 className="text-sm font-medium text-orange-500">
-              {format(selectedDate, 'MMMM yyyy', { locale: it })}
-            </h3>
-            <button
-              onClick={() => setSelectedDate(prev => {
-                if (!prev) return new Date();
-                const newDate = new Date(prev);
-                newDate.setMonth(newDate.getMonth() + 1);
-                return newDate;
-              })}
-              className="p-1 rounded-full hover:bg-gray-800 text-orange-500"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-
-          <div className="flex items-center space-x-1">
-            {/* Pulsanti di cambio vista */}
-            <div className="flex bg-gray-900 border border-gray-700 rounded-md overflow-hidden">
-              <button 
-                className={`px-2 py-1 text-xs font-medium ${view === "day" ? "bg-orange-600 text-white" : "text-gray-300 hover:bg-gray-800"}`}
-                onClick={() => setView("day")}
-              >
-                Giorno
-              </button>
-              <button 
-                className={`px-2 py-1 text-xs font-medium ${view === "week" ? "bg-orange-600 text-white" : "text-gray-300 hover:bg-gray-800"}`}
-                onClick={() => setView("week")}
-              >
-                Settimana
-              </button>
-              <button 
-                className={`px-2 py-1 text-xs font-medium ${view === "month" ? "bg-orange-600 text-white" : "text-gray-300 hover:bg-gray-800"}`}
-                onClick={() => setView("month")}
-              >
-                Mese
-              </button>
-            </div>
-            <Button onClick={() => {
-              const date = format(new Date(), 'yyyy-MM-dd');
-              onSelectDate(date);
-            }} variant="outline" size="sm" className="h-7 gap-1 px-1 text-xs font-medium bg-orange-600 hover:bg-orange-700 text-white border-none hover:text-white">
-              <Plus className="h-3 w-3" />
-              <span className="hidden sm:inline">Nuovo</span>
-            </Button>
-          </div>
-        </div>
-
-        {/* Griglia mensile */}
-        <div className="p-2">
-          {/* Intestazione giorni della settimana */}
-          <div className="grid grid-cols-7 gap-1 mb-1">
-            {['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'].map((day, index) => (
-              <div key={index} className="text-center font-medium text-xs p-1 text-gray-400">
-                {day}
-              </div>
-            ))}
+      <div className="bg-black text-gray-100 rounded-lg shadow-lg overflow-hidden flex flex-col border border-gray-800">
+        <div className="flex justify-between items-center px-4 py-4 border-b border-gray-800">
+          <div className="flex items-center space-x-2">
+            <h3 className="text-lg font-medium text-white">{isClient ? "Calendario Appuntamenti " : "Pianificazione"}</h3>
+            <span className="text-orange-500 font-medium ml-2">
+              {format(currentMonth, 'MMMM yyyy', { locale: it })}
+            </span>
+            {!isClient && (
+              <span className="text-xs text-gray-400 ml-2">
+                {filteredAppointments.length} appuntamenti
+              </span>
+            )}
           </div>
           
-          {/* Griglia dei giorni */}
-          <div className="grid grid-cols-7 gap-1">
-            {/* Genera i giorni precedenti (del mese scorso) per riempire la prima settimana */}
-            {Array.from({ length: getDay(monthStart) || 7 }).map((_, index) => {
-              // Calcola la data effettiva per questo giorno del mese precedente
-              const day = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 0 - (index - 1));
-              return (
-                <div 
-                  key={`prev-${index}`} 
-                  className="min-h-[60px] p-1 border border-gray-700 rounded-md bg-gray-900/30 text-gray-600"
-                  onClick={() => handleSelectDate(day)}
-                >
-                  <div className="text-xs p-1">{format(day, 'd')}</div>
-                </div>
-              );
-            }).reverse()}
+          <div className="flex space-x-2 items-center">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handlePreviousMonth}
+              className="h-8 w-8 p-0 text-orange-500 border-orange-500/50 hover:bg-orange-500/10 hover:text-orange-400"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
             
-            {/* Giorni del mese corrente */}
-            {Array.from({ length: getDate(monthEnd) }).map((_, index) => {
-              const day = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), index + 1);
-              const formattedDate = format(day, 'yyyy-MM-dd');
-              const dayAppointments = appointmentsByDate[formattedDate] || [];
-              const isCurrentDay = isToday(day);
-              
-              return (
-                <div 
-                  key={`current-${index}`} 
-                  className={`min-h-[60px] p-1 border border-gray-700 rounded-md ${
-                    isCurrentDay ? 'bg-orange-900/30 border-orange-600' : 'hover:bg-gray-800/70 bg-gray-900/60'
-                  }`}
-                  onClick={() => handleSelectDate(day)}
-                >
-                  <div className={`text-xs p-1 font-bold ${isCurrentDay ? 'text-orange-500' : 'text-white'}`}>
-                    {format(day, 'd')}
-                  </div>
-                  
-                  {/* Mostra gli appuntamenti per questo giorno */}
-                  <div className="space-y-1 mt-0.5">
-                    {dayAppointments.length > 0 ? (
-                      <>
-                        {/* Mostra max 2 appuntamenti, poi un indicatore "+X altri" */}
-                        {dayAppointments.slice(0, 2).map(appointment => {
-                          // Semplifichiamo per non usare lo sfondo custom
-                          const backgroundColor = appointment.status === "completato" ? "bg-orange-300" :
-                                                appointment.status === "annullato" ? "bg-gray-700" :
-                                                "bg-orange-500/70";
-                          return (
-                            <div 
-                              key={appointment.id}
-                              className={`text-[8px] px-1 py-0.5 truncate rounded-sm ${backgroundColor} shadow-sm hover:shadow-md`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onSelectAppointment(appointment);
-                              }}
-                            >
-                              <span className="font-bold">{appointment.time.slice(0, 5)}</span> <span className="truncate">{appointment.clientName}</span>
-                            </div>
-                          );
-                        })}
-                        
-                        {dayAppointments.length > 2 && (
-                          <div className="text-[8px] text-center font-bold bg-orange-600/40 text-white rounded-sm py-0.5 mt-0.5">
-                            +{dayAppointments.length - 2}
-                          </div>
-                        )}
-                      </>
-                    ) : null}
-                  </div>
-                </div>
-              );
-            })}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleToday}
+              className="text-xs h-8 px-3 bg-orange-600 hover:bg-orange-700 text-white border-none"
+            >
+              Oggi
+            </Button>
             
-            {/* Giorni del mese successivo per completare la griglia */}
-            {(() => {
-              const lastDayOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), getDate(monthEnd));
-              const remainingCells = 7 - ((getDay(lastDayOfMonth) || 7) % 7);
-              
-              if (remainingCells < 7) {
-                return Array.from({ length: remainingCells }).map((_, index) => {
-                  const day = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, index + 1);
-                  return (
-                    <div 
-                      key={`next-${index}`} 
-                      className="min-h-[60px] p-1 border border-gray-700 rounded-md bg-gray-900/30 text-gray-600"
-                      onClick={() => handleSelectDate(day)}
-                    >
-                      <div className="text-xs p-1">{format(day, 'd')}</div>
-                    </div>
-                  );
-                });
-              }
-              return null;
-            })()}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleNextMonth}
+              className="h-8 w-8 p-0 text-orange-500 border-orange-500/50 hover:bg-orange-500/10 hover:text-orange-400"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            
+            {!isClient && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-8 border-orange-500/50 text-orange-500 hover:bg-orange-500/10 hover:text-orange-400"
+                  >
+                    <CalendarIcon className="h-4 w-4 mr-2" />
+                    {view === "month" 
+                      ? "Mese" 
+                      : view === "week" 
+                      ? "Settimana" 
+                      : "Giorno"}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onClick={() => setView("day")}>
+                    Giorno
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setView("week")}>
+                    Settimana
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setView("month")}>
+                    Mese
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </div>
+        
+        {isView("month") && (
+          <div className="flex-1 p-4 overflow-auto bg-black">
+            <div className="grid grid-cols-7 gap-1 mb-2">
+              {["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"].map((day) => (
+                <div key={day} className="text-center text-sm font-medium text-orange-400 p-1 border-b border-orange-500/20">
+                  {day}
+                </div>
+              ))}
+            </div>
+            
+            <div className="grid grid-cols-7 gap-1">
+              {/* Genera i giorni precedenti (del mese scorso) per riempire la prima settimana */}
+              {Array.from({ length: getDay(monthStart) || 7 }).map((_, index) => {
+                // Calcola la data effettiva per questo giorno del mese precedente
+                const day = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 0 - (index - 1));
+                return (
+                  <div 
+                    key={`prev-${index}`} 
+                    className="min-h-[60px] p-1 border border-gray-800 rounded-md bg-black text-gray-600"
+                    onClick={() => handleSelectDate(day)}
+                  >
+                    <div className="text-xs p-1">{format(day, 'd')}</div>
+                  </div>
+                );
+              }).reverse()}
+              
+              {/* Giorni del mese corrente */}
+              {Array.from({ length: getDate(monthEnd) }).map((_, index) => {
+                const day = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), index + 1);
+                const formattedDate = format(day, 'yyyy-MM-dd');
+                const dayAppointments = appointmentsByDate[formattedDate] || [];
+                const isCurrentDay = isToday(day);
+                
+                return (
+                  <div
+                    key={`current-${index}`} 
+                    className={`min-h-[60px] p-1 border ${
+                      isCurrentDay ? 'border-orange-600 bg-orange-900/30' : 'border-gray-800 hover:bg-gray-800/70 bg-black'
+                    } rounded-md`}
+                    onClick={() => handleSelectDate(day)}
+                  >
+                    <div className={`text-xs p-1 font-bold ${isCurrentDay ? 'text-orange-500' : 'text-white'}`}>
+                      {format(day, 'd')}
+                    </div>
+                    
+                    {/* Mostra gli appuntamenti per questo giorno */}
+                    <div className="space-y-1 mt-0.5">
+                      {dayAppointments.length > 0 ? (
+                        <>
+                          {/* Mostra max 2 appuntamenti, poi un indicatore "+X altri" */}
+                          {dayAppointments.slice(0, 2).map(appointment => {
+                            // Semplifichiamo per non usare lo sfondo custom
+                            const backgroundColor = appointment.status === "completato" ? "bg-orange-300" :
+                                                  appointment.status === "annullato" ? "bg-gray-700" :
+                                                  "bg-orange-500/70";
+                            return (
+                              <div 
+                                key={appointment.id}
+                                className={`text-[8px] px-1 py-0.5 truncate rounded-sm ${backgroundColor} shadow-sm hover:shadow-md`}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onSelectAppointment(appointment);
+                                }}
+                              >
+                                <span className="font-bold">{appointment.time.slice(0, 5)}</span> <span className="truncate">{appointment.clientName}</span>
+                              </div>
+                            );
+                          })}
+                          
+                          {dayAppointments.length > 2 && (
+                            <div className="text-[8px] text-center font-bold bg-orange-600/40 text-white rounded-sm py-0.5 mt-0.5">
+                              +{dayAppointments.length - 2}
+                            </div>
+                          )}
+                        </>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })}
+              
+              {/* Giorni del mese successivo per completare la griglia */}
+              {(() => {
+                const lastDayOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), getDate(monthEnd));
+                const remainingCells = 7 - ((getDay(lastDayOfMonth) || 7) % 7);
+                
+                if (remainingCells < 7) {
+                  return Array.from({ length: remainingCells }).map((_, index) => {
+                    const day = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, index + 1);
+                    return (
+                      <div 
+                        key={`next-${index}`} 
+                        className="min-h-[60px] p-1 border border-gray-800 rounded-md bg-black text-gray-600"
+                        onClick={() => handleSelectDate(day)}
+                      >
+                        <div className="text-xs p-1">{format(day, 'd')}</div>
+                      </div>
+                    );
+                  });
+                }
+                return null;
+              })()}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
 
-  return null;
+  return (
+    <div className={`flex flex-col h-full ${isMobile ? 'space-y-2' : 'space-y-4'}`}>
+      {/* Controlli del calendario ottimizzati per mobile */}
+      <div className={`flex ${isMobile ? 'flex-col space-y-2' : 'flex-row items-center justify-between'} mb-2`}>
+        <div className="flex items-center">
+          <Button
+            variant="outline"
+            size={isMobile ? "sm" : "default"}
+            onClick={handlePreviousMonth}
+            className={`${isMobile ? 'px-2' : ''}`}
+          >
+            <ChevronLeft className={`${isMobile ? 'h-4 w-4' : 'h-5 w-5'}`} />
+          </Button>
+          <Button
+            variant="outline"
+            size={isMobile ? "sm" : "default"}
+            onClick={handleToday}
+            className={`mx-1 ${isMobile ? 'px-2 text-xs' : ''}`}
+          >
+            Oggi
+          </Button>
+          <Button
+            variant="outline"
+            size={isMobile ? "sm" : "default"}
+            onClick={handleNextMonth}
+            className={`${isMobile ? 'px-2' : ''}`}
+          >
+            <ChevronRight className={`${isMobile ? 'h-4 w-4' : 'h-5 w-5'}`} />
+          </Button>
+          <h2 className={`ml-4 font-semibold ${isMobile ? 'text-base' : 'text-xl'}`}>
+            {format(currentMonth, 'MMMM yyyy', { locale: it })}
+          </h2>
+        </div>
+        
+        <div className={`flex space-x-1 ${isMobile ? 'justify-center' : ''}`}>
+          <Button
+            variant={isView("day") ? "default" : "outline"}
+            size={isMobile ? "sm" : "default"}
+            onClick={() => setView("day")}
+            className={isMobile ? 'px-2 text-xs' : ''}
+          >
+            Giorno
+          </Button>
+          {!isMobile && (
+            <>
+              <Button
+                variant={isView("week") ? "default" : "outline"}
+                size={isMobile ? "sm" : "default"}
+                onClick={() => setView("week")}
+                className={isMobile ? 'px-2 text-xs' : ''}
+              >
+                Settimana
+              </Button>
+              <Button
+                variant={isView("month") ? "default" : "outline"}
+                size={isMobile ? "sm" : "default"}
+                onClick={() => setView("month")}
+                className={isMobile ? 'px-2 text-xs' : ''}
+              >
+                Mese
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Contenuto del calendario in base alla vista selezionata */}
+      <div className="flex-1 overflow-hidden">
+        {isLoading ? (
+          <div className="flex flex-col space-y-4 p-4">
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-64 w-full" />
+          </div>
+        ) : (
+          <>
+            {view === "day" && <DailyView />}
+            {view === "week" && !isMobile && <div className="p-4">Vista settimanale non disponibile su dispositivi mobili</div>}
+            {view === "month" && !isMobile && <div className="p-4">Vista mensile non disponibile su dispositivi mobili</div>}
+          </>
+        )}
+      </div>
+    </div>
+  );
 }

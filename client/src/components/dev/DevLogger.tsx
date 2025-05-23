@@ -146,7 +146,7 @@ const DevLogger: React.FC = () => {
   }>({ type: 'all', search: '' });
   
   const keySequence = useRef<string[]>([]);
-  const secretCode = ['a', 'l', 'o', 'g']; // "alog" come sequenza
+  const secretCode = ['a', 'l', 'o', 'g', 'g', 'e']; // "alog" come sequenza
 
   useEffect(() => {
     // Aggiunge un listener per i tasti premuti

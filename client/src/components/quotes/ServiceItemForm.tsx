@@ -261,12 +261,21 @@ export default function ServiceItemForm({ items, onChange }: ServiceItemFormProp
   const formatCurrency = (amount: number): string => {
     return new Intl.NumberFormat('it-IT', {
       style: 'currency',
-      currency: 'EUR'
-    }).format(amount);
+      currency: 'EUR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount).replace('€', '€ ');
   };
   
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      {/* Mostra il titolo del servizio corrente quando si sta modificando */}
+      {currentService && (
+        <div className="mb-4 border-b pb-2">
+          <h2 className="text-xl font-bold text-primary">{currentService.name}</h2>
+        </div>
+      )}
+      
       <div className="mb-4">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
           {Object.entries(services).map(([category, categoryServices]) => (

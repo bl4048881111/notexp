@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "../../hooks/useAuth";
 import Sidebar from "./Sidebar";
 import { useIsMobile } from "../../hooks/use-mobile";
+import { authService } from "../../services/authService";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -17,7 +18,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const [currentTime, setCurrentTime] = useState("");
   const [pageTitle, setPageTitle] = useState("Dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, logout, user } = useAuth();
   const [location] = useLocation();
   const isMobile = useIsMobile();
   
@@ -38,11 +39,50 @@ export default function AppLayout({ children }: AppLayoutProps) {
     return () => clearInterval(timer);
   }, []);
   
+  // Monitora e registra l'attività dell'utente per mantenere la sessione attiva
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    
+    // Aggiorna l'attività quando l'utente interagisce con la pagina
+    const updateUserActivity = () => {
+      authService.updateActivity();
+    };
+    
+    // Aggiungi listener per diversi tipi di interazione
+    window.addEventListener('mousemove', updateUserActivity);
+    window.addEventListener('mousedown', updateUserActivity);
+    window.addEventListener('keypress', updateUserActivity);
+    window.addEventListener('touchstart', updateUserActivity);
+    window.addEventListener('scroll', updateUserActivity);
+    
+    // Aggiorna l'attività anche quando cambia la route
+    updateUserActivity();
+    
+    // Aggiorna l'attività ogni 5 minuti anche se l'utente è "passivo" ma la pagina è aperta
+    const activityTimer = setInterval(updateUserActivity, 5 * 60 * 1000);
+    
+    // Cleanup dei listener
+    return () => {
+      window.removeEventListener('mousemove', updateUserActivity);
+      window.removeEventListener('mousedown', updateUserActivity);
+      window.removeEventListener('keypress', updateUserActivity);
+      window.removeEventListener('touchstart', updateUserActivity);
+      window.removeEventListener('scroll', updateUserActivity);
+      clearInterval(activityTimer);
+    };
+  }, [isAuthenticated]);
+  
   useEffect(() => {
     // Set page title based on current route
     switch (location) {
       case "/dashboard":
-        setPageTitle("Dashboard");
+        if (user?.clientId) {
+          // Se è un cliente, mostra "Benvenuto" con il cognome
+          setPageTitle(`Benvenuto ${user.name}`);
+        } else {
+          // Se è admin, lascia il titolo predefinito "Dashboard Amministratore"
+          setPageTitle("Dashboard Amministratore");
+        }
         break;
       case "/clients":
         setPageTitle("Gestione Clienti");
@@ -56,15 +96,36 @@ export default function AppLayout({ children }: AppLayoutProps) {
       case "/services":
         setPageTitle("Gestione Servizi");
         break;
-      default:
+      case "/tagliando":
+        setPageTitle("Lavorazione");
+        break;
+      case "/storico-lavori":
+        setPageTitle("Storico Lavori Completati");
+        break;
+      case "/orders":
         setPageTitle("Gestione Ordini");
+        break;
+      case "/checklist-editor":
+        setPageTitle("Gestione Parametri Checklist");
+        break;
+      default:
+        if (location.startsWith("/tagliando/")) {
+          setPageTitle("Lavorazione");
+        } else {
+          setPageTitle("Dashboard");
+        }
     }
     
     // Close sidebar when route changes
     if (isMobile) {
       setSidebarOpen(false);
     }
-  }, [location, isMobile]);
+    
+    // Aggiorna l'attività dell'utente ad ogni cambio di route
+    if (isAuthenticated) {
+      authService.updateActivity();
+    }
+  }, [location, isMobile, user, isAuthenticated]);
   
   // Initialize sidebar based on screen size
   useEffect(() => {
@@ -109,7 +170,15 @@ export default function AppLayout({ children }: AppLayoutProps) {
                 <Menu size={24} />
               </button>
             )}
-            <h2 className="text-lg md:text-xl font-bold text-white">{pageTitle}</h2>
+            <h2 className="text-lg md:text-xl font-bold text-white">
+              {location === "/dashboard" && user?.clientId ? (
+                <>
+                  Benvenuto <span className="text-orange-500">{user.name}</span>
+                </>
+              ) : (
+                pageTitle
+              )}
+            </h2>
           </div>
           
           <div className="flex items-center space-x-3 md:space-x-6">
@@ -119,7 +188,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
             </div>
             <div className="relative group">
               <div className="w-9 h-9 md:w-10 md:h-10 rounded-full bg-primary/90 hover:bg-primary transition-colors duration-200 flex items-center justify-center text-white font-medium cursor-pointer shadow-md">
-                A
+                {user?.surname ? user.surname[0].toUpperCase() : 'A'}
               </div>
               <div className="absolute right-0 mt-2 w-48 p-2 bg-[#222222] rounded-md shadow-lg border border-gray-800 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
                 {isMobile && (

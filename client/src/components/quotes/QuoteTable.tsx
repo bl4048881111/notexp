@@ -1,8 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { Quote } from "@shared/schema";
-import { deleteQuote, updateQuote } from "@shared/firebase";
+import { deleteQuote, updateQuote, mergeQuotes } from "@shared/firebase";
 import { exportQuoteToPDF } from "@/services/exportService";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -14,11 +14,6 @@ import {
   TableCell
 } from "@/components/ui/table";
 import {
-  SimpleDropdown,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-} from "@/components/ui/simple-dropdown";
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -29,22 +24,32 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Checkbox } from "@/components/ui/checkbox";
 import { 
-  MoreHorizontal, 
-  Pencil, 
+  Edit, 
   Trash, 
-  Search, 
   FileDown,
-  CheckCircle,
-  XCircle,
   Clock,
-  Send
+  Send,
+  CheckCircle,
+  MoreHorizontal,
+  Timer,
+  CheckCircle2,
+  Loader2,
+  MergeIcon
 } from "lucide-react";
-import { Card } from "@/components/ui/card";
 import { appointmentService } from "@/services/appointmentService";
 import { Appointment } from "@shared/types";
+import { useLocation } from "wouter";
+import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
 
 interface QuoteTableProps {
   quotes: Quote[];
@@ -52,6 +57,8 @@ interface QuoteTableProps {
   onEdit: (quote: Quote) => void;
   onDeleteSuccess: () => void;
   onStatusChange: () => void;
+  onRequestAppointment?: (quote: Quote) => void;
+  readOnly?: boolean;
 }
 
 export default function QuoteTable({ 
@@ -59,37 +66,41 @@ export default function QuoteTable({
   isLoading, 
   onEdit, 
   onDeleteSuccess,
-  onStatusChange
+  onStatusChange,
+  onRequestAppointment,
+  readOnly = false
 }: QuoteTableProps) {
-  const [searchQuery, setSearchQuery] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [quoteToDelete, setQuoteToDelete] = useState<Quote | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   
-  // Calcolo i preventivi non scaduti
-  const activeQuotesCount = useMemo(() => {
-    return quotes.filter(quote => quote.status !== 'scaduto').length;
+  // Stato per la selezione di preventivi
+  const [selectedQuotes, setSelectedQuotes] = useState<string[]>([]);
+  const [isMerging, setIsMerging] = useState(false);
+  // Stato per la modalità selezione
+  const [selectionMode, setSelectionMode] = useState(false);
+  
+  // Ordina i preventivi: bozze, inviati, accettati, completati
+  const sortedQuotes = useMemo(() => {
+    const statusOrder = {
+      'bozza': 1,
+      'inviato': 2, 
+      'accettato': 3,
+      'completato': 4,
+      'scaduto': 5
+    };
+    
+    return [...quotes].sort((a, b) => {
+      return (statusOrder[a.status] || 99) - (statusOrder[b.status] || 99);
+    });
   }, [quotes]);
-  
-  // Calcolo i preventivi incompleti (in stato bozza)
-  const incompleteQuotesCount = useMemo(() => {
-    return quotes.filter(quote => quote.status === 'bozza').length;
-  }, [quotes]);
-  
-  // Filtra i preventivi in base alla ricerca
-  const filteredQuotes = quotes.filter(quote => {
-    const searchLower = searchQuery.toLowerCase();
-    return (
-      quote.clientName.toLowerCase().includes(searchLower) ||
-      quote.plate.toLowerCase().includes(searchLower) ||
-      quote.phone.toLowerCase().includes(searchLower)
-    );
-  });
   
   // Formatta la data
   const formatDate = (dateString: string) => {
     try {
-      return format(new Date(dateString), "dd MMM yyyy", { locale: it });
+      return format(new Date(dateString), "dd/MM/yyyy", { locale: it });
     } catch (e) {
       return dateString;
     }
@@ -103,6 +114,119 @@ export default function QuoteTable({
     }).format(amount);
   };
   
+  // Funzione per ottenere il totale corretto del preventivo
+  const getQuoteTotal = (quote: Quote): number => {
+    if (quote.totalPrice !== undefined) {
+      return quote.totalPrice;
+    }
+    return 0;
+  };
+  
+  // Formatta le ore di manodopera
+  const formatLaborHours = (hours: number | undefined): string => {
+    if (hours === undefined) return "0h";
+    return `${hours.toFixed(1)}h`;
+  };
+  
+  // Funzione per contare il numero di pezzi in un preventivo
+  const countParts = (quote: Quote): number => {
+    try {
+      if (!(quote as any).items) return 0;
+      
+      const items = (quote as any).items;
+      let count = 0;
+      
+      for (const item of items) {
+        if (Array.isArray(item.parts)) {
+          for (const part of item.parts) {
+            count += (part.quantity || 1);
+          }
+        }
+      }
+      
+      return count;
+    } catch (error) {
+      console.error("Errore nel conteggio pezzi:", error);
+      return 0;
+    }
+  };
+  
+  // Gestisce il click su una checkbox
+  const handleToggleSelect = (quoteId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedQuotes(prev => [...prev, quoteId]);
+    } else {
+      setSelectedQuotes(prev => prev.filter(id => id !== quoteId));
+    }
+  };
+  
+  // Attiva la modalità selezione
+  const toggleSelectionMode = () => {
+    setSelectionMode(prev => !prev);
+    if (selectionMode) {
+      setSelectedQuotes([]);
+    }
+  };
+  
+  // Gestisce l'unione dei preventivi selezionati
+  const handleMergeQuotes = async () => {
+    if (selectedQuotes.length < 2) {
+      toast({
+        title: "Selezione insufficiente",
+        description: "Seleziona almeno due preventivi da unire.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Verifica che i preventivi siano dello stesso cliente
+    const clientId = quotes.find(q => q.id === selectedQuotes[0])?.clientId;
+    const allSameClient = selectedQuotes.every(id => 
+      quotes.find(q => q.id === id)?.clientId === clientId
+    );
+    
+    if (!allSameClient) {
+      toast({
+        title: "Preventivi incompatibili",
+        description: "I preventivi selezionati devono appartenere allo stesso cliente.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsMerging(true);
+    try {
+      // Chiama la funzione di unione preventivi
+      const mergedQuote = await mergeQuotes(selectedQuotes);
+      
+      if (mergedQuote) {
+        toast({
+          title: "Preventivi uniti",
+          description: `I preventivi selezionati sono stati uniti nel nuovo preventivo ${mergedQuote.id}.`,
+        });
+        
+        // Ricarica la pagina per mostrare il nuovo preventivo
+        onStatusChange();
+        setSelectedQuotes([]);
+      } else {
+        toast({
+          title: "Errore",
+          description: "Si è verificato un errore durante l'unione dei preventivi.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Errore durante l'unione dei preventivi:", error);
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore durante l'unione dei preventivi.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsMerging(false);
+    }
+  };
+  
   // Gestisce il click su Elimina
   const handleDeleteClick = (quote: Quote) => {
     setQuoteToDelete(quote);
@@ -113,6 +237,7 @@ export default function QuoteTable({
   const handleConfirmDelete = async () => {
     if (!quoteToDelete) return;
     
+    setIsDeleting(true);
     try {
       // Prima di eliminare il preventivo, troviamo tutti gli appuntamenti collegati
       // e aggiorniamo i loro riferimenti
@@ -120,8 +245,6 @@ export default function QuoteTable({
       const linkedAppointments = appointments.filter(app => app.quoteId === quoteToDelete.id);
       
       if (linkedAppointments.length > 0) {
-        console.log(`Trovati ${linkedAppointments.length} appuntamenti collegati al preventivo ${quoteToDelete.id}`);
-        
         // Aggiorniamo ogni appuntamento collegato
         for (const app of linkedAppointments) {
           const updates: Partial<Appointment> = {
@@ -131,32 +254,11 @@ export default function QuoteTable({
           
           // Aggiorna l'appuntamento rimuovendo il riferimento al preventivo
           await appointmentService.update(app.id, updates);
-          console.log(`Appuntamento ${app.id} aggiornato: rimosso riferimento al preventivo eliminato`);
         }
       }
       
-      // Ora possiamo eliminare il preventivo
+      // Elimina il preventivo
       await deleteQuote(quoteToDelete.id);
-      
-      // Registra l'attività di eliminazione preventivo
-      try {
-        const activityModule = await import('../dev/ActivityLogger');
-        const { useActivityLogger } = activityModule;
-        const { logActivity } = useActivityLogger();
-        
-        logActivity(
-          'delete_quote',
-          `Preventivo eliminato: ${quoteToDelete.clientName}`,
-          {
-            quoteId: quoteToDelete.id,
-            clientName: quoteToDelete.clientName,
-            plate: quoteToDelete.plate,
-            timestamp: new Date()
-          }
-        );
-      } catch (error) {
-        console.warn("Impossibile registrare l'attività:", error);
-      }
       
       toast({
         title: "Preventivo eliminato",
@@ -164,13 +266,13 @@ export default function QuoteTable({
       });
       onDeleteSuccess();
     } catch (error) {
-      console.error("Errore durante l'eliminazione del preventivo:", error);
       toast({
         title: "Errore",
         description: "Si è verificato un errore durante l'eliminazione del preventivo.",
         variant: "destructive",
       });
     } finally {
+      setIsDeleting(false);
       setDeleteConfirmOpen(false);
       setQuoteToDelete(null);
     }
@@ -178,49 +280,48 @@ export default function QuoteTable({
   
   // Gestisce il cambio di stato
   const handleStatusChange = async (quote: Quote, newStatus: Quote['status']) => {
+    // Salva lo stato precedente per poter ripristinare in caso di errore
+    const previousStatus = quote.status;
+    
     try {
-      console.log(`Tentativo di aggiornamento preventivo ${quote.id} - Da ${quote.status} a ${newStatus}`);
-      const updatedQuote = await updateQuote(quote.id, { status: newStatus });
-      console.log("Preventivo aggiornato:", updatedQuote);
-      
-      // Registra l'attività di cambio stato
-      try {
-        const activityModule = await import('../dev/ActivityLogger');
-        const { useActivityLogger } = activityModule;
-        const { logActivity } = useActivityLogger();
-        
-        let statusText = getStatusLabel(newStatus);
-        
-        logActivity(
-          'change_quote_status',
-          `Preventivo marcato come "${statusText}": ${quote.clientName}`,
-          {
-            quoteId: quote.id,
-            clientName: quote.clientName,
-            oldStatus: quote.status,
-            newStatus: newStatus,
-            total: quote.total,
-            timestamp: new Date()
-          }
-        );
-      } catch (error) {
-        console.warn("Impossibile registrare l'attività:", error);
-      }
-      
+      // Approccio "optimistic update":
+      // Notifica subito l'utente che lo stato è cambiato per dare un feedback immediato
       toast({
-        title: "Stato aggiornato",
-        description: `Lo stato del preventivo è stato aggiornato in "${getStatusLabel(newStatus)}".`,
+        title: "Aggiornamento in corso...",
+        description: `Stato modificato in "${getStatusLabel(newStatus)}"`,
       });
+      
+      // Esegui l'aggiornamento sul server
+      await updateQuote(quote.id, { status: newStatus });
       
       // Forza un refresh dei dati
       onStatusChange();
+      
+      // Notifica l'utente che l'aggiornamento è stato completato
+      toast({
+        title: "Stato aggiornato",
+        description: `Lo stato del preventivo è stato aggiornato in "${getStatusLabel(newStatus)}"`,
+      });
     } catch (error) {
-      console.error("Errore durante l'aggiornamento dello stato:", error);
+      // In caso di errore, notifica l'utente e offri la possibilità di riprovare
       toast({
         title: "Errore",
-        description: "Si è verificato un errore durante l'aggiornamento dello stato.",
+        description: "Si è verificato un errore durante l'aggiornamento dello stato. Prova a ricaricare la pagina.",
         variant: "destructive",
+        action: (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => handleStatusChange(quote, newStatus)}
+            className="bg-background text-xs"
+          >
+            Riprova
+          </Button>
+        ),
       });
+      
+      // Forza comunque un refresh per ripristinare lo stato corretto dal server
+      onStatusChange();
     }
   };
   
@@ -229,32 +330,11 @@ export default function QuoteTable({
     try {
       await exportQuoteToPDF(quote);
       
-      // Registra l'attività di esportazione
-      try {
-        const activityModule = await import('../dev/ActivityLogger');
-        const { useActivityLogger } = activityModule;
-        const { logActivity } = useActivityLogger();
-        
-        logActivity(
-          'export_data',
-          `Preventivo esportato in PDF: ${quote.clientName}`,
-          {
-            quoteId: quote.id,
-            clientName: quote.clientName,
-            fileType: 'PDF',
-            timestamp: new Date()
-          }
-        );
-      } catch (error) {
-        console.warn("Impossibile registrare l'attività:", error);
-      }
-      
       toast({
         title: "PDF generato",
         description: "Il preventivo è stato esportato in PDF con successo.",
       });
     } catch (error) {
-      console.error("Errore durante l'esportazione in PDF:", error);
       toast({
         title: "Errore",
         description: "Si è verificato un errore durante l'esportazione in PDF.",
@@ -269,18 +349,20 @@ export default function QuoteTable({
       'bozza': 'Bozza',
       'inviato': 'Inviato',
       'accettato': 'Accettato',
-      'scaduto': 'Scaduto'
+      'scaduto': 'Scaduto',
+      'completato': 'Completato'
     };
     return statusMap[status] || status;
   };
   
   // Restituisce il colore del badge in base allo stato
   const getStatusBadgeVariant = (status: Quote['status']) => {
-    const variantMap: Record<Quote['status'], "default" | "secondary" | "destructive" | "outline" | null | undefined> = {
+    const variantMap: Record<Quote['status'], "default" | "secondary" | "destructive" | "outline" | "success" | null | undefined> = {
       'bozza': "outline",
       'inviato': "secondary",
       'accettato': "default",
-      'scaduto': "outline"
+      'scaduto': "outline",
+      'completato': "success"
     };
     return variantMap[status];
   };
@@ -291,207 +373,269 @@ export default function QuoteTable({
       'bozza': <Clock className="h-4 w-4" />,
       'inviato': <Send className="h-4 w-4" />,
       'accettato': <CheckCircle className="h-4 w-4" />,
-      'scaduto': <Clock className="h-4 w-4" />
+      'scaduto': <Clock className="h-4 w-4" />,
+      'completato': <CheckCircle2 className="h-4 w-4 text-green-600" />
     };
     return iconMap[status];
   };
   
-  // Se non ci sono preventivi
-  if (quotes.length === 0 && !isLoading) {
+  if (isLoading) {
     return (
-      <Card className="p-8 text-center">
-        <p className="text-muted-foreground mb-4">Nessun preventivo trovato</p>
-        <p className="text-sm">Crea un nuovo preventivo per iniziare a gestire le tue offerte.</p>
-      </Card>
+      <div className="p-4">
+        <Skeleton className="h-10 w-full mb-4" />
+        <Skeleton className="h-10 w-full mb-4" />
+        <Skeleton className="h-10 w-full mb-4" />
+        <Skeleton className="h-10 w-full mb-4" />
+      </div>
+    );
+  }
+  
+  if (quotes.length === 0) {
+    return (
+      <div className="text-center p-8 border rounded-lg bg-background">
+        <p className="text-muted-foreground">
+          Nessun preventivo trovato.
+        </p>
+      </div>
     );
   }
   
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <div className="relative w-full">
-          <Search className="absolute top-2.5 left-3 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Cerca preventivi..."
-            className="pl-9 w-full"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-        {/* Contatori */}
-        <div className="ml-4 flex flex-col gap-2 sm:flex-row">
-          <div className="bg-yellow-500/10 text-yellow-600 rounded-md px-3 py-1.5 font-medium text-sm whitespace-nowrap">
-            {incompleteQuotesCount} preventivi incompleti
+    <div className="w-full overflow-hidden">
+      {/* Barra delle azioni visibile solo se ci sono preventivi selezionati e non readOnly */}
+      {(!readOnly && selectedQuotes.length > 0) && (
+        <div className="flex items-center justify-between mb-4 p-2 bg-muted rounded-md">
+          <div className="text-sm">
+            {`${selectedQuotes.length} preventivi selezionati`}
           </div>
-          <div className="bg-primary/10 text-primary rounded-md px-3 py-1.5 font-medium text-sm whitespace-nowrap">
-            {activeQuotesCount} preventivi attivi
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="default" 
+              size="sm" 
+              onClick={handleMergeQuotes}
+              disabled={isMerging || selectedQuotes.length < 2}
+              className="gap-2"
+            >
+              {isMerging ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <MergeIcon className="h-4 w-4" />
+              )}
+              Unisci Preventivi
+            </Button>
+            <Button 
+              variant="destructive" 
+              size="sm" 
+              onClick={() => {
+                if (selectedQuotes.length === 0) {
+                  toast({
+                    title: "Selezione vuota",
+                    description: "Seleziona almeno un preventivo da eliminare.",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+                if (confirm(`Sei sicuro di voler eliminare ${selectedQuotes.length} preventivi selezionati?`)) {
+                  // Eliminiamo i preventivi uno per uno
+                  const deleteQuotes = async () => {
+                    try {
+                      for (const id of selectedQuotes) {
+                        await deleteQuote(id);
+                      }
+                      toast({
+                        title: "Preventivi eliminati",
+                        description: `${selectedQuotes.length} preventivi sono stati eliminati con successo.`,
+                      });
+                      onDeleteSuccess();
+                      setSelectedQuotes([]);
+                    } catch (error) {
+                      toast({
+                        title: "Errore",
+                        description: "Si è verificato un errore durante l'eliminazione dei preventivi.",
+                        variant: "destructive",
+                      });
+                    }
+                  };
+                  deleteQuotes();
+                }
+              }}
+              disabled={selectedQuotes.length === 0}
+              className="gap-2"
+            >
+              <Trash className="h-4 w-4" />
+              Elimina Preventivi
+            </Button>
           </div>
         </div>
-      </div>
-      
-      <div className="border rounded-md">
-        <Table>
+      )}
+      <div className="border rounded-lg">
+        <Table className="w-full">
           <TableHeader>
             <TableRow>
-              <TableHead className="hidden sm:table-cell">Veicolo</TableHead>
-              <TableHead className="hidden md:table-cell">Data</TableHead>
-              <TableHead className="hidden sm:table-cell">Totale</TableHead>
-              <TableHead>Qtà totale</TableHead>
-              <TableHead>Stato</TableHead>
-              <TableHead className="text-right">Azioni</TableHead>
+              {/* Colonna selezione solo se non readOnly */}
+              {!readOnly && (
+                <TableHead className="w-[5%]">
+                  {selectionMode && (
+                    /* Header per le caselle di selezione */
+                    <Checkbox 
+                      checked={selectedQuotes.length > 0 && selectedQuotes.length === quotes.length}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedQuotes(quotes.map(q => q.id));
+                        } else {
+                          setSelectedQuotes([]);
+                        }
+                      }}
+                    />
+                  )}
+                </TableHead>
+              )}
+              <TableHead className="w-[10%]">Codice</TableHead>
+              <TableHead className="w-[20%]">Cliente</TableHead>
+              <TableHead className="w-[10%]">Veicolo</TableHead>
+              <TableHead className="w-[15%]">Totale</TableHead>
+              <TableHead className="w-[10%]">Data</TableHead>
+              <TableHead className="w-[5%]">Ore</TableHead>
+              <TableHead className="w-[10%]">Stato</TableHead>
+              {!readOnly && <TableHead className="w-[10%] text-right">Azioni</TableHead>}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
-                  Caricamento preventivi...
-                </TableCell>
-              </TableRow>
-            ) : filteredQuotes.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
-                  Nessun preventivo trovato. Prova a cambiare i criteri di ricerca.
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredQuotes.map((quote) => (
-                <TableRow 
-                  key={quote.id} 
-                  className="cursor-pointer hover:bg-muted/40 transition-colors border-l-4 border-l-primary/80"
-                  onClick={() => onEdit(quote)}
-                >
-                  <TableCell className="sm:table-cell p-4">
-                    <div className="flex flex-col">
-                      <div className="font-medium text-base">{quote.model}</div>
-                      <div className="text-sm text-muted-foreground mt-1.5 font-medium">
-                        {quote.plate}
-                      </div>
-                      {/* Cliente sempre visibile, con stile diverso su mobile e desktop */}
-                      <div className="mt-2">
-                        <div className="text-base font-medium text-primary">
-                          {quote.clientName}
-                        </div>
-                        <div className="text-sm text-muted-foreground flex items-center gap-1 mt-0.5">
-                          <span>{quote.phone}</span>
-                        </div>
-                      </div>
-                      {/* Data visibile su mobile */}
-                      <div className="md:hidden text-sm text-muted-foreground mt-2">
-                        Data: {formatDate(quote.date)}
-                      </div>
-                      {/* Totale visibile su mobile */}
-                      <div className="sm:hidden text-sm font-medium mt-1.5 text-foreground">
-                        Totale: {formatCurrency(quote.total)}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell">{formatDate(quote.date)}</TableCell>
-                  <TableCell className="hidden sm:table-cell">{formatCurrency(quote.total)}</TableCell>
+            {sortedQuotes.map((quote) => (
+              <TableRow 
+                key={quote.id} 
+                className={`cursor-pointer hover:bg-muted/50 ${selectedQuotes.includes(quote.id) ? 'bg-muted' : ''}`}
+                onClick={(e) => {
+                  if (readOnly) return; // Nessuna azione in sola lettura
+                  // Se siamo in modalità selezione, il click sulla riga seleziona/deseleziona il preventivo
+                  if (selectionMode) {
+                    const isSelected = selectedQuotes.includes(quote.id);
+                    handleToggleSelect(quote.id, !isSelected);
+                    return;
+                  }
+                  // Altrimenti, se il click non è su un pulsante o un elemento dropdown, apri il preventivo
+                  const target = e.target as HTMLElement;
+                  if (!target.closest('button') && !target.closest('[role="menuitem"]') && !target.closest('input[type="checkbox"]')) {
+                    onEdit(quote);
+                  }
+                }}
+              >
+                {/* Colonna selezione solo se non readOnly */}
+                {!readOnly && (
                   <TableCell>
-                    {quote.items && quote.items.some(item => Array.isArray(item.parts) && item.parts.length > 0) ? (
-                      <span className="bg-primary/15 text-primary font-medium px-2 py-1 rounded inline-block">
-                        {quote.items.reduce((total, item) => 
-                          total + (Array.isArray(item.parts) 
-                            ? item.parts.reduce((sum, part) => sum + (part.quantity || 1), 0) 
-                            : 0), 0)} pezzi
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">0</span>
+                    {selectionMode && (
+                      <Checkbox
+                        checked={selectedQuotes.includes(quote.id)}
+                        onCheckedChange={(checked) => handleToggleSelect(quote.id, checked === true)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
                     )}
                   </TableCell>
-                  <TableCell>
-                    <Badge 
-                      variant={getStatusBadgeVariant(quote.status)}
-                      className="gap-1 whitespace-nowrap"
-                    >
-                      {getStatusIcon(quote.status)}
-                      <span>{getStatusLabel(quote.status)}</span>
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                    <SimpleDropdown
-                      trigger={
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Apri menu</span>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      }
-                      content={
-                        <div className="min-w-[12rem]">
-                          <div className="px-2 py-1.5 text-sm font-semibold">Azioni</div>
+                )}
+                <TableCell className="font-medium">
+                  {quote.id.substring(0, 5).toUpperCase()}
+                </TableCell>
+                <TableCell>
+                  <div className="font-medium">{quote.clientName}</div>
+                  <div className="text-xs text-muted-foreground">{quote.phone}</div>
+                </TableCell>
+                <TableCell>
+                  <div className="font-medium">{quote.plate}</div>
+                </TableCell>
+                <TableCell>
+                  <div className="font-medium">{formatCurrency(getQuoteTotal(quote))}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {countParts(quote)} pezzi
+                  </div>
+                </TableCell>
+                <TableCell>
+                  {formatDate(quote.date)}
+                </TableCell>
+                <TableCell>
+                  {formatLaborHours(quote.laborHours)}
+                </TableCell>
+                <TableCell>
+                  <Badge variant={getStatusBadgeVariant(quote.status)} className="flex items-center gap-1 w-fit">
+                    {getStatusIcon(quote.status)}
+                    {getStatusLabel(quote.status)}
+                  </Badge>
+                </TableCell>
+                {/* Colonna azioni solo se non readOnly */}
+                {!readOnly && (
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" onClick={(e) => e.stopPropagation()}>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                           <DropdownMenuItem onClick={() => onEdit(quote)}>
-                            <Pencil className="mr-2 h-4 w-4" />
-                            <span>Modifica</span>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Modifica
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleExportToPDF(quote)}>
                             <FileDown className="mr-2 h-4 w-4" />
-                            <span>Esporta PDF</span>
-                          </DropdownMenuItem>
-                          
-                          <DropdownMenuSeparator />
-                          
-                          <div className="px-2 py-1.5 text-sm font-semibold">Cambia stato</div>
-                          <DropdownMenuItem 
-                            onClick={() => handleStatusChange(quote, 'bozza')}
-                            disabled={quote.status === 'bozza'}
-                          >
-                            <Clock className="mr-2 h-4 w-4" />
-                            <span>Bozza</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleStatusChange(quote, 'inviato')}
-                            disabled={quote.status === 'inviato'}
-                          >
-                            <Send className="mr-2 h-4 w-4" />
-                            <span>Inviato</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleStatusChange(quote, 'accettato')}
-                            disabled={quote.status === 'accettato'}
-                          >
-                            <CheckCircle className="mr-2 h-4 w-4" />
-                            <span>Accettato</span>
+                            Esporta PDF
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          
-                          <DropdownMenuItem 
-                            onClick={() => handleDeleteClick(quote)}
-                            className="text-destructive"
-                          >
+                          <DropdownMenuItem onClick={() => handleStatusChange(quote, "bozza")}> <Clock className="mr-2 h-4 w-4" /> Stato: Bozza </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleStatusChange(quote, "inviato")}> <Send className="mr-2 h-4 w-4" /> Stato: Inviato </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleStatusChange(quote, "accettato")}> <CheckCircle className="mr-2 h-4 w-4" /> Stato: Accettato </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleStatusChange(quote, "completato")}> <CheckCircle2 className="mr-2 h-4 w-4" /> Stato: Completato </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          {(quote.status === "inviato" || quote.status === "accettato") && (
+                            <DropdownMenuItem onClick={() => onRequestAppointment && onRequestAppointment(quote)}>
+                              <Timer className="mr-2 h-4 w-4" />
+                              Crea Appuntamento
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuItem onClick={() => handleDeleteClick(quote)} className="text-red-600">
                             <Trash className="mr-2 h-4 w-4" />
-                            <span>Elimina</span>
+                            Elimina
                           </DropdownMenuItem>
-                        </div>
-                      }
-                    />
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={toggleSelectionMode}>
+                            <Checkbox className="mr-2 h-4 w-4" checked={selectionMode} />
+                            {selectionMode ? "Disattiva selezione" : "Attiva selezione"}
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </TableCell>
-                </TableRow>
-              ))
-            )}
+                )}
+              </TableRow>
+            ))}
           </TableBody>
         </Table>
       </div>
-      
-      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Sei sicuro di voler eliminare questo preventivo?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Questa azione è irreversibile. Il preventivo verrà eliminato definitivamente.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Annulla</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleConfirmDelete}
-              className="bg-destructive"
-            >
-              Elimina
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Dialog di conferma eliminazione visibile solo se non readOnly */}
+      {!readOnly && (
+        <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Sei sicuro?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Questa azione eliminerà definitivamente il preventivo
+                {quoteToDelete && ` per ${quoteToDelete.clientName}`}.
+                I dati non potranno essere recuperati.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annulla</AlertDialogCancel>
+              <AlertDialogAction onClick={handleConfirmDelete} disabled={isDeleting}>
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Eliminazione...
+                  </>
+                ) : "Elimina"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   );
 }

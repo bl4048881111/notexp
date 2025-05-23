@@ -21,11 +21,14 @@ export const clientSchema = z.object({
   surname: z.string().min(1, "Cognome è obbligatorio"),
   phone: z.string().min(1, "Numero di telefono è obbligatorio"),
   email: z.string().email("Email non valida").or(z.string().length(0)),
+  birthDate: z.string().optional(), // Data di compleanno del cliente
   plate: z.string().min(1, "Targa è obbligatoria"),  // Teniamo per retrocompatibilità
   model: z.string().optional(), // Campo reso opzionale
-  vin: z.string().optional(), // Codice VIN facoltativo
+  vin: z.string().optional(),
+  password: z.string().min(1, "Password è obbligatoria"), // Codice VIN facoltativo
   vehicles: z.array(vehicleSchema).optional(),
-  createdAt: z.number()
+  createdAt: z.number(),
+  updatedAt: z.number().optional() // Timestamp dell'ultimo aggiornamento
 });
 
 export const createClientSchema = clientSchema.omit({ id: true });
@@ -67,7 +70,7 @@ export const appointmentSchema = z.object({
   spareParts: z.array(sparePartSchema).optional(),
   totalPartsPrice: z.number().optional(),
   notes: z.string().optional(),
-  status: z.enum(["programmato", "completato", "annullato"]),
+  status: z.enum(["programmato", "in_lavorazione", "completato", "annullato"]),
   // ID del preventivo collegato
   quoteId: z.string().optional(),
   // Stato dell'ordine dei pezzi
@@ -78,7 +81,8 @@ export const appointmentSchema = z.object({
   startHour: z.number().optional(),
   startMinute: z.number().optional(),
   endHour: z.number().optional(),
-  endMinute: z.number().optional()
+  endMinute: z.number().optional(),
+  type: z.string().optional()
 });
 
 export const createAppointmentSchema = appointmentSchema.omit({ id: true });
@@ -135,24 +139,40 @@ export const quoteSchema = z.object({
   clientName: z.string(),
   phone: z.string(),
   plate: z.string(),
-  model: z.string().optional(),
-  vin: z.string().optional(), // Numero di telaio (VIN)
-  kilometrage: z.number().default(0),
+  kilometrage: z.number(),
   date: z.string(),
-  items: z.array(quoteItemSchema).default([]),
-  subtotal: z.number().default(0),
-  taxRate: z.number().default(22), // IVA 22%
-  taxAmount: z.number().default(0),
-  total: z.number().default(0),
+  status: z.enum(["bozza", "inviato", "accettato", "scaduto", "completato"]),
+  laborPrice: z.number(),
+  // Array di parti semplice (per retrocompatibilità)
+  parts: z.array(z.object({
+    code: z.string(),
+    description: z.string(),
+    quantity: z.number(),
+    price: z.number()
+  })),
+  // Nuovo campo per items strutturati
+  items: z.array(quoteItemSchema).optional(),
+  // Campi per i totali
+  totalPrice: z.number(),
+  subtotal: z.number().optional(),
+  taxAmount: z.number().optional(),
+  taxRate: z.number().optional(),
+  // Campi per la manodopera
+  laborHours: z.number().optional(),
+  // Campi per dettagli e meta-informazioni
   notes: z.string().optional(),
-  laborPrice: z.number().default(45), // Tariffa oraria di manodopera extra
-  laborHours: z.number().default(0), // Ore di manodopera extra
-  status: z.enum(["bozza", "inviato", "accettato", "scaduto"]).default("bozza"),
-  validUntil: z.string().optional(), // Data di scadenza del preventivo
-  createdAt: z.number()
+  validUntil: z.string().optional(),
+  partsOrdered: z.boolean().optional(),
+  createdAt: z.number().optional(),
+  // Campi aggiuntivi (per retrocompatibilità)
+  code: z.string().optional(),
+  quantity: z.number().optional(),
+  model: z.string().optional(),
+  vin: z.string().optional(),
+  total: z.number().optional(),
 });
 
-export const createQuoteSchema = quoteSchema.omit({ createdAt: true }).extend({
+export const createQuoteSchema = quoteSchema.extend({
   id: z.string().optional(),
   vin: z.string().optional()
 });

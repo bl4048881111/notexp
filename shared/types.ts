@@ -16,6 +16,10 @@ export interface DashboardData {
 export interface User {
   username: string;
   password: string;
+  clientId?: string;
+  email?: string;
+  name?: string;
+  surname?: string;
 }
 
 export interface AuthState {
@@ -24,8 +28,8 @@ export interface AuthState {
 }
 
 export const DEFAULT_CREDENTIALS = {
-  username: 'admin',
-  password: '1234'
+  username: 'aut@express!',
+  password: 's!vol@'
 };
 
 // Re-export from schema

@@ -1,131 +1,229 @@
-import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { FileDown, Search, RefreshCw, FileText, FileCheck } from "lucide-react";
+import { format } from "date-fns";
+import { it } from "date-fns/locale";
+import * as XLSX from 'xlsx';
+
+import { Heading } from "@/components/ui/heading";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { Card } from "@/components/ui/card";
+
 import { getAllQuotes, getAllAppointments } from "@shared/firebase";
 import { raggruppaPerTipoRicambio } from "@/utils/ricambi";
 
 export default function OrdersPage() {
-  const { data: orders = [], isLoading } = useQuery({
+  const { toast } = useToast();
+  const [search, setSearch] = useState("");
+  const [isExporting, setIsExporting] = useState(false);
+  const queryClient = useQueryClient();
+  
+  const { data: orders = [], isLoading: ordersLoading, refetch: refetchOrders } = useQuery({
     queryKey: ["/api/orders"],
     queryFn: getAllQuotes,
+    staleTime: 1000, // Cache valida solo per 1 secondo
+    refetchInterval: 3000, // Refetch automatico ogni 3 secondi
+    refetchOnWindowFocus: true,
+    refetchOnMount: 'always',
   });
-  const { data: appointments = [] } = useQuery({
-    queryKey: ["/api/appointments"],
+  
+  // Aggiungi una query per ottenere gli appuntamenti necessari a determinare lo stato dei ricambi
+  const { data: appointments = [], isLoading: appointmentsLoading, refetch: refetchAppointments } = useQuery({
+    queryKey: ["/appointments"],
     queryFn: getAllAppointments,
+    staleTime: 1000, // Cache valida solo per 1 secondo
+    refetchInterval: 3000, // Refetch automatico ogni 3 secondi
+    refetchOnWindowFocus: true,
+    refetchOnMount: 'always',
   });
-
-  const [search, setSearch] = useState("");
-  const [openTipo, setOpenTipo] = useState<string | null>(null);
-
-  const ricambiPerTipo = raggruppaPerTipoRicambio(orders, search, appointments);
-  const tipiRicambio = Object.keys(ricambiPerTipo)
-    .filter(tipo => ricambiPerTipo[tipo].some(row => row.partsOrdered === false))
-    .sort();
-
-  // Calcola il numero totale di ricambi non ordinati
-  const nonOrdinati = Object.values(ricambiPerTipo)
+  
+  // Verifico se abbiamo dati validi
+  useEffect(() => {
+    console.log("Dati disponibili:", {
+      ordini: orders.length,
+      appuntamenti: appointments.length
+    });
+  }, [orders, appointments]);
+  
+  // Utilizzo la funzione raggruppaPerTipoRicambio per ottenere i ricambi raggruppati con lo stato
+  const ricambiRaggruppati = raggruppaPerTipoRicambio(orders, search, appointments);
+  
+  // Conteggio totale dei ricambi prima del filtraggio (per debugging)
+  const totalPartsBeforeFiltering = Object.values(ricambiRaggruppati).reduce((total, parts) => total + parts.length, 0);
+  
+  // Estrai tutte le parti di tutti gli ordini
+  // Filtra per mostrare SOLO i ricambi da ordinare (partsOrdered = false)
+  const partsToOrder = Object.values(ricambiRaggruppati)
     .flat()
-    .filter(row => row.partsOrdered === false).length;
+    .filter(part => part.partsOrdered === false);
+  
+  // Log dei ricambi filtrati per debugging
+  useEffect(() => {
+    console.log("DEBUG - Ricambi:", {
+      totale: partsToOrder.length,
+      esempio: partsToOrder.length > 0 ? partsToOrder[0] : null
+    });
+  }, [partsToOrder]);
+  
+  // Funzione per aggiornare i dati
+  const refreshData = async () => {
+    try {
+      console.log("Forzatura aggiornamento dati...");
+      
+      // Invalida la cache per forzare un nuovo caricamento
+      await queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+      await queryClient.invalidateQueries({ queryKey: ["/appointments"] });
+      
+      // Forza un refetch immediato
+      await Promise.all([refetchOrders(), refetchAppointments()]);
+      
+      // Aggiorna la pagina per essere sicuri che tutto venga ricreato
+      setTimeout(() => {
+        console.log("Ricaricamento completo della funzione di raggruppamento...");
+        // Questo forza un re-render completo del componente
+        setSearch(s => s + " ");
+        setTimeout(() => setSearch(s => s.trim()), 100);
+      }, 500);
+      
+      toast({
+        title: "Dati aggiornati",
+        description: "I dati degli ordini sono stati aggiornati con successo",
+      });
+    } catch (error) {
+      toast({
+        title: "Errore di aggiornamento",
+        description: "Si è verificato un errore durante l'aggiornamento dei dati",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  // Effetto per il polling automatico dei dati
+  useEffect(() => {
+    // Imposta un intervallo per aggiornare automaticamente i dati
+    const interval = setInterval(() => {
+      console.log("Aggiornamento automatico degli ordini...");
+      refreshData();
+    }, 10 * 1000); // Ogni 10 secondi
+    
+    // Pulisci l'intervallo quando il componente viene smontato
+    return () => clearInterval(interval);
+  }, []);
+
+  // Funzione per esportare le parti in Excel
+  const handleExportOrders = async () => {
+    try {
+      setIsExporting(true);
+      const exportData = partsToOrder.map(row => ({
+        'Nome e Cognome': row.clientName || '-',
+        'Targa': row.plate || '-',
+        'Codice Articolo': row.code || '-',
+        'Quantità': row.quantity || '-',
+      }));
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      XLSX.utils.book_append_sheet(wb, ws, "Ordini Da Effettuare");
+      XLSX.writeFile(wb, `ordini_da_effettuare_${new Date().toISOString().split('T')[0]}.xlsx`);
+      toast({
+        title: "Esportazione completata",
+        description: "Gli ordini da effettuare sono stati esportati con successo",
+      });
+    } catch (error) {
+      toast({
+        title: "Errore di esportazione",
+        description: "Si è verificato un errore durante l'esportazione",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const isLoading = ordersLoading || appointmentsLoading;
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-white">Gestione <span className="text-orange-500">Ordini</span></h1>
-          <p className="text-gray-300">Gestisci i pezzi da ordinare</p>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0 pb-2">
+        <Heading title="Gestione Ordini" description="Monitora i ricambi da ordinare per i tuoi clienti" />
+        
+        <div className="flex flex-wrap w-full sm:w-auto gap-2">
+          <Button 
+            variant="outline" 
+            className="w-full sm:w-auto" 
+            onClick={handleExportOrders}
+            disabled={isExporting || partsToOrder.length === 0}
+          >
+            <FileDown className="mr-2 h-4 w-4" />
+            {isExporting ? "Esportazione..." : "Esporta Excel"}
+          </Button>
+          
+          <Button 
+            variant="secondary" 
+            size="icon" 
+            onClick={refreshData} 
+            className="ml-auto sm:ml-2"
+            title="Ricarica dati"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
         </div>
       </div>
-      <div className="mb-6 flex flex-col sm:flex-row gap-2 sm:items-center">
-        <input
-          type="text"
-          className="w-full sm:w-96 px-3 py-2 border border-orange-500 rounded bg-gray-900 text-orange-200 placeholder:text-orange-300 focus:outline-none focus:ring-2 focus:ring-orange-400 transition"
-          placeholder="Cerca per nome cliente o codice cliente…"
+      
+      {/* Barra di ricerca */}
+      <div className="w-full relative">
+        <Search className="absolute top-2.5 left-3 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Cerca per cliente, targa o codice articolo..."
+          className="pl-9 w-full"
           value={search}
-          onChange={e => setSearch(e.target.value)}
+          onChange={(e) => setSearch(e.target.value)}
         />
       </div>
-      {isLoading ? (
-        <Skeleton className="h-10 w-full mb-4 bg-gray-900" />
-      ) : tipiRicambio.length === 0 ? (
-        <div className="text-center p-4 text-orange-300 bg-gray-900 rounded">
-          Nessun ricambio da ordinare
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {tipiRicambio.map(tipo => {
-            const totali = ricambiPerTipo[tipo].length;
-            const ordinatiTipo = ricambiPerTipo[tipo].filter(row => row.partsOrdered === true).length;
-            return (
-              <div key={tipo} className="bg-gray-900/80 rounded-lg shadow border border-orange-700">
-                <button
-                  className={`w-full text-left px-4 py-3 font-bold text-lg text-orange-400 tracking-wide uppercase flex items-center justify-between focus:outline-none transition ${
-                    openTipo === tipo ? 'bg-orange-950/80' : 'bg-orange-950/40'
-                  }`}
-                  onClick={() => setOpenTipo(openTipo === tipo ? null : tipo)}
-                >
-                  <span>{tipo}</span>
-                  <span className="flex items-center gap-3">
-                    <span className={`font-semibold text-base ${ordinatiTipo === totali ? "text-green-500" : "text-red-500"}`}>
-                      {ordinatiTipo}/{totali}
-                    </span>
-                    <span className="text-orange-300 text-xl">{openTipo === tipo ? "−" : "+"}</span>
-                  </span>
-                </button>
-                {openTipo === tipo && (
-                  <div className="overflow-x-auto pb-4">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-orange-950/60">
-                          <TableHead className="text-orange-300">Stato</TableHead>
-                          <TableHead className="text-orange-300">Codice Articolo</TableHead>
-                          <TableHead className="text-orange-300">Cognome</TableHead>
-                          <TableHead className="text-orange-300">Nome</TableHead>
-                          <TableHead className="text-orange-300">Codice Cliente</TableHead>
-                          <TableHead className="text-orange-300">QTA Ricambio</TableHead>
-                          <TableHead className="text-orange-300">Targa Veicolo</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {ricambiPerTipo[tipo]
-                          .filter(row => row.partsOrdered === false)
-                          .map((row, idx) => {
-                            let nome = "-", cognome = "-";
-                            if (row.clientName) {
-                              const parts = row.clientName.trim().split(" ");
-                              cognome = parts.length > 1 ? parts.slice(1).join(" ") : parts[0];
-                              nome = parts[0];
-                            }
-                            return (
-                              <TableRow
-                                key={row.code + row.clientId + row.plate + idx}
-                                className="hover:bg-orange-900/30 transition"
-                              >
-                                <TableCell>
-                                  <span
-                                    title={row.partsOrdered ? "Ordinato" : "Non ordinato"}
-                                    className={`inline-block w-3 h-3 rounded-full mr-1 align-middle ${row.partsOrdered ? "bg-green-500" : "bg-red-600"}`}
-                                    style={{ boxShadow: row.partsOrdered ? "0 0 6px #22c55e" : "0 0 6px #dc2626" }}
-                                  ></span>
-                                </TableCell>
-                                <TableCell className="text-orange-100">{row.code}</TableCell>
-                                <TableCell className="text-orange-100">{cognome}</TableCell>
-                                <TableCell className="text-orange-100">{nome}</TableCell>
-                                <TableCell className="text-orange-100">{row.clientId}</TableCell>
-                                <TableCell className="text-orange-100">{row.quantity}</TableCell>
-                                <TableCell className="text-orange-100">{row.plate}</TableCell>
-                              </TableRow>
-                            );
-                          })}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+      
+      {/* Tabella degli ordini da effettuare */}
+      <Card>
+        {isLoading ? (
+          <div className="flex items-center justify-center h-64">
+            <p className="text-muted-foreground">Caricamento ordini in corso...</p>
+          </div>
+        ) : partsToOrder.length === 0 ? (
+          <div className="flex items-center justify-center h-64">
+            <p className="text-muted-foreground">Nessun ricambio da ordinare trovato</p>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>NOME E COGNOME</TableHead>
+                <TableHead>TARGA</TableHead>
+                <TableHead>CODICE ARTICOLO</TableHead>
+                <TableHead className="text-right">QUANTITÀ</TableHead>
+                <TableHead className="text-center">STATO</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {partsToOrder.map((row, idx) => (
+                <TableRow key={row.code + row.plate + idx}>
+                  <TableCell className="font-medium">{row.clientName || '-'}</TableCell>
+                  <TableCell>{row.plate || '-'}</TableCell>
+                  <TableCell>{row.code || '-'}</TableCell>
+                  <TableCell className="text-right">{row.quantity || '-'}</TableCell>
+                  <TableCell className="text-center">
+                    <Badge variant="outline" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20">
+                      Da ordinare
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </Card>
     </div>
   );
 } 

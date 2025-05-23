@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { format } from "date-fns";
-import { Edit, Trash, Calendar } from "lucide-react";
+import { Edit, Trash, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
 import { useLocation } from "wouter";
 import { Client } from "@shared/types";
 import { deleteClient } from "@shared/firebase";
@@ -41,6 +41,31 @@ export default function ClientTable({ clients, isLoading, onEdit, onDeleteSucces
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   
+  // Stato per la paginazione
+  const [currentPage, setCurrentPage] = useState(1);
+  const clientsPerPage = 6;
+  
+  // Calcola il numero totale di pagine
+  const totalPages = Math.ceil(clients.length / clientsPerPage);
+  
+  // Ottieni i clienti per la pagina corrente
+  const indexOfLastClient = currentPage * clientsPerPage;
+  const indexOfFirstClient = indexOfLastClient - clientsPerPage;
+  const currentClients = clients.slice(indexOfFirstClient, indexOfLastClient);
+  
+  // Gestione cambio pagina
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+  
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+  
   const handleDeleteClick = (client: Client) => {
     setClientToDelete(client);
     setDeleteDialogOpen(true);
@@ -79,6 +104,11 @@ export default function ClientTable({ clients, isLoading, onEdit, onDeleteSucces
         description: "Il cliente è stato eliminato con successo",
       });
       onDeleteSuccess();
+      
+      // Aggiorna la pagina corrente se necessario
+      if (currentClients.length === 1 && currentPage > 1) {
+        setCurrentPage(currentPage - 1);
+      }
     } catch (error) {
       toast({
         title: "Errore di eliminazione",
@@ -116,21 +146,26 @@ export default function ClientTable({ clients, isLoading, onEdit, onDeleteSucces
               <TableHead className="hidden md:table-cell">Codice</TableHead>
               <TableHead>Cliente</TableHead>
               <TableHead className="hidden sm:table-cell">Contatti</TableHead>
+              <TableHead className="hidden sm:table-cell">Credenziali</TableHead>
               <TableHead className="hidden sm:table-cell">Veicolo</TableHead>
               <TableHead className="hidden lg:table-cell">Data</TableHead>
               <TableHead>Azioni</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {clients.length === 0 ? (
+            {currentClients.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center p-4 text-muted-foreground">
+                <TableCell colSpan={7} className="text-center p-4 text-muted-foreground">
                   Nessun cliente trovato
                 </TableCell>
               </TableRow>
             ) : (
-              clients.map((client) => (
-                <TableRow key={client.id} className="hover:bg-accent/50">
+              currentClients.map((client) => (
+                <TableRow 
+                  key={client.id} 
+                  className="hover:bg-accent/50 cursor-pointer"
+                  onClick={() => onEdit(client)}
+                >
                   <TableCell className="hidden md:table-cell font-medium text-primary">
                     {client.id}
                   </TableCell>
@@ -144,6 +179,19 @@ export default function ClientTable({ clients, isLoading, onEdit, onDeleteSucces
                   <TableCell className="hidden sm:table-cell">
                     <div>{client.phone}</div>
                     <div className="text-xs text-muted-foreground">{client.email}</div>
+                    {client.birthDate && (
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Nato il: {client.birthDate.split('-').reverse().join('/')}
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell className="hidden sm:table-cell">
+                    <div>{client.email}</div>
+                    {client.password && (
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Password: {client.password}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell className="hidden sm:table-cell">
                     <div>{client.model}</div>
@@ -160,7 +208,10 @@ export default function ClientTable({ clients, isLoading, onEdit, onDeleteSucces
                       <Button 
                         variant="ghost" 
                         size="icon" 
-                        onClick={() => onEdit(client)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEdit(client);
+                        }}
                         title="Modifica"
                       >
                         <Edit className="h-4 w-4 text-primary" />
@@ -168,7 +219,10 @@ export default function ClientTable({ clients, isLoading, onEdit, onDeleteSucces
                       <Button 
                         variant="ghost" 
                         size="icon" 
-                        onClick={() => handleDeleteClick(client)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteClick(client);
+                        }}
                         title="Elimina"
                       >
                         <Trash className="h-4 w-4 text-primary" />
@@ -176,7 +230,10 @@ export default function ClientTable({ clients, isLoading, onEdit, onDeleteSucces
                       <Button 
                         variant="ghost" 
                         size="icon" 
-                        onClick={() => handleCreateAppointment(client)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCreateAppointment(client);
+                        }}
                         title="Crea appuntamento"
                       >
                         <Calendar className="h-4 w-4 text-primary" />
@@ -192,10 +249,37 @@ export default function ClientTable({ clients, isLoading, onEdit, onDeleteSucces
       
       <div className="p-3 md:px-6 md:py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between border-t border-border gap-2">
         <div className="text-xs sm:text-sm text-muted-foreground">
-          Mostrando <span className="font-medium">1-{Math.min(clients.length, 10)}</span> di <span className="font-medium">{clients.length}</span> clienti
+          Mostrando <span className="font-medium">{indexOfFirstClient + 1}-{Math.min(indexOfLastClient, clients.length)}</span> di <span className="font-medium">{clients.length}</span> clienti
         </div>
         
-        {/* Pagination would go here */}
+        {/* Paginazione */}
+        {totalPages > 1 && (
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={goToPreviousPage} 
+              disabled={currentPage === 1}
+              className="h-8 w-8 p-0"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            
+            <span className="text-sm font-medium">
+              Pagina {currentPage} di {totalPages}
+            </span>
+            
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={goToNextPage} 
+              disabled={currentPage === totalPages}
+              className="h-8 w-8 p-0"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
       </div>
       
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

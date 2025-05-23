@@ -1,5 +1,5 @@
 // Versione completamente ricostruita e semplificata
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { QuoteItem, SparePart } from "@shared/schema";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChevronRight, ChevronDown, Plus, Pencil, Trash } from "lucide-react";
+import SparePartForm from "./SparePartForm";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface SparePartsEntryFormProps {
   items: QuoteItem[];
@@ -58,6 +60,12 @@ export default function SparePartsEntryForm({
     return items.find(item => item.id === activeTab) || null;
   }, [items, activeTab]);
   
+  // Trova il ricambio che si sta modificando, se presente
+  const editingPart = useMemo(() => {
+    if (!activeService || !editingPartId) return null;
+    return activeService.parts.find(part => part.id === editingPartId) || null;
+  }, [activeService, editingPartId]);
+  
   // Reset campi del form
   const resetForm = useCallback(() => {
     setArticleCode("");
@@ -70,11 +78,13 @@ export default function SparePartsEntryForm({
   
   // Formatta numeri come valuta
   const formatCurrency = useCallback((amount: number): string => {
-    if (isNaN(amount)) return "€0,00";
+    if (isNaN(amount)) return "€ 0,00";
     return new Intl.NumberFormat('it-IT', {
       style: 'currency',
-      currency: 'EUR'
-    }).format(amount);
+      currency: 'EUR',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount).replace('€', '€ ');
   }, []);
   
   // Carica un ricambio nel form per la modifica
@@ -196,6 +206,25 @@ export default function SparePartsEntryForm({
     setExpandedCategory(expandedCategory === category ? null : category);
   };
   
+  // Gestisci la modifica tramite il form dedicato
+  const handleSpareParts = (updatedParts: SparePart[]) => {
+    if (!activeService) return;
+    
+    const updatedItems = items.map(item => {
+      if (item.id === activeService.id) {
+        return { 
+          ...item, 
+          parts: updatedParts,
+          totalPrice: item.laborPrice * item.laborHours + updatedParts.reduce((sum, part) => sum + part.finalPrice, 0)
+        };
+      }
+      return item;
+    });
+    
+    onChange(updatedItems);
+    setEditingPartId(null); // Reset editing state
+  };
+  
   return (
     <div className="space-y-6 bg-zinc-900 text-white p-4 rounded-lg">
       <h1 className="text-xl font-bold text-primary">Inserimento Ricambi</h1>
@@ -229,7 +258,7 @@ export default function SparePartsEntryForm({
                             if (onActiveTabChange) {
                               onActiveTabChange(service.id);
                             }
-                            resetForm();
+                            setEditingPartId(null); // Reset editing state when changing service
                           }}
                           className={`w-full px-3 py-2 text-left transition-colors rounded ${
                             activeTab === service.id 
@@ -251,185 +280,13 @@ export default function SparePartsEntryForm({
           <div className="md:col-span-8 bg-zinc-800 rounded-lg">
             {activeService ? (
               <div className="p-4 space-y-4">
-                <div className="flex justify-between items-center">
-                  <h4 className="text-lg font-semibold text-primary">{activeService.serviceType.name}</h4>
-                  <span className="text-sm text-zinc-400">
-                    {activeService.serviceType.category}
-                  </span>
-                </div>
-                
-                {/* Lista dei ricambi */}
-                <div className="bg-zinc-900 rounded-lg p-3">
-                  <h5 className="font-medium mb-3 flex items-center">
-                    <span>Ricambi</span>
-                    {activeService.parts.length > 0 && (
-                      <span className="ml-2 text-xs px-2 py-1 bg-primary/20 text-primary rounded-full">
-                        {activeService.parts.length}
-                      </span>
-                    )}
-                  </h5>
-                  
-                  {activeService.parts.length === 0 ? (
-                    <div className="text-center py-4 text-zinc-500 italic">
-                      Nessun ricambio aggiunto
-                    </div>
-                  ) : (
-                    <div className="space-y-2 max-h-[40vh] overflow-y-auto scrollbar-hide pr-1">
-                      {activeService.parts.map((part) => (
-                        <div 
-                          key={part.id} 
-                          className="bg-zinc-800 p-3 rounded-lg flex flex-col sm:flex-row justify-between gap-3"
-                        >
-                          <div className="space-y-1 flex-grow">
-                            <div className="flex items-start justify-between">
-                              <div className="font-medium">{part.code}</div>
-                              <div className="text-sm sm:hidden font-bold">
-                                {formatCurrency(part.finalPrice)}
-                              </div>
-                            </div>
-                            <div className="text-sm text-zinc-400">{part.name}</div>
-                            <div className="flex flex-wrap gap-x-4 text-sm">
-                              {part.brand && (
-                                <span className="text-zinc-400">
-                                  Brand: <span className="text-zinc-300">{part.brand}</span>
-                                </span>
-                              )}
-                              <span className="text-zinc-400">
-                                Qtà: <span className="text-zinc-300">{part.quantity}</span>
-                              </span>
-                              <span className="text-zinc-400">
-                                Prezzo: <span className="text-zinc-300">{formatCurrency(part.unitPrice)}</span>
-                              </span>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center space-x-2 sm:flex-col sm:space-y-2 sm:space-x-0">
-                            <div className="hidden sm:block text-right font-bold">
-                              {formatCurrency(part.finalPrice)}
-                            </div>
-                            <div className="flex space-x-1 sm:justify-end">
-                              <Button
-                                onClick={() => handleEditPart(part)}
-                                size="sm"
-                                variant="ghost"
-                                className="h-8 w-8 p-0 text-primary"
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                onClick={() => handleRemovePart(part.id)}
-                                size="sm"
-                                variant="ghost"
-                                className="h-8 w-8 p-0 text-red-500"
-                              >
-                                <Trash className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  
-                  {/* Footer con totale */}
-                  {activeService.parts.length > 0 && (
-                    <div className="flex justify-end items-center mt-4 pt-2 border-t border-zinc-700">
-                      <div className="text-sm text-zinc-400 mr-2">Totale ricambi:</div>
-                      <div className="font-bold">
-                        {formatCurrency(
-                          activeService.parts.reduce((sum, part) => sum + part.finalPrice, 0)
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-                
-                {/* Form per aggiungere/modificare ricambi */}
-                <div className="bg-zinc-900 rounded-lg p-4">
-                  <h5 className="font-medium mb-3">
-                    {editingPartId ? "Modifica ricambio" : "Aggiungi nuovo ricambio"}
-                  </h5>
-                  
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    <div>
-                      <Label htmlFor="code" className="text-xs block mb-1">CODICE*</Label>
-                      <Input
-                        id="code"
-                        value={articleCode}
-                        onChange={(e) => setArticleCode(e.target.value)}
-                        placeholder="Codice ricambio"
-                        className="bg-zinc-800 border-zinc-700 h-9"
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="description" className="text-xs block mb-1">DESCRIZIONE</Label>
-                      <Input
-                        id="description"
-                        value={articleDescription}
-                        onChange={(e) => setArticleDescription(e.target.value)}
-                        placeholder="Descrizione"
-                        className="bg-zinc-800 border-zinc-700 h-9"
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="brand" className="text-xs block mb-1">MARCA</Label>
-                      <Input
-                        id="brand"
-                        value={articleBrand}
-                        onChange={(e) => setArticleBrand(e.target.value)}
-                        placeholder="Marca"
-                        className="bg-zinc-800 border-zinc-700 h-9"
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="quantity" className="text-xs block mb-1">QUANTITÀ*</Label>
-                      <Input
-                        id="quantity"
-                        type="number"
-                        value={articleQuantity}
-                        onChange={(e) => setArticleQuantity(e.target.value === "" ? "" : parseFloat(e.target.value))}
-                        min={1}
-                        step={1}
-                        className="bg-zinc-800 border-zinc-700 h-9"
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="price" className="text-xs block mb-1">PREZZO*</Label>
-                      <Input
-                        id="price"
-                        type="number"
-                        value={articlePrice}
-                        onChange={(e) => setArticlePrice(e.target.value === "" ? "" : parseFloat(e.target.value))}
-                        min={0}
-                        step={0.01}
-                        className="bg-zinc-800 border-zinc-700 h-9"
-                      />
-                    </div>
-                    
-                    <div className="flex items-end space-x-2">
-                      {editingPartId && (
-                        <Button
-                          variant="outline"
-                          onClick={resetForm}
-                          className="flex-1 h-9 border-zinc-700 text-zinc-200 hover:bg-zinc-700"
-                        >
-                          Annulla
-                        </Button>
-                      )}
-                      <Button
-                        onClick={handleSavePartChanges}
-                        disabled={!articleCode || articlePrice === ""}
-                        className={`flex-1 h-9 ${editingPartId ? 'bg-zinc-600 hover:bg-zinc-700' : 'bg-primary hover:bg-primary/90'}`}
-                      >
-                        {editingPartId ? 'Salva' : 'Aggiungi'}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
+                {/* Usa il componente SparePartForm con il ricambio che si sta modificando */}
+                <SparePartForm 
+                  parts={activeService.parts} 
+                  onChange={handleSpareParts}
+                  serviceName={activeService.serviceType.name}
+                  editingPart={editingPart}
+                />
               </div>
             ) : (
               <div className="p-8 text-center">
@@ -439,6 +296,29 @@ export default function SparePartsEntryForm({
           </div>
         </div>
       </div>
+
+      {activeService && editingPart && (
+        <Dialog open={!!editingPart} onOpenChange={(open) => !open && setEditingPartId(null)}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle className="text-xl font-bold text-primary">
+                {activeService.serviceType.name} 
+                <span className="ml-2 text-orange-500">
+                  → {editingPart.description || editingPart.name || editingPart.code}
+                </span>
+              </DialogTitle>
+            </DialogHeader>
+            
+            {/* Contenuto della dialog */}
+            <SparePartForm 
+              parts={activeService.parts} 
+              onChange={handleSpareParts}
+              serviceName={activeService.serviceType.name}
+              editingPart={editingPart}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

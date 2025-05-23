@@ -52,7 +52,8 @@ import {
   getClientById,
   getQuotesByClientId,
   getQuoteById,
-  getAllAppointments
+  getAllAppointments,
+  updateQuote
 } from "@shared/firebase";
 import { 
   Appointment, 
@@ -72,6 +73,7 @@ interface AppointmentFormProps {
   selectedDate?: string | null;
   onEditQuote?: (quote: Quote) => void;
   onCreateQuote?: (clientId: string) => void;
+  defaultQuote?: Quote;
 }
 
 export default function AppointmentForm({ 
@@ -81,7 +83,8 @@ export default function AppointmentForm({
   appointment,
   selectedDate,
   onEditQuote,
-  onCreateQuote 
+  onCreateQuote,
+  defaultQuote
 }: AppointmentFormProps) {
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
@@ -97,17 +100,30 @@ export default function AppointmentForm({
   const nextButtonRef = useRef<HTMLButtonElement>(null);
   const queryClient = useQueryClient();
   
+  const allowedStatus = ["programmato", "in_lavorazione", "completato", "annullato"];
+  const normalizeStatus = (status: any) =>
+    typeof status === "string" && allowedStatus.includes(status)
+      ? status
+      : "programmato";
+
+  const statusValue = normalizeStatus(appointment?.status);
+  console.log("DEBUG STATUS:", appointment?.status, "->", statusValue, "form.watch:", appointment?.status);
+
   const form = useForm<CreateAppointmentInput>({
     resolver: zodResolver(createAppointmentSchema),
     defaultValues: {
-      clientId: appointment?.clientId || "",
-      quoteId: appointment?.quoteId || "",
-      date: appointment?.date || selectedDate || "",
+      clientId: appointment?.clientId || defaultQuote?.clientId || "",
+      quoteId: appointment?.quoteId || defaultQuote?.id || "",
+      date: appointment?.date || selectedDate || defaultQuote?.date || "",
       time: appointment?.time || "09:00",
-      duration: appointment?.duration || 1,
-      notes: appointment?.notes || "",
-      status: appointment?.status || "programmato",
-      partsOrdered: false,
+      duration: appointment?.duration || (defaultQuote as any)?.laborHours || 1,
+      notes: appointment?.notes || defaultQuote?.notes || "",
+      status: normalizeStatus(appointment?.status) as "programmato" | "in_lavorazione" | "completato" | "annullato",
+      partsOrdered: !!(appointment?.partsOrdered ?? false),
+      services: appointment?.services || [],
+      clientName: appointment?.clientName || "",
+      phone: appointment?.phone || "",
+      plate: appointment?.plate || "",
     },
   });
   
@@ -180,7 +196,7 @@ export default function AppointmentForm({
                 setSelectedQuote(quote);
                 
                 // MODIFICATO: Aggiorna SEMPRE la durata dal preventivo
-                const laborHours = quote.laborHours || 0;
+                const laborHours = (quote as any).laborHours || 0;
                 if (laborHours > 0) {
                   console.log(`IMPORTANTE: Impostando durata a ${laborHours} ore dal preventivo (durata precedente: ${appointment.duration})`);
                   form.setValue("duration", laborHours);
@@ -283,8 +299,44 @@ export default function AppointmentForm({
   };
   
   const handleSelectQuote = async (quote: Quote) => {
+    // Verifichiamo che il preventivo abbia un totale corretto
+    // Aggiungiamo debug per verificare lo stato del preventivo
+    console.log(`Preventivo selezionato ${quote.id}:`, {
+      totalPrice: quote.totalPrice,
+      total: quote.total,
+      laborTotal: (quote as any).laborTotal,
+      partsSubtotal: (quote as any).partsSubtotal,
+      taxAmount: (quote as any).taxAmount
+    });
+    
+    // Se il preventivo ha il totale a 0 ma ha subtotali validi, ricalcola il totale
+    if ((!quote.totalPrice || quote.totalPrice === 0) && (!quote.total || quote.total === 0) && 
+        (((quote as any).laborTotal > 0 || (quote as any).partsSubtotal > 0))) {
+      console.log(`Preventivo ${quote.id} ha totale a 0, ricalcolando...`);
+      
+      // Ricalcola il totale dai subtotali
+      const recalculatedTotal = ((quote as any).laborTotal || 0) + ((quote as any).partsSubtotal || 0);
+      const taxAmount = (quote as any).taxAmount || 0;
+      const finalTotal = recalculatedTotal + taxAmount;
+      
+      // Crea una copia del preventivo con il totale corretto
+      quote = {
+        ...quote,
+        totalPrice: finalTotal,
+        total: finalTotal
+      };
+      
+      console.log(`Preventivo ${quote.id} recalcolato con totale: ${finalTotal}€`);
+    }
+    
     setSelectedQuote(quote);
     form.setValue("quoteId", quote.id);
+    
+    // Se il preventivo ha ore di manodopera, imposta la durata dell'appuntamento
+    if (quote.laborHours && quote.laborHours > 0) {
+      console.log(`Impostando durata appuntamento a ${quote.laborHours} ore dal preventivo`);
+      form.setValue("duration", quote.laborHours);
+    }
     
     // Verifica se esiste già un appuntamento per questo preventivo
     const existingAppointment = checkForExistingAppointment(selectedClient?.id || '', quote.id);
@@ -295,30 +347,32 @@ export default function AppointmentForm({
         variant: "destructive",
       });
     }
-    
-    // Se il preventivo ha ore di manodopera specificate, usa quelle per la durata
-    if (quote.laborHours && quote.laborHours > 0) {
-      form.setValue("duration", quote.laborHours);
-      console.log(`Impostata durata da preventivo: ${quote.laborHours} ore`);
-    } else {
-      console.log("Il preventivo non ha ore di manodopera specificate, mantengo durata predefinita");
-    }
-    
-    // Passa allo step successivo
-    setCurrentStep(3);
   };
   
   const handleEditQuote = (quote: Quote) => {
     if (onEditQuote) {
-      onEditQuote(quote);
+      // Verifica se ci sono modifiche effettive prima di chiamare onEditQuote
+      const currentQuote = selectedQuote;
+      if (currentQuote && JSON.stringify(currentQuote) === JSON.stringify(quote)) {
+        // Non ci sono modifiche, non fare nulla
+        return;
+      }
+      
+      // Chiudi il form di appuntamento prima di aprire il form di modifica preventivo
+      // per evitare sovrapposizioni e conflitti tra i form
+      console.log("Chiusura form appuntamento prima di modificare il preventivo");
       onClose();
+      
+      // Dopo una breve pausa per garantire la chiusura, apri il form di modifica preventivo
+      setTimeout(() => {
+        onEditQuote(quote);
+      }, 200);
     }
   };
   
   const handleCreateNewQuote = () => {
     if (onCreateQuote && selectedClient) {
       onCreateQuote(selectedClient.id);
-      onClose();
     }
   };
   
@@ -443,6 +497,24 @@ export default function AppointmentForm({
     setIsSubmitting(true);
     
     try {
+      // Imposta lo stato del preventivo a "accettato" quando si salva l'appuntamento
+      if (selectedQuote && selectedQuote.status !== "accettato") {
+        try {
+          await updateQuote(selectedQuote.id, { status: "accettato" });
+          toast({
+            title: "Preventivo accettato",
+            description: "Lo stato del preventivo è stato aggiornato in 'Accettato'.",
+          });
+        } catch (error) {
+          console.error("Errore nell'aggiornamento dello stato del preventivo:", error);
+          toast({
+            title: "Errore",
+            description: "Non è stato possibile aggiornare lo stato del preventivo.",
+            variant: "destructive",
+          });
+        }
+      }
+      
       // Assicurati che la durata sia un valore numerico
       let durationValue: number = 1;
       
@@ -463,31 +535,17 @@ export default function AppointmentForm({
         durationValue = 1;
       }
       
-      // Stesso trattamento per quoteLaborHours
-      let quoteLaborHoursValue: number | undefined = undefined;
+      // IMPORTANTE: Imposta sempre quoteLaborHours uguale a duration
+      // Questo risolve il problema della visualizzazione nel calendario
+      // e della sincronizzazione tra preventivi e appuntamenti
+      const quoteLaborHoursValue = durationValue;
       
-      if (data.quoteLaborHours !== undefined && data.quoteLaborHours !== null) {
-        try {
-          quoteLaborHoursValue = typeof data.quoteLaborHours === 'string'
-            ? parseFloat(data.quoteLaborHours)
-            : typeof data.quoteLaborHours === 'number'
-              ? data.quoteLaborHours
-              : durationValue;
-              
-          if (isNaN(quoteLaborHoursValue)) {
-            quoteLaborHoursValue = durationValue;
-          }
-        } catch (e) {
-          console.error("Errore nel parsing di quoteLaborHours:", e);
-          quoteLaborHoursValue = durationValue;
-        }
-      }
-      
-      console.log("DEBUG FORM - Valori convertiti prima dell'invio:", {
+      console.log("DEBUG FORM - Valori sincronizzati prima dell'invio:", {
         durata: durationValue,
         tipoDurata: typeof durationValue,
         quoteLaborHours: quoteLaborHoursValue,
-        tipoQuoteLaborHours: typeof quoteLaborHoursValue
+        tipoQuoteLaborHours: typeof quoteLaborHoursValue,
+        nota: "quoteLaborHours impostato uguale a duration per garantire coerenza"
       });
       
       // Rimappa i dati per adattarli al formato dell'appuntamento
@@ -497,16 +555,16 @@ export default function AppointmentForm({
         plate: data.plate,
         date: formatAppointmentDate(data.date),
         time: formatAppointmentTime(data.time),
-        duration: durationValue, // Inviamo il valore numerico processato
+        duration: durationValue,
         quoteId: data.quoteId || undefined,
-        quoteLaborHours: quoteLaborHoursValue, // Inviamo il valore numerico processato
+        quoteLaborHours: quoteLaborHoursValue, // Sempre sincronizzato con duration
         partsOrdered: data.partsOrdered === null ? undefined : data.partsOrdered,
         services: data.services || [],
         notes: data.notes || "",
         status: data.status || "programmato",
       };
       
-      console.log("DEBUG AppointmentForm - Sto salvando l'appuntamento con durata:", appointmentData.duration);
+      console.log("DEBUG AppointmentForm - Sto salvando l'appuntamento con durata:", appointmentData.duration, "e quoteLaborHours:", appointmentData.quoteLaborHours);
       
       let savedId;
       
@@ -540,6 +598,12 @@ export default function AppointmentForm({
         } catch (eventError) {
           console.error("Errore nell'invio dell'evento di aggiornamento:", eventError);
         }
+        toast({
+          title: "Appuntamento aggiornato",
+          description: "L'appuntamento è stato aggiornato con successo.",
+        });
+        if (onSuccess) onSuccess();
+        onClose();
       } else {
         // Creazione nuovo appuntamento
         const newAppointment = await createAppointment(appointmentData as Appointment);
@@ -566,15 +630,11 @@ export default function AppointmentForm({
         } catch (eventError) {
           console.error("Errore nell'invio dell'evento di aggiornamento:", eventError);
         }
+        toast({
+          title: "Appuntamento creato",
+          description: "L'appuntamento è stato creato con successo.",
+        });
       }
-      
-      // Se la funzione onSuccess è stata fornita, chiamala
-      if (onSuccess) {
-        onSuccess();
-      }
-      
-      // Chiudi il form
-      onClose();
     } catch (error) {
       console.error("Errore nel salvataggio dell'appuntamento:", error);
       toast({
@@ -593,22 +653,6 @@ export default function AppointmentForm({
       setCurrentStep(prev => prev + 1);
     }
   };
-  
-  // Effetto per verificare se ci sono preventivi accettati
-  useEffect(() => {
-    // Non passiamo più automaticamente allo step 3 se non ci sono preventivi accettati
-    if (currentStep === 2 && clientQuotes.length > 0) {
-      const acceptedQuotes = clientQuotes.filter(quote => quote.status === "accettato");
-      if (acceptedQuotes.length === 0) {
-        // Mostra un messaggio che informa l'utente che è necessario creare un preventivo
-        toast({
-          title: "Preventivo necessario",
-          description: "È necessario creare un preventivo accettato per procedere con la creazione dell'appuntamento.",
-          variant: "destructive",
-        });
-      }
-    }
-  }, [currentStep, clientQuotes]);
   
   // Effetto per aggiornare la lista dei preventivi quando viene creato un nuovo preventivo
   useEffect(() => {
@@ -637,15 +681,41 @@ export default function AppointmentForm({
         return <Badge variant="outline" className="bg-red-200 text-red-800 border-red-500 font-medium">Annullato</Badge>;
       case "programmato":
         return <Badge variant="outline" className="bg-blue-200 text-blue-800 border-blue-500 font-medium">Confermato</Badge>;
+      case "in_lavorazione":
+        return <Badge variant="outline" className="bg-yellow-200 text-yellow-800 border-yellow-500 font-medium">In Lavorazione</Badge>;
       default:
         return <Badge variant="outline" className="bg-blue-200 text-blue-800 border-blue-500 font-medium">Confermato</Badge>;
     }
   };
   
+  useEffect(() => {
+    if (isOpen) {
+      form.reset({
+        clientId: appointment?.clientId || defaultQuote?.clientId || "",
+        quoteId: appointment?.quoteId || defaultQuote?.id || "",
+        date: appointment?.date || selectedDate || defaultQuote?.date || "",
+        time: appointment?.time || "09:00",
+        duration: appointment?.duration || (defaultQuote as any)?.laborHours || 1,
+        notes: appointment?.notes || defaultQuote?.notes || "",
+        status: normalizeStatus(appointment?.status) as "programmato" | "in_lavorazione" | "completato" | "annullato",
+        partsOrdered: !!(appointment?.partsOrdered ?? false),
+        services: appointment?.services || [],
+        clientName: appointment?.clientName || "",
+        phone: appointment?.phone || "",
+        plate: appointment?.plate || "",
+      });
+    }
+  }, [isOpen, appointment, defaultQuote, selectedDate, form]);
+  
   return (
     <>
-      <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-        <DialogContent className="max-w-[600px] w-[95%] h-auto max-h-[85vh] md:max-h-[85vh] sm:max-h-[90vh] overflow-hidden p-0 flex flex-col">
+      <Dialog open={isOpen} onOpenChange={(open) => {
+        // Se stiamo chiudendo il dialog e non stiamo modificando un preventivo o aggiungendo un ricambio
+        if (!open && !isSubmitting) {
+          onClose();
+        }
+      }}>
+        <DialogContent className="max-w-[600px] w-[95%] h-auto max-h-[85vh] md:max-h-[85vh] sm:max-h-[90vh] overflow-hidden p-0 flex flex-col z-[1050]">
           <DialogHeader className="px-6 py-4 border-b">
             <div className="flex flex-col items-center">
               <DialogTitle className="text-2xl font-bold mb-1 flex items-center gap-2">
@@ -669,7 +739,7 @@ export default function AppointmentForm({
                   onSubmit={(e) => {
                     // Evita il refresh della pagina su submit del form
                     e.preventDefault();
-                    form.handleSubmit(onSubmit)(e);
+                    form.handleSubmit(onSubmit as any)(e);
                   }}
                   onKeyDown={(e) => {
                     // Impedisce che il tasto ENTER faccia avanzare il form
@@ -889,11 +959,9 @@ export default function AppointmentForm({
                                 <Skeleton className="h-20 w-full" />
                                 <Skeleton className="h-20 w-full" />
                               </div>
-                            ) : clientQuotes.filter(quote => quote.status === "accettato").length > 0 ? (
+                            ) : clientQuotes.length > 0 ? (
                               <div className="space-y-3">
-                                {clientQuotes
-                                  .filter(quote => quote.status === "accettato")
-                                  .map((quote) => (
+                                {clientQuotes.map((quote) => (
                                   <div 
                                     key={quote.id}
                                     className={cn(
@@ -907,9 +975,23 @@ export default function AppointmentForm({
                                     <div className="flex-1">
                                       <div className="flex items-center gap-2">
                                         <FileText className="h-4 w-4 text-primary" />
-                                        <div className="font-medium">{quote.plate} - {quote.model}</div>
-                                        <Badge variant="secondary" className="ml-2 px-1 py-0 text-xs bg-green-100 text-green-800 border-green-300">
-                                          Accettato
+                                        <div className="font-medium">{quote.plate} - {(quote as any).model}</div>
+                                        <Badge variant={quote.status === "accettato" ? "secondary" : "outline"} className={`ml-2 px-1 py-0 text-xs ${
+                                          quote.status === "accettato" 
+                                            ? "bg-green-100 text-green-800 border-green-300" 
+                                            : quote.status === "bozza" 
+                                              ? "bg-yellow-100 text-yellow-800 border-yellow-300"
+                                              : quote.status === "completato"
+                                                ? "bg-blue-600 text-white border-blue-600"
+                                                : "bg-blue-100 text-blue-800 border-blue-300"
+                                        }`}>
+                                          {quote.status === "accettato" 
+                                            ? "Accettato" 
+                                            : quote.status === "bozza" 
+                                              ? "Bozza" 
+                                              : quote.status === "completato"
+                                                ? "Completato"
+                                                : "Inviato"}
                                         </Badge>
                                       </div>
                                       
@@ -918,12 +1000,14 @@ export default function AppointmentForm({
                                           {format(new Date(quote.date), "dd/MM/yyyy", { locale: it })}
                                         </span>
                                         <span className="font-semibold text-foreground">
-                                          {(quote.total || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}
+                                          {((quote.totalPrice || quote.total || 0) > 0 
+                                            ? (quote.totalPrice || quote.total) 
+                                            : (((quote as any).laborTotal || 0) + ((quote as any).partsSubtotal || 0))).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}
                                         </span>
                                       </div>
                                       
                                       <div className="mt-1 text-xs text-muted-foreground">
-                                        {quote.items?.length} servizi, {quote.items?.reduce((acc, item) => acc + (item.parts?.length || 0), 0)} ricambi
+                                        {(quote as any).items?.length || 0} servizi, {(quote as any).items?.reduce((acc: number, item: any) => acc + (item.parts?.length || 0), 0) || 0} ricambi
                                       </div>
                                     </div>
                                     
@@ -942,6 +1026,32 @@ export default function AppointmentForm({
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                                         </svg>
+                                      </Button>
+                                      
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 w-8 p-0 rounded-full text-red-500 hover:text-red-700 hover:bg-red-50"
+                                        title="Elimina preventivo"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (confirm("Sei sicuro di voler eliminare questo preventivo?")) {
+                                            // Implementa l'eliminazione del preventivo
+                                            if (onEditQuote) {
+                                              // Chiudi il form di appuntamento prima di aprire il form di modifica preventivo
+                                              onClose();
+                                              
+                                              // Passiamo al form di modifica con un flag per indicare l'eliminazione
+                                              setTimeout(() => {
+                                                const quoteToDelete = {...quote, _delete: true};
+                                                onEditQuote(quoteToDelete);
+                                              }, 200);
+                                            }
+                                          }
+                                        }}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
                                       </Button>
                                       
                                       {selectedQuote?.id === quote.id && (
@@ -964,19 +1074,18 @@ export default function AppointmentForm({
                                 </div>
                               </div>
                             ) : (
-                              <div className="text-center py-6 border rounded-lg border-dashed bg-muted/10">
-                                <p className="text-muted-foreground mb-3">Nessun preventivo accettato disponibile per questo cliente</p>
-                                <div className="flex flex-col sm:flex-row justify-center gap-2">
+                              <div className="border border-border rounded-lg bg-background p-4 text-center text-muted-foreground">
+                                <p>Nessun preventivo disponibile per questo cliente.</p>
+                                {onCreateQuote && (
                                   <Button 
-                                    size="sm" 
-                                    variant="default" 
-                                    className="gap-1"
+                                    variant="link" 
+                                    className="mt-2 text-primary font-medium" 
                                     onClick={handleCreateNewQuote}
                                   >
-                                    <Plus className="h-4 w-4" />
-                                    Crea nuovo preventivo
+                                    <Plus className="h-4 w-4 mr-1" />
+                                    Crea un nuovo preventivo
                                   </Button>
-                                </div>
+                                )}
                               </div>
                             )}
                           </div>
@@ -999,7 +1108,7 @@ export default function AppointmentForm({
 
                       <div className="grid grid-cols-1 gap-4">
                         <FormField
-                          control={form.control}
+                          control={form.control as any}
                           name="status"
                           render={({ field }) => (
                             <FormItem>
@@ -1008,14 +1117,15 @@ export default function AppointmentForm({
                               </FormLabel>
                               <FormControl>
                                 <Select
-                                  value={field.value}
+                                  value={normalizeStatus(form.watch('status'))}
                                   onValueChange={field.onChange}
                                 >
-                                  <SelectTrigger className="border-primary/20 h-9 focus-visible:ring-primary/30">
+                                  <SelectTrigger className="border-primary/20 h-9 focus-visible:ring-primary/30 z-[1200]">
                                     <SelectValue placeholder="Seleziona uno stato" />
                                   </SelectTrigger>
-                                  <SelectContent>
+                                  <SelectContent className="z-[1200]">
                                     <SelectItem value="programmato" className="text-blue-600 font-medium">Confermato</SelectItem>
+                                    <SelectItem value="in_lavorazione" className="text-yellow-600 font-medium">In Lavorazione</SelectItem>
                                     <SelectItem value="completato" className="text-green-600 font-medium">Completato</SelectItem>
                                     <SelectItem value="annullato" className="text-red-600 font-medium">Annullato</SelectItem>
                                   </SelectContent>
@@ -1028,7 +1138,7 @@ export default function AppointmentForm({
 
                         <div className="grid grid-cols-2 gap-3">
                           <FormField
-                            control={form.control}
+                            control={form.control as any}
                             name="date"
                             render={({ field }) => (
                               <FormItem>
@@ -1080,7 +1190,7 @@ export default function AppointmentForm({
                           />
                           
                           <FormField
-                            control={form.control}
+                            control={form.control as any}
                             name="time"
                             render={({ field }) => (
                               <FormItem>
@@ -1152,7 +1262,7 @@ export default function AppointmentForm({
                         {/* Sezione ore manodopera e stato ricambi */}
                         <div className="grid grid-cols-2 gap-3">
                           <FormField
-                            control={form.control}
+                            control={form.control as any}
                             name="duration"
                             render={({ field }) => (
                               <FormItem>
@@ -1179,57 +1289,19 @@ export default function AppointmentForm({
                               </FormItem>
                             )}
                           />
-
-                          <FormField
-                            control={form.control}
-                            name="partsOrdered"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel className="text-sm font-medium flex items-center gap-1">
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z" />
-                                  </svg>
-                                  Stato ricambi
-                                </FormLabel>
-                                <Select 
-                                  value={field.value === true ? "true" : "false"} 
-                                  onValueChange={(v) => field.onChange(v === "true")}
-                                >
-                                  <SelectTrigger className="border-primary/20 h-9 focus-visible:ring-primary/30">
-                                    <SelectValue placeholder="Seleziona stato" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="true" className="text-green-700">
-                                      <div className="flex items-center gap-2">
-                                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                        Ricambi ordinati
-                                      </div>
-                                    </SelectItem>
-                                    <SelectItem value="false" className="text-red-700">
-                                      <div className="flex items-center gap-2">
-                                        <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                                        Ricambi da ordinare
-                                      </div>
-                                    </SelectItem>
-                                  </SelectContent>
-                                </Select>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
                         </div>
                         
                         <FormField
-                          control={form.control}
+                          control={form.control as any}
                           name="notes"
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel className="text-sm font-medium">
-                                Note (opzionale)
+                                Informazioni aggiuntive
                               </FormLabel>
                               <FormControl>
                                 <Textarea 
-                                  placeholder="Aggiungi informazioni importanti..." 
+                                  placeholder="Descrivi brevemente le tue necessità" 
                                   className="resize-none border-primary/20 focus-visible:ring-primary/30 min-h-[70px] text-sm" 
                                   {...field} 
                                 />
@@ -1327,7 +1399,7 @@ export default function AppointmentForm({
                         const timeValue = form.getValues("time") || "";
                         const dateValue = form.getValues("date") || "";
                         const durationValue = form.getValues("duration") || 1;
-                        const quoteLaborHours = selectedQuote?.laborHours;
+                        const quoteLaborHours = (selectedQuote as any)?.laborHours;
                         const partsOrderedValue = form.getValues("partsOrdered");
                         
                         console.log(`DEBUG - Valore partsOrdered al momento del submit: ${partsOrderedValue === true ? 'true' : 'false'} (${typeof partsOrderedValue})`);
@@ -1408,6 +1480,17 @@ export default function AppointmentForm({
                         }
                         
                         await onSubmit(formData);
+                        
+                        // Aggiungo un controllo esplicito per forzare la chiusura della maschera
+                        try {
+                          console.log("DEBUG - Forzo la chiusura del dialog dopo submit");
+                          setTimeout(() => {
+                            if (onSuccess) onSuccess();
+                            onClose();
+                          }, 300);
+                        } catch (error) {
+                          console.error("Errore nella chiusura forzata del dialog:", error);
+                        }
                       }}
                       disabled={isSubmitting || !selectedClient}
                       className="gap-2 bg-primary"

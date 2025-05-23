@@ -1,25 +1,26 @@
 // Helper per il calcolo dei totali dei preventivi
-import { Quote, QuoteItem } from "@shared/schema";
+import { Quote, QuoteItem, SparePart } from "@shared/schema";
 
 /**
- * Calcola il totale di un elemento del preventivo includendo manodopera e parti
- * @param item Elemento del preventivo
- * @returns Prezzo totale calcolato
+ * Calcola il totale per un singolo item (servizio)
+ * Modificato per includere solo il costo dei ricambi, senza manodopera
  */
-export function calculateItemTotal(item: QuoteItem): number {
-  // Calcola il totale delle parti
+export const calculateItemTotal = (item: QuoteItem): number => {
+  // Calcola il totale dei ricambi per questo item
   const partsTotal = Array.isArray(item.parts) 
-    ? item.parts.reduce((sum, part) => sum + (part.finalPrice || 0), 0) 
+    ? item.parts.reduce((sum, part) => sum + (part.finalPrice || 0), 0)
     : 0;
   
-  // Calcola il costo manodopera
-  const laborTotal = (item.laborPrice || 0);
-  
-  // Totale dell'elemento (manodopera + parti)
-  const totalPrice = partsTotal + laborTotal;
-  
-  return totalPrice;
-}
+  // Ritorna solo il costo dei ricambi, senza aggiungere la manodopera
+  return partsTotal;
+};
+
+/**
+ * Calcola il subtotale dei ricambi per tutti gli item
+ */
+export const calculatePartsSubtotal = (items: QuoteItem[]): number => {
+  return items.reduce((sum, item) => sum + calculateItemTotal(item), 0);
+};
 
 /**
  * Calcola i totali per un intero preventivo
@@ -31,27 +32,30 @@ export function calculateQuoteTotals(quote: Quote): Quote {
     return quote;
   }
   
-  // Calcola il totale per ogni elemento del preventivo
+  // Calcola il totale per ogni elemento del preventivo (solo ricambi)
   const items = quote.items.map(item => ({
     ...item,
     totalPrice: calculateItemTotal(item)
   }));
   
-  // Calcola il subtotale di tutti gli elementi
-  const itemsSubtotal = items.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
+  // Calcola il subtotale di tutti i ricambi
+  const partsSubtotal = items.reduce((sum, item) => {
+    const itemTotal = calculateItemTotal(item);
+    return sum + itemTotal;
+  }, 0);
   
-  // Eventuali costi aggiuntivi di manodopera
-  const extraLaborCost = (quote.laborPrice || 0) * (quote.laborHours || 0);
+  // Calcola SOLO la manodopera extra, ignorando completamente la manodopera dei servizi
+  const laborTotal = (quote.laborPrice || 0) * (quote.laborHours || 0);
   
-  // Subtotale (elementi + manodopera extra)
-  const subtotal = itemsSubtotal + extraLaborCost;
+  // Subtotale (ricambi + SOLO manodopera extra)
+  const subtotal = partsSubtotal + laborTotal;
   
   // Calcola l'imposta
   const taxRate = quote.taxRate || 22;
   const taxAmount = (subtotal * taxRate) / 100;
   
   // Calcola il totale
-  const total = subtotal + taxAmount;
+  const totalPrice = subtotal + taxAmount;
   
   // Restituisce il preventivo aggiornato
   return {
@@ -59,6 +63,9 @@ export function calculateQuoteTotals(quote: Quote): Quote {
     items,
     subtotal,
     taxAmount,
-    total
-  };
+    totalPrice,
+    // Aggiungiamo i subtotali separati per uso in altre parti dell'applicazione
+    partsSubtotal,
+    laborTotal
+  } as Quote & { partsSubtotal: number; laborTotal: number };
 }

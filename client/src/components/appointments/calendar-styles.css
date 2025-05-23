@@ -1,0 +1,64 @@
+/* Stili per nascondere le scrollbar ma mantenere la funzionalità di scorrimento */
+
+/* Per WebKit (Chrome, Safari, Edge più recenti) */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Per Firefox */
+.scrollbar-hide {
+  scrollbar-width: none;
+}
+
+/* Per IE/Edge */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+}
+
+/* Stili per il calendario */
+.calendar-cell {
+  min-height: 60px;
+  transition: background-color 0.2s;
+}
+
+.calendar-cell:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Miglioramenti visivi per gli appuntamenti */
+.appointment-card {
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.appointment-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Ottimizzazioni per dispositivi mobili */
+@media (max-width: 768px) {
+  .calendar-cell {
+    min-height: 40px;
+  }
+  
+  /* Riduci la dimensione dei font nei calendari su mobile */
+  .calendar-day-header {
+    font-size: 0.75rem;
+  }
+  
+  /* Riduci lo spazio tra elementi su mobile */
+  .calendar-grid {
+    gap: 2px;
+  }
+  
+  /* Adatta l'altezza delle fasce orarie su mobile */
+  .time-slot {
+    min-height: 48px;
+  }
+  
+  /* Migliora la visualizzazione delle card appuntamento su mobile */
+  .appointment-mobile {
+    padding: 4px;
+    font-size: 0.7rem;
+  }
+} 

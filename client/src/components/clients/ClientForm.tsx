@@ -3,8 +3,15 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Client, CreateClientInput } from "@shared/types";
 import { createClientSchema } from "@shared/schema";
-import { createClient, updateClient } from "@shared/firebase";
+import { useClientOperations } from "@/hooks/useClientOperations";
 import { useToast } from "@/hooks/use-toast";
+import { format } from "date-fns";
+import { it } from "date-fns/locale";
+import { CalendarIcon, RefreshCw } from "lucide-react";
+import { SimplePopover } from "@/components/ui/simple-popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
+import { nanoid } from "nanoid";
 
 import {
   Dialog,
@@ -12,6 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,6 +42,8 @@ interface ClientFormProps {
 export default function ClientForm({ isOpen, onClose, onSuccess, client }: ClientFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
+  const { create, update } = useClientOperations();
+  const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
   
   const form = useForm<CreateClientInput>({
     resolver: zodResolver(createClientSchema),
@@ -41,6 +51,7 @@ export default function ClientForm({ isOpen, onClose, onSuccess, client }: Clien
       name: "",
       surname: "",
       phone: "",
+      birthDate: "", 
       email: "",
       plate: "",
       vin: "",
@@ -60,72 +71,53 @@ export default function ClientForm({ isOpen, onClose, onSuccess, client }: Clien
     setIsSubmitting(true);
     
     try {
-      // Carica il modulo di logging in modo dinamico
-      const activityModule = await import('../dev/ActivityLogger');
-      const { useActivityLogger } = activityModule;
-      let logActivity;
-      
-      try {
-        logActivity = useActivityLogger().logActivity;
-      } catch (error) {
-        console.warn("ActivityLogger non disponibile:", error);
-      }
+      // Assicuriamoci che tutti i campi siano definiti correttamente
+      const cleanedData = {
+        ...data,
+        // Se birthDate è undefined o null, impostiamo una stringa vuota
+        birthDate: data.birthDate || "",
+        // Assicuriamoci che anche gli altri campi non siano undefined
+        name: data.name || "",
+        surname: data.surname || "",
+        phone: data.phone || "",
+        email: data.email || "",
+        plate: data.plate || "",
+        vin: data.vin || "",
+        createdAt: data.createdAt || Date.now(),
+      };
       
       if (client) {
-        // Update existing client
-        await updateClient(client.id, data);
+        // Utilizziamo l'hook personalizzato per l'aggiornamento
+        const updatedClient = await update(client.id, cleanedData);
         
-        // Log dell'attività di aggiornamento
-        if (logActivity) {
-          logActivity(
-            'update_client',
-            `Cliente aggiornato: ${data.name} ${data.surname}`,
-            {
-              clientId: client.id,
-              name: data.name,
-              surname: data.surname,
-              phone: data.phone,
-              plate: data.plate,
-              timestamp: new Date()
-            }
-          );
+        if (updatedClient) {
+          // Non serve più il timeout, gestito dall'hook
+          onSuccess();
+          onClose();
         }
-        
-        toast({
-          title: "Cliente aggiornato",
-          description: "Il cliente è stato aggiornato con successo",
-        });
       } else {
-        // Create new client
-        const newClient = await createClient(data);
+        // Genera una password casuale sicura
+        const password = nanoid(12);
+        setGeneratedPassword(password);
+        // Utilizziamo l'hook personalizzato per la creazione
+        const newClient = await create({ ...cleanedData, password });
         
-        // Log dell'attività di creazione
-        if (logActivity) {
-          logActivity(
-            'create_client',
-            `Nuovo cliente: ${data.name} ${data.surname}`,
-            {
-              clientId: newClient.id,
-              name: data.name,
-              surname: data.surname,
-              phone: data.phone,
-              plate: data.plate,
-              timestamp: new Date()
-            }
-          );
+        if (newClient) {
+          // Mostra la password generata all'admin
+          toast({
+            title: "Password generata",
+            description: `La password temporanea del cliente è: ${password}`,
+            duration: 10000
+          });
+          onSuccess();
+          onClose();
         }
-        
-        toast({
-          title: "Cliente aggiunto",
-          description: "Il nuovo cliente è stato aggiunto con successo",
-        });
       }
-      
-      onSuccess();
     } catch (error) {
+      console.error("Errore durante il salvataggio del cliente:", error);
       toast({
         title: "Errore",
-        description: "Si è verificato un errore durante il salvataggio del cliente",
+        description: "Si è verificato un errore durante il salvataggio del cliente.",
         variant: "destructive",
       });
     } finally {
@@ -138,6 +130,9 @@ export default function ClientForm({ isOpen, onClose, onSuccess, client }: Clien
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>{client ? "Modifica Cliente" : "Nuovo Cliente"}</DialogTitle>
+          <DialogDescription>
+            {client ? "Modifica i dati del cliente esistente." : "Inserisci i dati del nuovo cliente."}
+          </DialogDescription>
         </DialogHeader>
         
         <Form {...form}>
@@ -198,6 +193,96 @@ export default function ClientForm({ isOpen, onClose, onSuccess, client }: Clien
                   </FormItem>
                 )}
               />
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="birthDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Data di nascita</FormLabel>
+                    <div className="flex items-center gap-2">
+                      <FormControl>
+                        <div className="relative">
+                          <Input
+                            placeholder="gg/mm/aaaa"
+                            defaultValue={field.value ? format(new Date(field.value), "dd/MM/yyyy") : ""}
+                            onBlur={(e) => {
+                              const inputValue = e.target.value;
+                              if (!inputValue) {
+                                field.onChange("");
+                                return;
+                              }
+                              
+                              if (inputValue.length === 10) {
+                                const datePattern = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+                                const match = inputValue.match(datePattern);
+                                
+                                if (match) {
+                                  const [_, day, month, year] = match;
+                                  const dateStr = `${year}-${month}-${day}`;
+                                  const date = new Date(dateStr);
+                                  
+                                  if (!isNaN(date.getTime())) {
+                                    field.onChange(dateStr);
+                                  } else {
+                                    // Data non valida, impostiamo una stringa vuota
+                                    field.onChange("");
+                                  }
+                                } else {
+                                  // Formato non corretto, impostiamo una stringa vuota
+                                  field.onChange("");
+                                }
+                              } else {
+                                // Input incompleto, impostiamo una stringa vuota
+                                field.onChange("");
+                              }
+                            }}
+                            onInput={(e) => {
+                              const target = e.target as HTMLInputElement;
+                              target.value = target.value.replace(/[^0-9\/]/g, '');
+                              
+                              // Aggiunge automaticamente gli slash
+                              if (target.value.length === 2 && !target.value.includes('/')) {
+                                target.value += '/';
+                              } else if (target.value.length === 5 && target.value.indexOf('/', 3) === -1) {
+                                target.value += '/';
+                              }
+                            }}
+                          />
+                        </div>
+                      </FormControl>
+                      <SimplePopover
+                        trigger={
+                          <Button
+                            variant="outline"
+                            type="button"
+                            size="icon"
+                          >
+                            <CalendarIcon className="h-4 w-4" />
+                          </Button>
+                        }
+                        align="start"
+                        className="p-0"
+                      >
+                        <Calendar
+                          mode="single"
+                          selected={field.value ? new Date(field.value) : undefined}
+                          onSelect={(date: Date | undefined) => {
+                            if (date) {
+                              field.onChange(format(date, "yyyy-MM-dd"));
+                            }
+                          }}
+                          locale={it}
+                          initialFocus
+                        />
+                      </SimplePopover>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               
               <FormField
                 control={form.control}
@@ -229,6 +314,41 @@ export default function ClientForm({ isOpen, onClose, onSuccess, client }: Clien
                     <FormMessage />
                   </FormItem>
                 )}
+              />
+                <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password</FormLabel>
+                    <FormControl>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <Input placeholder="Password" {...field} />
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          title="Genera nuova password"
+                          onClick={() => {
+                            const newPassword = nanoid(12);
+                            field.onChange(newPassword);
+                            setGeneratedPassword(newPassword);
+                            toast({
+                              title: "Nuova password generata",
+                              description: `La nuova password è: ${newPassword}`,
+                              duration: 8000
+                            });
+                          }}
+                          style={{ marginLeft: 4 }}
+                        >
+                          <RefreshCw size={18} />
+                        </Button>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+                
               />
             </div>
             

@@ -1,0 +1,4601 @@
+{
+  "appointments": {
+    "AP037": {
+      "clientId": "CL008",
+      "clientName": "Nicola Morgese",
+      "date": "2025-05-08",
+      "duration": 4,
+      "id": "AP037",
+      "model": "",
+      "notes": "",
+      "partsOrdered": true,
+      "phone": "3471321118",
+      "plate": "GE886MP",
+      "quoteId": "PR020",
+      "quoteLaborHours": 4,
+      "status": "programmato",
+      "time": "09:00",
+      "updatedAt": 1745830300634
+    },
+    "AP038": {
+      "clientId": "CL009",
+      "clientName": "Kevin  Paride Miranda",
+      "date": "2025-04-30",
+      "duration": 1,
+      "id": "AP038",
+      "model": "",
+      "notes": "",
+      "partsOrdered": true,
+      "phone": "3395247756",
+      "plate": "FY104RE",
+      "quoteId": "PR022",
+      "quoteLaborHours": 1,
+      "status": "completato",
+      "time": "10:00",
+      "updatedAt": 1745830221035
+    },
+    "AP040": {
+      "clientId": "CL011",
+      "clientName": "Paolina Petrosillo",
+      "date": "2025-04-29",
+      "duration": 1,
+      "id": "AP040",
+      "notes": "",
+      "partsOrdered": true,
+      "plate": "GN791KP",
+      "quoteId": "PR023",
+      "quoteLaborHours": 1,
+      "status": "completato",
+      "time": "14:30"
+    },
+    "AP041": {
+      "clientId": "CL012",
+      "clientName": "Sergio Sportelli",
+      "date": "2025-04-30",
+      "duration": 1,
+      "id": "AP041",
+      "notes": "",
+      "partsOrdered": true,
+      "plate": "DL997GH",
+      "quoteId": "PR024",
+      "quoteLaborHours": 1,
+      "status": "completato",
+      "time": "15:00"
+    },
+    "AP045": {
+      "checklist": {
+        "ammortizzatoreAntDx": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "ammortizzatoreAntSx": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "ammortizzatoreAnterioreD": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "ammortizzatoreAnterioreS": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "barraStabilizzatriceAnt": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "barraStabilizzatriceAnte": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "battistradaAnt": {
+          "note": "7mm",
+          "stato": "CONTROLLATO"
+        },
+        "battistradaPost": {
+          "note": "8mm",
+          "stato": "CONTROLLATO"
+        },
+        "braccioInfDx": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "braccioInfSx": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "braccioInferioreD": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "braccioInferioreS": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "checklist": {
+          "ammortizzatoreAntDx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "ammortizzatoreAntSx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "ammortizzatoreAnterioreD": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "ammortizzatoreAnterioreS": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "barraStabilizzatriceAnt": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "barraStabilizzatriceAnte": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "battistradaAnt": {
+            "note": "7mm",
+            "stato": "CONTROLLATO"
+          },
+          "battistradaPost": {
+            "note": "8mm",
+            "stato": "CONTROLLATO"
+          },
+          "braccioInfDx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "braccioInfSx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "braccioInferioreD": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "braccioInferioreS": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "checklist": {
+            "note": "",
+            "stato": "DA FARE"
+          },
+          "cinghiaDistribuzione": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "cinghiaServizi": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "controlloPressione": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "cuffiaStelo": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "cuffiaTiranteDx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "cuffiaTiranteSx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "discoAntDx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "discoAntSx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "discoPostDx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "discoPostSx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "filtroAbitacolo": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "filtroAria": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "filtroOlio": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "gomminiBarraStab": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "gomminiBarraStabilizzatrice": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "livelloOlioFreni": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "livelloOlioMotore": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "livelloRefrigerante": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "mollaElicoidaleAntDx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "mollaElicoidaleAntSx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "mollaElicoidaleAnterioreD": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "mollaElicoidaleAnterioreS": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "olioMotore": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "paraPolvere": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "pastiglieAntDx": {
+            "note": "Sostituite ",
+            "stato": "CONTROLLATO"
+          },
+          "pastiglieAntSx": {
+            "note": "Sostituite ",
+            "stato": "CONTROLLATO"
+          },
+          "pastigliePostDx": {
+            "note": "Sostituite ",
+            "stato": "CONTROLLATO"
+          },
+          "pastigliePostSx": {
+            "note": "Sostituite ",
+            "stato": "CONTROLLATO"
+          },
+          "provaSuStrada": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "sistemaVacuum": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "testinaDx": {
+            "note": "",
+            "stato": "DA FARE"
+          },
+          "testinaSx": {
+            "note": "",
+            "stato": "DA FARE"
+          },
+          "tiranteAmmSospDx": {
+            "note": "",
+            "stato": "DA FARE"
+          },
+          "tiranteAmmSospSx": {
+            "note": "",
+            "stato": "DA FARE"
+          },
+          "tiranteAmmortizzatoreSospesoD": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "tiranteAmmortizzatoreSospesoS": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "tiranteDx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "tiranteSx": {
+            "note": "",
+            "stato": "DA FARE"
+          },
+          "tubiFrenoAnt": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "tubiFrenoPost": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          }
+        },
+        "cinghiaDistribuzione": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "cinghiaServizi": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "controlloPressione": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "cuffiaStelo": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "cuffiaTiranteDx": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "cuffiaTiranteSx": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "discoAntDx": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "discoAntSx": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "discoPostDx": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "discoPostSx": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "filtroAbitacolo": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "filtroAria": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "filtroOlio": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "gomminiBarraStab": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "gomminiBarraStabilizzatrice": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "livelloOlioFreni": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "livelloOlioMotore": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "livelloRefrigerante": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "mollaElicoidaleAntDx": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "mollaElicoidaleAntSx": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "mollaElicoidaleAnterioreD": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "mollaElicoidaleAnterioreS": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "olioMotore": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "paraPolvere": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "pastiglieAntDx": {
+          "note": "Sostituite ",
+          "stato": "CONTROLLATO"
+        },
+        "pastiglieAntSx": {
+          "note": "Sostituite ",
+          "stato": "CONTROLLATO"
+        },
+        "pastigliePostDx": {
+          "note": "Sostituite ",
+          "stato": "CONTROLLATO"
+        },
+        "pastigliePostSx": {
+          "note": "Sostituite ",
+          "stato": "CONTROLLATO"
+        },
+        "provaSuStrada": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "sistemaVacuum": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "testinaDx": {
+          "note": "",
+          "stato": "DA FARE"
+        },
+        "testinaSx": {
+          "note": "",
+          "stato": "DA FARE"
+        },
+        "tiranteAmmSospDx": {
+          "note": "",
+          "stato": "DA FARE"
+        },
+        "tiranteAmmSospSx": {
+          "note": "",
+          "stato": "DA FARE"
+        },
+        "tiranteAmmortizzatoreSospesoD": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "tiranteAmmortizzatoreSospesoS": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "tiranteDx": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "tiranteSx": {
+          "note": "",
+          "stato": "DA FARE"
+        },
+        "tubiFrenoAnt": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "tubiFrenoPost": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        }
+      },
+      "clientId": "CL011",
+      "clientName": "Paolina Petrosillo",
+      "completedAt": "2025-05-07T12:43:03.097Z",
+      "completedBy": "web-app",
+      "date": "2025-05-07",
+      "duration": 1.5,
+      "id": "AP045",
+      "notes": "",
+      "partsOrdered": true,
+      "plate": "GN791KP",
+      "quoteId": "PR038",
+      "quoteLaborHours": 1.5,
+      "sparePartPhoto": "https://i.ibb.co/DP1srdrj/Whats-App-Image-2025-05-07-at-10-55-06-1.jpg",
+      "sparePartPhotos": [
+        "https://i.ibb.co/DP1srdrj/Whats-App-Image-2025-05-07-at-10-55-06-1.jpg",
+        "https://i.ibb.co/6cDfdqt0/Whats-App-Image-2025-05-07-at-10-55-07-1.jpg"
+      ],
+      "spareParts": [
+        {
+          "brand": "ATE",
+          "category": "frenante",
+          "code": "ATE602668",
+          "finalPrice": 57.85,
+          "id": "8c0e55b0-f75a-4b56-be50-ed31218ecfc8",
+          "name": "\tATE SERIE P. FRENO ANT. OPEL ASTRA L SPORTS TOURER",
+          "quantity": 1,
+          "unitPrice": 57.85
+        },
+        {
+          "brand": "ATE",
+          "category": "frenante",
+          "code": "ATE603872",
+          "finalPrice": 42.4,
+          "id": "96419606-61ac-48cb-ae8d-d71bcf0feadb",
+          "name": "\tATE P.FRENO PEUGEOT 308 1.6HDI 14-",
+          "quantity": 1,
+          "unitPrice": 42.4
+        }
+      ],
+      "status": "completato",
+      "time": "09:00",
+      "workCompleted": true,
+      "workCompletionDate": "2025-05-07T11:33:32.843Z"
+    },
+    "AP048": {
+      "checklist": {
+        "ammortizzatoreAnterioreD": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "ammortizzatoreAnterioreS": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "barraStabilizzatriceAnte": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "battistradaAnt": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "battistradaPost": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "braccioInferioreD": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "braccioInferioreS": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "checklist": {
+          "ammortizzatoreAnterioreD": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "ammortizzatoreAnterioreS": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "barraStabilizzatriceAnte": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "battistradaAnt": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "battistradaPost": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "braccioInferioreD": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "braccioInferioreS": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "checklist": {
+            "note": "",
+            "stato": "DA FARE"
+          },
+          "ciaouser_1746696191301": {
+            "note": "dddd",
+            "stato": "NON CONTROLLATO"
+          },
+          "cinghiaDistribuzione": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "cinghiaServizi": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "controlloPressione": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "cuffiaStelo": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "cuffiaTiranteDx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "cuffiaTiranteSx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "dddd_1746697037177": {
+            "note": "dddddd",
+            "stato": "DA FARE"
+          },
+          "discoAntDx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "discoAntSx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "discoPostDx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "discoPostSx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "filtroAbitacolo": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "filtroAria": {
+            "note": "s",
+            "stato": "DA FARE"
+          },
+          "filtroOlio": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "gomminiBarraStabilizzatrice": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "livelloOlioFreni": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "livelloOlioMotore": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "livelloRefrigerante": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "mollaElicoidaleAnterioreD": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "mollaElicoidaleAnterioreS": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "olioMotore": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "paraPolvere": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "pastiglieAntDx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "pastiglieAntSx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "pastigliePostDx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "pastigliePostSx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "provaSuStrada": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "sistemaVacuum": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "testinaDx": {
+            "note": "",
+            "stato": "DA FARE"
+          },
+          "testinaSx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "tiranteAmmortizzatoreSospesoD": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "tiranteAmmortizzatoreSospesoS": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "tiranteDx": {
+            "note": "dddd",
+            "stato": "NON CONTROLLATO"
+          },
+          "tiranteSx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "tubiFrenoAnt": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "tubiFrenoPost": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          }
+        },
+        "ciaouser_1746696191301": {
+          "note": "dddd",
+          "stato": "NON CONTROLLATO"
+        },
+        "cinghiaDistribuzione": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "cinghiaServizi": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "controlloPressione": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "cuffiaStelo": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "cuffiaTiranteDx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "cuffiaTiranteSx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "dddd_1746697037177": {
+          "note": "dddddd",
+          "stato": "DA FARE"
+        },
+        "discoAntDx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "discoAntSx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "discoPostDx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "discoPostSx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "filtroAbitacolo": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "filtroAria": {
+          "note": "s",
+          "stato": "DA FARE"
+        },
+        "filtroOlio": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "gomminiBarraStabilizzatrice": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "livelloOlioFreni": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "livelloOlioMotore": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "livelloRefrigerante": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "mollaElicoidaleAnterioreD": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "mollaElicoidaleAnterioreS": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "olioMotore": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "paraPolvere": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "pastiglieAntDx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "pastiglieAntSx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "pastigliePostDx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "pastigliePostSx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "provaSuStrada": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "sistemaVacuum": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "testinaDx": {
+          "note": "",
+          "stato": "DA FARE"
+        },
+        "testinaSx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "tiranteAmmortizzatoreSospesoD": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "tiranteAmmortizzatoreSospesoS": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "tiranteDx": {
+          "note": "dddd",
+          "stato": "NON CONTROLLATO"
+        },
+        "tiranteSx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "tubiFrenoAnt": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "tubiFrenoPost": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        }
+      },
+      "clientId": "CL020",
+      "clientName": "Andrea Ferrante",
+      "completedAt": "2025-05-08T09:38:02.788Z",
+      "completedBy": "web-app",
+      "date": "2025-05-08",
+      "duration": 1,
+      "id": "AP048",
+      "notes": "",
+      "parametriChecklist": {
+        "D": "D"
+      },
+      "partsOrdered": false,
+      "plate": "FH612RZ",
+      "quoteId": "PR048",
+      "quoteLaborHours": 1,
+      "spareParts": [
+        {
+          "brand": "fu",
+          "category": "tagliando",
+          "code": "notufi",
+          "finalPrice": 111,
+          "id": "3ad0d14a-b99b-49e3-8e8c-0226dc803913",
+          "name": "ufi",
+          "quantity": 1,
+          "unitPrice": 111
+        }
+      ],
+      "status": "in_lavorazione",
+      "time": "09:00",
+      "workCompleted": true
+    }
+  },
+  "checklistParameters": {
+    "dddd_1746694594761": {
+      "defaultState": "NON CONTROLLATO",
+      "name": "dddd",
+      "section": "Altro"
+    },
+    "sdadsa_1746694609371": {
+      "defaultState": "CONTROLLATO",
+      "name": "sdadsa",
+      "section": "Sistema Sterzo"
+    }
+  },
+  "clients": {
+    "CL008": {
+      "createdAt": 1745507757687,
+      "email": "nico.maggese@hotmail.it",
+      "id": "CL008",
+      "name": "Nicola",
+      "phone": "3471321118",
+      "plate": "GE886MP",
+      "surname": "Morgese",
+      "vin": "WAUZZZF30M1120834"
+    },
+    "CL009": {
+      "createdAt": 1745513977101,
+      "email": "kevinmira03@gmail.com",
+      "id": "CL009",
+      "name": "Kevin ",
+      "phone": "3395247756",
+      "plate": "FY104RE",
+      "surname": "Paride Miranda",
+      "vin": "WDD1183031N043539"
+    },
+    "CL011": {
+      "createdAt": 1745839420170,
+      "email": "p.petrosillo@hotmail.it",
+      "id": "CL011",
+      "name": "Paolina",
+      "phone": "3495892830",
+      "plate": "GN791KP",
+      "surname": "Petrosillo",
+      "updatedAt": 1746175027511,
+      "vin": "VF3MCYHZUPS05453"
+    },
+    "CL012": {
+      "createdAt": 1745848214849,
+      "email": "sportellisf@gmail.com",
+      "id": "CL012",
+      "lastModifiedAt": "2025-05-05T15:12:14.193Z",
+      "lastModifiedBy": {
+        "fingerprint": "05310e77cb66e3d246cf7ea993b05c1e",
+        "ip": "93.51.146.49",
+        "platform": "Win32",
+        "timestamp": "2025-05-05T15:12:14.193Z",
+        "username": "admin"
+      },
+      "name": "Sergio",
+      "phone": "3666870119",
+      "plate": "DL997GH",
+      "surname": "Sportelli",
+      "updatedAt": 1746457934193,
+      "vin": "TRUZZZ8J781025942"
+    },
+    "CL016": {
+      "createdAt": 1746007804075,
+      "email": "benedettoignazio@gmail.com",
+      "id": "CL016",
+      "name": "Ignazio",
+      "phone": "3476727022",
+      "plate": "DT789HX",
+      "surname": "Benedetto",
+      "vin": "WAUZZZ8K59A215353"
+    },
+    "CL017": {
+      "createdAt": 1746519908827,
+      "email": "",
+      "id": "CL017",
+      "name": "Maurizio",
+      "phone": "3396420444",
+      "plate": "FH612RZ",
+      "surname": "Siciliano",
+      "vin": "VF15RBF0A56376466"
+    },
+    "CL019": {
+      "createdAt": 1746625867481,
+      "email": "",
+      "id": "CL019",
+      "name": "Gianluca",
+      "phone": "+31 6 13867797",
+      "plate": "DD502MG",
+      "surname": "Campagnoni Pesenti",
+      "vin": "WAUZZZ4F47N034839"
+    },
+    "CL020": {
+      "createdAt": 1746635049618,
+      "email": "",
+      "id": "CL020",
+      "name": "Andrea",
+      "phone": "3213123123",
+      "plate": "FH612RZ",
+      "surname": "Ferrante",
+      "vin": ""
+    }
+  },
+  "counters": {
+    "appointmentId": 48,
+    "clientId": 20,
+    "quoteId": 48,
+    "serviceTypeId": 24
+  },
+  "defaultControls": {
+    "fase2": {
+      "dddd_1746694594761": {
+        "note": "",
+        "stato": "NON CONTROLLATO"
+      },
+      "sdadsa_1746694609371": {
+        "note": "",
+        "stato": "CONTROLLATO"
+      }
+    }
+  },
+  "lavorazione": {
+    "FH612RZ": {
+      "checklist": {
+        "ammortizzatoreAnterioreD": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "ammortizzatoreAnterioreS": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "barraStabilizzatriceAnte": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "battistradaAnt": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "battistradaPost": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "braccioInferioreD": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "braccioInferioreS": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "checklist": {
+          "note": "",
+          "stato": "DA FARE"
+        },
+        "ciaouser_1746696191301": {
+          "note": "dddd",
+          "stato": "NON CONTROLLATO"
+        },
+        "cinghiaDistribuzione": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "cinghiaServizi": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "controlloPressione": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "cuffiaStelo": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "cuffiaTiranteDx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "cuffiaTiranteSx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "dddd_1746697037177": {
+          "note": "dddddd",
+          "stato": "DA FARE"
+        },
+        "discoAntDx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "discoAntSx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "discoPostDx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "discoPostSx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "filtroAbitacolo": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "filtroAria": {
+          "note": "s",
+          "stato": "DA FARE"
+        },
+        "filtroOlio": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "gomminiBarraStabilizzatrice": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "livelloOlioFreni": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "livelloOlioMotore": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "livelloRefrigerante": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "mollaElicoidaleAnterioreD": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "mollaElicoidaleAnterioreS": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "olioMotore": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "paraPolvere": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "pastiglieAntDx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "pastiglieAntSx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "pastigliePostDx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "pastigliePostSx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "provaSuStrada": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "sistemaVacuum": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "testinaDx": {
+          "note": "",
+          "stato": "DA FARE"
+        },
+        "testinaSx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "tiranteAmmortizzatoreSospesoD": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "tiranteAmmortizzatoreSospesoS": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "tiranteDx": {
+          "note": "dddd",
+          "stato": "NON CONTROLLATO"
+        },
+        "tiranteSx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "tubiFrenoAnt": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "tubiFrenoPost": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        }
+      },
+      "controls": {
+        "ciaouser_1746696191301": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "dddd_1746697037177": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "test_1746696081138": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        }
+      },
+      "parametriChecklist": {
+        "D": "D"
+      }
+    }
+  },
+  "parameters": {
+    "ciaouser_1746696191301": {
+      "defaultState": "NON CONTROLLATO",
+      "name": "notusa",
+      "section": "Motore"
+    },
+    "dddd_1746697037177": {
+      "defaultState": "NON CONTROLLATO",
+      "name": "dddd",
+      "section": "Altro"
+    }
+  },
+  "quotes": {
+    "PR020": {
+      "clientId": "CL008",
+      "clientName": "Nicola Morgese",
+      "createdAt": 1745831576966,
+      "date": "2025-04-24",
+      "id": "PR020",
+      "items": [
+        {
+          "id": "22696f35-cf8d-468a-bf72-1374c9625bcf",
+          "laborHours": 1,
+          "laborPrice": 45,
+          "notes": "",
+          "parts": [
+            {
+              "brand": "MANN",
+              "category": "tagliando",
+              "code": "MANC30005",
+              "finalPrice": 12.35,
+              "id": "88ef8e14-df56-4939-83e0-e120343db6f9",
+              "name": "Ricambio per Filtro Aria",
+              "quantity": 1,
+              "unitPrice": 12.35
+            }
+          ],
+          "serviceType": {
+            "category": "Tagliando",
+            "description": "Tagliando - Filtro Aria",
+            "id": "ST001",
+            "laborPrice": 0,
+            "name": "Filtro Aria"
+          },
+          "totalPrice": 52.35
+        },
+        {
+          "id": "0bbfc936-f507-42ab-9105-676695c22c0b",
+          "laborHours": 1,
+          "laborPrice": 45,
+          "notes": "",
+          "parts": [
+            {
+              "brand": "BOSCH",
+              "category": "tagliando",
+              "code": "\tBOS1457070014",
+              "finalPrice": 19.04,
+              "id": "bca5601b-9c23-450c-b8af-00887d6ca5b0",
+              "name": "Ricambio per Filtro Carburante",
+              "quantity": 1,
+              "unitPrice": 19.04
+            }
+          ],
+          "serviceType": {
+            "category": "Tagliando",
+            "description": "Tagliando - Filtro Carburante",
+            "id": "ST003",
+            "laborPrice": 0,
+            "name": "Filtro Carburante"
+          },
+          "totalPrice": 59.04
+        },
+        {
+          "id": "d76ef9e4-342a-478f-b892-30607aea22fe",
+          "laborHours": 1,
+          "laborPrice": 45,
+          "notes": "",
+          "parts": [
+            {
+              "brand": "CASTROL",
+              "category": "tagliando",
+              "code": "CAS15F7D5",
+              "finalPrice": 62.16,
+              "id": "eada9208-e705-41ca-9c41-7b547c7d7852",
+              "name": "CASTROL EDGE 5W-40 ",
+              "quantity": 6,
+              "unitPrice": 10.36
+            }
+          ],
+          "serviceType": {
+            "category": "Tagliando",
+            "description": "Tagliando - Olio",
+            "id": "ST005",
+            "laborPrice": 0,
+            "name": "Olio"
+          },
+          "totalPrice": 102.16
+        },
+        {
+          "id": "3c573b7e-ad25-4622-86fb-b4e486450008",
+          "laborHours": 1,
+          "laborPrice": 45,
+          "notes": "",
+          "parts": [
+            {
+              "brand": "MANN",
+              "category": "tagliando",
+              "code": "\tMANCUK26009",
+              "finalPrice": 11.9,
+              "id": "2d7a9840-3f76-4eae-92f8-ef09494d436b",
+              "name": "Ricambio per Filtro Abitacolo",
+              "quantity": 1,
+              "unitPrice": 11.9
+            }
+          ],
+          "serviceType": {
+            "category": "Tagliando",
+            "description": "Tagliando - Filtro Abitacolo",
+            "id": "ST004",
+            "laborPrice": 0,
+            "name": "Filtro Abitacolo"
+          },
+          "totalPrice": 51.9
+        },
+        {
+          "id": "894d4d30-c485-4dfa-a098-62c739a9ff56",
+          "laborHours": 1,
+          "laborPrice": 45,
+          "notes": "",
+          "parts": [
+            {
+              "brand": "UFI",
+              "category": "tagliando",
+              "code": "UFI25.EVO.00",
+              "finalPrice": 6.05,
+              "id": "fc5882ff-fffd-4893-9e66-fbfe033050b3",
+              "name": "Ricambio per Filtro Olio",
+              "quantity": 1,
+              "unitPrice": 6.05
+            }
+          ],
+          "serviceType": {
+            "category": "Tagliando",
+            "description": "Tagliando - Filtro Olio",
+            "id": "ST021",
+            "laborPrice": 0,
+            "name": "Filtro Olio"
+          },
+          "totalPrice": 46.05
+        },
+        {
+          "id": "2b076960-982b-4414-9400-b23c2036f7cb",
+          "laborHours": 1,
+          "laborPrice": 45,
+          "notes": "",
+          "parts": [
+            {
+              "brand": "TUNAP",
+              "category": "altro",
+              "code": "\tTUN2101064",
+              "finalPrice": 6.42,
+              "id": "012c8404-a862-46ab-957e-27525b149d7f",
+              "name": "Igienizzante AC",
+              "quantity": 1,
+              "unitPrice": 6.42
+            }
+          ],
+          "serviceType": {
+            "category": "Altro",
+            "description": "Altro - Altro",
+            "id": "ST022",
+            "laborPrice": 0,
+            "name": "Altro"
+          },
+          "totalPrice": 46.42
+        }
+      ],
+      "kilometrage": 0,
+      "laborHours": 4,
+      "laborPrice": 40,
+      "notes": "",
+      "parts": [
+        {
+          "code": "MANC30005",
+          "description": "",
+          "price": 12.35,
+          "quantity": 1
+        },
+        {
+          "code": "\tBOS1457070014",
+          "description": "",
+          "price": 19.04,
+          "quantity": 1
+        },
+        {
+          "code": "CAS15F7D5",
+          "description": "",
+          "price": 10.36,
+          "quantity": 6
+        },
+        {
+          "code": "\tMANCUK26009",
+          "description": "",
+          "price": 11.9,
+          "quantity": 1
+        },
+        {
+          "code": "UFI25.EVO.00",
+          "description": "",
+          "price": 6.05,
+          "quantity": 1
+        },
+        {
+          "code": "\tTUN2101064",
+          "description": "",
+          "price": 6.42,
+          "quantity": 1
+        }
+      ],
+      "phone": "3471321118",
+      "plate": "GE886MP",
+      "status": "accettato",
+      "subtotal": 517.9200000000001,
+      "taxAmount": 113.94240000000002,
+      "taxRate": 22,
+      "total": 631.8624000000001,
+      "totalPrice": 277.92,
+      "validUntil": ""
+    },
+    "PR022": {
+      "clientId": "CL009",
+      "clientName": "Kevin  Paride Miranda",
+      "createdAt": 1745514530565,
+      "date": "2025-04-24",
+      "id": "PR022",
+      "items": [
+        {
+          "id": "b4f66ebc-f859-49d3-8fa7-5d3c77684377",
+          "laborHours": 1,
+          "laborPrice": 45,
+          "notes": "",
+          "parts": [
+            {
+              "brand": "TRW",
+              "category": "frenante",
+              "code": "TRWGDB2330",
+              "finalPrice": 28.05,
+              "id": "f3a5371b-fe4e-4a5d-907a-ff6bc651ef92",
+              "name": "Ricambio per Pattini Anteriori",
+              "quantity": 1,
+              "unitPrice": 28.05
+            }
+          ],
+          "serviceType": {
+            "category": "Frenante",
+            "description": "Frenante - Pattini Anteriori",
+            "id": "ST007",
+            "laborPrice": 0,
+            "name": "Pattini Anteriori"
+          },
+          "totalPrice": 28.05
+        },
+        {
+          "id": "f5c317c9-7f19-42c7-8b02-3d241953dc9e",
+          "laborHours": 1,
+          "laborPrice": 45,
+          "notes": "",
+          "parts": [
+            {
+              "brand": "TRW",
+              "category": "frenante",
+              "code": "TRWDF6717S",
+              "finalPrice": 154.82,
+              "id": "1eacc8da-61cf-4789-a9fb-63545ced5d41",
+              "name": "Ricambio per Dischi Anteriori",
+              "quantity": 2,
+              "unitPrice": 77.41
+            }
+          ],
+          "serviceType": {
+            "category": "Frenante",
+            "description": "Frenante - Dischi Anteriori",
+            "id": "ST009",
+            "laborPrice": 0,
+            "name": "Dischi Anteriori"
+          },
+          "totalPrice": 154.82
+        },
+        {
+          "id": "21d52c77-670b-4bca-91ca-f0f7218ec13a",
+          "laborHours": 1,
+          "laborPrice": 45,
+          "notes": "",
+          "parts": [
+            {
+              "brand": "TRW",
+              "category": "altro",
+              "code": "\tTRWGIC242",
+              "finalPrice": 3.38,
+              "id": "732b1d93-4be5-42c4-a29b-30bae7be6a5e",
+              "name": "Ricambio per Altro",
+              "quantity": 1,
+              "unitPrice": 3.38
+            }
+          ],
+          "serviceType": {
+            "category": "Altro",
+            "description": "Altro - Altro",
+            "id": "ST022",
+            "laborPrice": 0,
+            "name": "Altro"
+          },
+          "totalPrice": 3.38
+        }
+      ],
+      "kilometrage": 0,
+      "laborHours": 1,
+      "laborPrice": 40,
+      "laborTotal": 160,
+      "notes": "",
+      "partsSubtotal": 186.25,
+      "phone": "3395247756",
+      "plate": "FY104RE",
+      "status": "completato",
+      "subtotal": 346.25,
+      "taxAmount": 76.175,
+      "taxRate": 22,
+      "total": 422.425,
+      "validUntil": ""
+    },
+    "PR023": {
+      "clientId": "CL011",
+      "clientName": "Paolina Petrosillo",
+      "createdAt": 1745856212758,
+      "date": "2025-04-28",
+      "id": "PR023",
+      "items": [
+        {
+          "id": "283c3b02-725c-4e99-991c-11a2867a75a1",
+          "laborHours": 1,
+          "laborPrice": 45,
+          "notes": "",
+          "parts": [
+            {
+              "brand": "CASTROL",
+              "category": "tagliando",
+              "code": "CAS15F6BF",
+              "finalPrice": 56.400000000000006,
+              "id": "0b3d62a2-73a4-45b7-80ef-3c1cb8dfec0c",
+              "name": "CASTROL MAGNATEC 0W-30 C2o",
+              "quantity": 6,
+              "unitPrice": 9.4
+            }
+          ],
+          "serviceType": {
+            "category": "Tagliando",
+            "description": "Tagliando - Olio",
+            "id": "ST005",
+            "laborPrice": 0,
+            "name": "Olio"
+          },
+          "totalPrice": 56.400000000000006
+        },
+        {
+          "id": "e53f885a-0879-4128-9a45-eeafb41f75d5",
+          "laborHours": 1,
+          "laborPrice": 45,
+          "notes": "",
+          "parts": [
+            {
+              "brand": "BOSCH",
+              "category": "tagliando",
+              "code": "\tBOSF026407299",
+              "finalPrice": 5.93,
+              "id": "1a6b1de4-f319-499a-bf45-5c136cbaf517",
+              "name": "Ricambio per Filtro Olio",
+              "quantity": 1,
+              "unitPrice": 5.93
+            }
+          ],
+          "serviceType": {
+            "category": "Tagliando",
+            "description": "Tagliando - Filtro Olio",
+            "id": "ST021",
+            "laborPrice": 0,
+            "name": "Filtro Olio"
+          },
+          "totalPrice": 5.93
+        }
+      ],
+      "kilometrage": 0,
+      "laborHours": 1,
+      "laborPrice": 40,
+      "laborTotal": 120,
+      "model": "",
+      "notes": "",
+      "partsSubtotal": 62.330000000000005,
+      "phone": "3495892830",
+      "plate": "GN791KP",
+      "status": "completato",
+      "subtotal": 182.33,
+      "taxAmount": 40.1126,
+      "taxRate": 22,
+      "total": 222.44260000000003,
+      "validUntil": "",
+      "vin": ""
+    },
+    "PR024": {
+      "clientId": "CL012",
+      "clientName": "Sergio Sportelli",
+      "createdAt": 1745856159363,
+      "date": "2025-04-28",
+      "id": "PR024",
+      "items": [
+        {
+          "id": "d0f9b888-0d91-4773-9fbb-e3631e6c3bd2",
+          "laborHours": 1,
+          "laborPrice": 45,
+          "notes": "",
+          "parts": [
+            {
+              "brand": "\tBOSCH SONDA LAMBDA AUDI A3 1.8 -12",
+              "category": "altro",
+              "code": "BOS0258017617",
+              "finalPrice": 47.6,
+              "id": "f398c39e-eea5-4af8-a30c-42896de46f4d",
+              "name": "Ricambio per Altro",
+              "quantity": 1,
+              "unitPrice": 47.6
+            }
+          ],
+          "serviceType": {
+            "category": "Altro",
+            "description": "Altro - Altro",
+            "id": "ST022",
+            "laborPrice": 0,
+            "name": "Altro"
+          },
+          "totalPrice": 47.6
+        }
+      ],
+      "kilometrage": 0,
+      "laborHours": 1,
+      "laborPrice": 40,
+      "laborTotal": 80,
+      "model": "",
+      "notes": "",
+      "partsSubtotal": 47.6,
+      "phone": "3666870119",
+      "plate": "DL997GH",
+      "status": "completato",
+      "subtotal": 127.6,
+      "taxAmount": 28.072,
+      "taxRate": 22,
+      "total": 155.672,
+      "validUntil": "",
+      "vin": ""
+    },
+    "PR038": {
+      "clientId": "CL011",
+      "clientName": "Paolina Petrosillo",
+      "createdAt": 1746168726381,
+      "date": "2025-05-02",
+      "id": "PR038",
+      "items": [
+        {
+          "id": "e9565309-8965-4762-9e5d-b8bb29c71802",
+          "laborHours": 1,
+          "laborPrice": 0,
+          "notes": "",
+          "parts": [
+            {
+              "brand": "ATE",
+              "category": "frenante",
+              "code": "ATE602668",
+              "finalPrice": 57.85,
+              "id": "8c0e55b0-f75a-4b56-be50-ed31218ecfc8",
+              "name": "\tATE SERIE P. FRENO ANT. OPEL ASTRA L SPORTS TOURER",
+              "quantity": 1,
+              "unitPrice": 57.85
+            }
+          ],
+          "serviceType": {
+            "category": "Frenante",
+            "description": "Frenante - Pattini Anteriori",
+            "id": "ST007",
+            "laborPrice": 0,
+            "name": "Pattini Anteriori"
+          },
+          "totalPrice": 57.85
+        },
+        {
+          "id": "fbc6fef2-d593-4c95-8f8d-fbe385a332e9",
+          "laborHours": 1,
+          "laborPrice": 45,
+          "notes": "",
+          "parts": [
+            {
+              "brand": "ATE",
+              "category": "frenante",
+              "code": "ATE603872",
+              "finalPrice": 42.4,
+              "id": "96419606-61ac-48cb-ae8d-d71bcf0feadb",
+              "name": "\tATE P.FRENO PEUGEOT 308 1.6HDI 14-",
+              "quantity": 1,
+              "unitPrice": 42.4
+            }
+          ],
+          "serviceType": {
+            "category": "Frenante",
+            "description": "Frenante - Pattini Posteriori",
+            "id": "ST008",
+            "laborPrice": 0,
+            "name": "Pattini Posteriori"
+          },
+          "totalPrice": 42.4
+        },
+        {
+          "id": "3532811e-a875-4c0b-9777-4126406e4776",
+          "laborHours": 1,
+          "laborPrice": 45,
+          "notes": "",
+          "serviceType": {
+            "category": "Altro",
+            "description": "Altro - Altro",
+            "id": "ST022",
+            "laborPrice": 0,
+            "name": "Altro"
+          },
+          "totalPrice": 0
+        }
+      ],
+      "kilometrage": 0,
+      "laborHours": 1.5,
+      "laborPrice": 45,
+      "laborTotal": 157.5,
+      "model": "",
+      "notes": "",
+      "partsSubtotal": 100.25,
+      "phone": "3495892830",
+      "plate": "GN791KP",
+      "status": "completato",
+      "subtotal": 257.75,
+      "taxAmount": 56.705,
+      "taxRate": 22,
+      "total": 314.455,
+      "totalPrice": 204.655,
+      "vin": ""
+    },
+    "PR040": {
+      "clientId": "CL016",
+      "clientName": "Ignazio Benedetto",
+      "createdAt": 1746170009818,
+      "date": "2025-05-02",
+      "id": "PR040",
+      "items": [
+        {
+          "id": "96f5dc6e-a41f-44f9-80aa-76a371c07f97",
+          "laborHours": 1,
+          "laborPrice": 45,
+          "notes": "",
+          "parts": [
+            {
+              "brand": "MOOG",
+              "category": "sospensioni",
+              "code": "MOOAU-TC-8081",
+              "finalPrice": 97.25,
+              "id": "5f405b95-f1a3-4ee8-86c2-10d0ceb64d4a",
+              "name": "MOOG B.OSCIL. SX. AUDI A4 2.0TDI -08",
+              "quantity": 1,
+              "unitPrice": 97.25
+            },
+            {
+              "brand": "MOOG",
+              "category": "sospensioni",
+              "code": "MOOAU-TC-8082",
+              "finalPrice": 97.25,
+              "id": "b41a6f54-8caf-4277-b5da-f27f850c5371",
+              "name": "MOOG B.OSCIL. DX. AUDI A4 2.0TDI -08",
+              "quantity": 1,
+              "unitPrice": 97.25
+            },
+            {
+              "brand": "MOOG",
+              "category": "sospensioni",
+              "code": "MOOAU-TC-7352",
+              "finalPrice": 28.77,
+              "id": "d4109455-5564-4217-89c3-07add123b1cc",
+              "name": "MOOG B.OSCIL. SX. AUDI A4 2.0TDI 13-",
+              "quantity": 1,
+              "unitPrice": 28.77
+            },
+            {
+              "brand": "MOOG",
+              "category": "sospensioni",
+              "code": "MOOAU-TC-7353",
+              "finalPrice": 28.77,
+              "id": "251f194b-f05d-4166-9f9d-c2accfe0a186",
+              "name": "MOOG B.OSCIL. DX. AUDI A4 2.0TDI 13-",
+              "quantity": 1,
+              "unitPrice": 28.77
+            },
+            {
+              "brand": "MOOG",
+              "category": "sospensioni",
+              "code": "MOOAU-TC-7437",
+              "finalPrice": 66.55,
+              "id": "ff89b885-1687-459c-9d1a-21efb9f85550",
+              "name": "MOOG B.OSCIL. SX. AUDI A4 2.0TDI -08",
+              "quantity": 1,
+              "unitPrice": 66.55
+            },
+            {
+              "brand": "MOOG",
+              "category": "sospensioni",
+              "code": "MOOAU-TC-7438",
+              "finalPrice": 66.55,
+              "id": "51ff2d14-2be3-40f8-ad97-63d13d984633",
+              "name": "MOOG B.OSCIL. SX. AUDI A4 2.0TDI -08",
+              "quantity": 1,
+              "unitPrice": 66.55
+            },
+            {
+              "brand": "MOOG",
+              "category": "sospensioni",
+              "code": "MOOAU-TC-7355",
+              "finalPrice": 33.32,
+              "id": "6d5d103a-9df9-4aa5-8be5-9538ff1860ef",
+              "name": "MOOG B.OSCIL. SX. AUDI A4 2.0TDI -08",
+              "quantity": 1,
+              "unitPrice": 33.32
+            },
+            {
+              "brand": "MOOG",
+              "category": "sospensioni",
+              "code": "MOOAU-TC-7356",
+              "finalPrice": 33.32,
+              "id": "0b27ea01-4a4c-4699-8596-9c1a714dd92f",
+              "name": "MOOG B.OSCIL. SX. AUDI A4 2.0TDI -08",
+              "quantity": 1,
+              "unitPrice": 33.32
+            }
+          ],
+          "serviceType": {
+            "category": "Sospensioni",
+            "description": "Sospensioni - Tiranteria",
+            "id": "ST023",
+            "laborPrice": 0,
+            "name": "Tiranteria"
+          },
+          "totalPrice": 451.78000000000003
+        }
+      ],
+      "kilometrage": 0,
+      "laborHours": 2.5,
+      "laborPrice": 45,
+      "laborTotal": 157.5,
+      "model": "",
+      "notes": "",
+      "partsSubtotal": 451.78000000000003,
+      "phone": "3476727022",
+      "plate": "DT789HX",
+      "status": "inviato",
+      "subtotal": 609.28,
+      "taxAmount": 134.0416,
+      "taxRate": 22,
+      "total": 743.3216,
+      "totalPrice": 688.4216,
+      "vin": ""
+    },
+    "PR042": {
+      "clientId": "CL017",
+      "clientName": "Maurizio Siciliano",
+      "createdAt": 1746526547040,
+      "date": "2025-05-06",
+      "id": "PR042",
+      "items": [
+        {
+          "id": "f0cfd773-eafc-49ca-abc6-0d7a58bd2678",
+          "laborHours": 1,
+          "laborPrice": 45,
+          "notes": "",
+          "parts": [
+            {
+              "brand": "UFI",
+              "category": "tagliando",
+              "code": "UFI30.547.00",
+              "finalPrice": 10.16,
+              "id": "abed9e90-6803-4a4f-a7e3-84a33be532e6",
+              "name": " UFI F.ARIA RENAULT CAPTUR 1.5DCI 12-",
+              "quantity": 1,
+              "unitPrice": 10.16
+            }
+          ],
+          "serviceType": {
+            "category": "Tagliando",
+            "description": "Tagliando - Filtro Aria",
+            "id": "ST001",
+            "laborPrice": 0,
+            "name": "Filtro Aria"
+          },
+          "totalPrice": 10.16
+        },
+        {
+          "id": "882ea264-ee6c-414f-a967-9162b675a663",
+          "laborHours": 1,
+          "laborPrice": 45,
+          "notes": "",
+          "parts": [
+            {
+              "brand": "BOSCH",
+              "category": "tagliando",
+              "code": "BOSF026402825",
+              "finalPrice": 13.04,
+              "id": "66c504ac-9f3a-47d9-af8f-7e7ab2176748",
+              "name": "BOSCH F.CARB. DACIA DOKKER 1.DCI 12-",
+              "quantity": 1,
+              "unitPrice": 13.04
+            }
+          ],
+          "serviceType": {
+            "category": "Tagliando",
+            "description": "Tagliando - Filtro Carburante",
+            "id": "ST003",
+            "laborPrice": 0,
+            "name": "Filtro Carburante"
+          },
+          "totalPrice": 13.04
+        },
+        {
+          "id": "08b1a620-e016-4494-b4fe-6185241b5843",
+          "laborHours": 1,
+          "laborPrice": 45,
+          "notes": "",
+          "parts": [
+            {
+              "brand": "CASTROL",
+              "category": "tagliando",
+              "code": "CAS15F64C",
+              "finalPrice": 43,
+              "id": "b9900310-c87f-43de-80d0-3faa8277416e",
+              "name": "CASTROL GTX 5W-30 C4 12X1L",
+              "quantity": 5,
+              "unitPrice": 8.6
+            }
+          ],
+          "serviceType": {
+            "category": "Tagliando",
+            "description": "Tagliando - Olio",
+            "id": "ST005",
+            "laborPrice": 0,
+            "name": "Olio"
+          },
+          "totalPrice": 43
+        },
+        {
+          "id": "cf76e334-2405-45c9-a556-2569f5f7b434",
+          "laborHours": 1,
+          "laborPrice": 45,
+          "notes": "",
+          "parts": [
+            {
+              "brand": "UFI",
+              "category": "tagliando",
+              "code": "UFI54.244.00",
+              "finalPrice": 6.62,
+              "id": "d849e47b-62a5-4496-af9a-583b77b15cf1",
+              "name": "UFI F.ABITACOLO",
+              "quantity": 1,
+              "unitPrice": 6.62
+            }
+          ],
+          "serviceType": {
+            "category": "Tagliando",
+            "description": "Tagliando - Filtro Abitacolo",
+            "id": "ST004",
+            "laborPrice": 0,
+            "name": "Filtro Abitacolo"
+          },
+          "totalPrice": 6.62
+        },
+        {
+          "id": "1a3e5335-735f-4432-82f3-a0f52005ddd3",
+          "laborHours": 1,
+          "laborPrice": 45,
+          "notes": "",
+          "parts": [
+            {
+              "brand": "UFI",
+              "category": "tagliando",
+              "code": "UFI23.628.00",
+              "finalPrice": 6.21,
+              "id": "0db892f0-ef5a-42cc-a2d5-d496c794dbb4",
+              "name": "UFI F.OLIO SPIN-ON",
+              "quantity": 1,
+              "unitPrice": 6.21
+            }
+          ],
+          "serviceType": {
+            "category": "Tagliando",
+            "description": "Tagliando - Filtro Olio",
+            "id": "ST021",
+            "laborPrice": 0,
+            "name": "Filtro Olio"
+          },
+          "totalPrice": 6.21
+        }
+      ],
+      "kilometrage": 0,
+      "laborHours": 2,
+      "laborPrice": 45,
+      "laborTotal": 315,
+      "model": "",
+      "notes": "",
+      "partsSubtotal": 79.03,
+      "phone": "3396420444",
+      "plate": "FH612RZ",
+      "status": "inviato",
+      "subtotal": 394.03,
+      "taxAmount": 86.6866,
+      "taxRate": 22,
+      "total": 480.71659999999997,
+      "totalPrice": 206.2166,
+      "vin": ""
+    },
+    "PR045": {
+      "clientId": "CL019",
+      "clientName": "Gianluca Campagnoni Pesenti",
+      "createdAt": 1746634772520,
+      "date": "2025-05-07",
+      "id": "PR045",
+      "items": [
+        {
+          "id": "587dbe47-1e14-44cc-9d81-a8bb26ab111f",
+          "laborHours": 1,
+          "laborPrice": 45,
+          "notes": "",
+          "parts": [
+            {
+              "brand": "BOSCH",
+              "category": "tagliando",
+              "code": "BOSF026400028",
+              "finalPrice": 16.63,
+              "id": "9297b5b4-d2ee-4ecd-b9df-8d8e84ec86cb",
+              "name": "BOSCH F.ARIA AUDI A6 2.7TD 08-",
+              "quantity": 1,
+              "unitPrice": 16.63
+            },
+            {
+              "brand": "CASTROL",
+              "category": "tagliando",
+              "code": "CAS15F7DA",
+              "finalPrice": 63,
+              "id": "a7bfffb8-7fd0-496d-8e2a-0f7b7f3083d3",
+              "name": "\tCASTROL EDGE 5W-30 LL",
+              "quantity": 6,
+              "unitPrice": 10.5
+            }
+          ],
+          "serviceType": {
+            "category": "Tagliando",
+            "description": "Tagliando - Filtro Aria",
+            "id": "ST001",
+            "laborPrice": 0,
+            "name": "Filtro Aria"
+          },
+          "totalPrice": 79.63
+        },
+        {
+          "id": "13ac494e-d681-4275-a933-906c3fbd434d",
+          "laborHours": 1,
+          "laborPrice": 45,
+          "notes": "",
+          "parts": [
+            {
+              "brand": "AVS",
+              "category": "tagliando",
+              "code": "AVSHB439C-2",
+              "finalPrice": 16.06,
+              "id": "b1befa7f-1f02-4b65-afac-8f4692b574f3",
+              "name": "\tAVS F.ABIT.AUDI A6 04>.A8 R8 4.2 07>",
+              "quantity": 1,
+              "unitPrice": 16.06
+            }
+          ],
+          "serviceType": {
+            "category": "Tagliando",
+            "description": "Tagliando - Filtro Abitacolo",
+            "id": "ST004",
+            "laborPrice": 0,
+            "name": "Filtro Abitacolo"
+          },
+          "totalPrice": 16.06
+        },
+        {
+          "id": "ace57d72-012d-40e9-84a1-ed3234a89786",
+          "laborHours": 1,
+          "laborPrice": 45,
+          "notes": "",
+          "parts": [
+            {
+              "brand": "BOSCH",
+              "category": "tagliando",
+              "code": "\tBOSF026407002",
+              "finalPrice": 8.49,
+              "id": "e021b449-b56f-48b4-bcbb-9dac9e757fd0",
+              "name": "BOSCH F.OLIO AUDI A5 2.7TDI 07-",
+              "quantity": 1,
+              "unitPrice": 8.49
+            }
+          ],
+          "serviceType": {
+            "category": "Tagliando",
+            "description": "Tagliando - Filtro Olio",
+            "id": "ST021",
+            "laborPrice": 0,
+            "name": "Filtro Olio"
+          },
+          "totalPrice": 8.49
+        },
+        {
+          "id": "5b2cb0c4-d2c4-436f-8e50-03802b95a9d5",
+          "laborHours": 1,
+          "laborPrice": 45,
+          "notes": "",
+          "parts": [
+            {
+              "brand": "MANN",
+              "category": "tagliando",
+              "code": "\tMANWK735/1",
+              "finalPrice": 37.27,
+              "id": "e7ff55fa-fbdf-4eda-8b20-c428c2b932cb",
+              "name": "\tMANN F.CARB. VAG",
+              "quantity": 1,
+              "unitPrice": 37.27
+            }
+          ],
+          "serviceType": {
+            "category": "Tagliando",
+            "description": "Tagliando - Filtro Carburante",
+            "id": "ST003",
+            "laborPrice": 0,
+            "name": "Filtro Carburante"
+          },
+          "totalPrice": 37.27
+        },
+        {
+          "id": "bd51c4ce-fd79-4e73-9ab3-f15dd9abf9d7",
+          "laborHours": 1,
+          "laborPrice": 45,
+          "notes": "",
+          "serviceType": {
+            "category": "Tagliando",
+            "description": "Tagliando - Olio",
+            "id": "ST005",
+            "laborPrice": 0,
+            "name": "Olio"
+          },
+          "totalPrice": 0
+        }
+      ],
+      "kilometrage": 0,
+      "laborHours": 1.5,
+      "laborPrice": 45,
+      "laborTotal": 292.5,
+      "model": "",
+      "notes": "",
+      "parts": [
+        {
+          "code": "BOSF026400028",
+          "description": "",
+          "price": 16.63,
+          "quantity": 1
+        },
+        {
+          "code": "CAS15F7DA",
+          "description": "",
+          "price": 10.5,
+          "quantity": 6
+        },
+        {
+          "code": "AVSHB439C-2",
+          "description": "",
+          "price": 16.06,
+          "quantity": 1
+        },
+        {
+          "code": "\tBOSF026407002",
+          "description": "",
+          "price": 8.49,
+          "quantity": 1
+        },
+        {
+          "code": "\tMANWK735/1",
+          "description": "",
+          "price": 37.27,
+          "quantity": 1
+        }
+      ],
+      "partsSubtotal": 141.45,
+      "phone": "+31 6 13867797",
+      "plate": "DD502MG",
+      "status": "inviato",
+      "subtotal": 433.95,
+      "taxAmount": 95.469,
+      "taxRate": 22,
+      "total": 529.419,
+      "totalPrice": 254.91899999999998,
+      "vin": ""
+    },
+    "PR047": {
+      "clientId": "CL016",
+      "clientName": "Ignazio Benedetto",
+      "createdAt": 1746635571133,
+      "date": "2025-05-07",
+      "id": "PR047",
+      "items": [
+        {
+          "id": "f84f0b87-b9b0-48a6-94a0-b7578b1426e6",
+          "laborHours": 1,
+          "laborPrice": 45,
+          "notes": "",
+          "parts": [
+            {
+              "brand": "CASTROL",
+              "category": "tagliando",
+              "code": "CAS15F7DA",
+              "finalPrice": 76.80000000000001,
+              "id": "04fb8eec-9e9b-4bb3-85e0-4b8f0c316dd7",
+              "name": "CASTROL EDGE 5W-30 LL",
+              "quantity": 6,
+              "unitPrice": 12.8
+            }
+          ],
+          "serviceType": {
+            "category": "Tagliando",
+            "description": "Tagliando - Olio",
+            "id": "ST005",
+            "laborPrice": 0,
+            "name": "Olio"
+          },
+          "totalPrice": 76.80000000000001
+        },
+        {
+          "id": "43de9f2d-d9b8-4456-8412-0066cbcc834e",
+          "laborHours": 1,
+          "laborPrice": 45,
+          "notes": "",
+          "parts": [
+            {
+              "brand": "BOSCH",
+              "category": "tagliando",
+              "code": "BOS1457429192",
+              "finalPrice": 4.74,
+              "id": "9ef3b989-5a4b-458e-a178-b2c37138eb9c",
+              "name": "BOSCH F.OLIO BMW 320D 05-(10^)",
+              "quantity": 1,
+              "unitPrice": 4.74
+            }
+          ],
+          "serviceType": {
+            "category": "Tagliando",
+            "description": "Tagliando - Filtro Olio",
+            "id": "ST021",
+            "laborPrice": 0,
+            "name": "Filtro Olio"
+          },
+          "totalPrice": 4.74
+        },
+        {
+          "id": "a5d23b7a-8876-4681-833e-22a8fb7d1b25",
+          "laborHours": 1,
+          "laborPrice": 45,
+          "notes": "",
+          "parts": [
+            {
+              "brand": "TRW",
+              "category": "frenante",
+              "code": "TRWGDB1814",
+              "finalPrice": 39.23,
+              "id": "1ba09885-e947-4033-9daa-491561983731",
+              "name": "\tTRW P.FRENO AUDI A4 2.0TDI 08-",
+              "quantity": 1,
+              "unitPrice": 39.23
+            }
+          ],
+          "serviceType": {
+            "category": "Frenante",
+            "description": "Frenante - Pattini Anteriori",
+            "id": "ST007",
+            "laborPrice": 0,
+            "name": "Pattini Anteriori"
+          },
+          "totalPrice": 39.23
+        },
+        {
+          "id": "bdf466ec-e277-4fe0-a88a-59508c2420f4",
+          "laborHours": 1,
+          "laborPrice": 45,
+          "notes": "",
+          "parts": [
+            {
+              "brand": "SANDO",
+              "category": "altro",
+              "code": "SAN6010430.0",
+              "finalPrice": 84.83,
+              "id": "53d0bd49-27ca-4430-b15d-c4eaa34f5924",
+              "name": "SANDO MOT. AVVIAMENTO",
+              "quantity": 1,
+              "unitPrice": 84.83
+            }
+          ],
+          "serviceType": {
+            "category": "Altro",
+            "description": "Altro - Altro",
+            "id": "ST022",
+            "laborPrice": 0,
+            "name": "Altro"
+          },
+          "totalPrice": 84.83
+        }
+      ],
+      "kilometrage": 0,
+      "laborHours": 2,
+      "laborPrice": 45,
+      "laborTotal": 270,
+      "model": "",
+      "notes": "",
+      "partsSubtotal": 205.60000000000002,
+      "phone": "3476727022",
+      "plate": "DT789HX",
+      "status": "inviato",
+      "subtotal": 475.6,
+      "taxAmount": 104.632,
+      "taxRate": 22,
+      "total": 580.232,
+      "totalPrice": 360.63200000000006,
+      "vin": ""
+    },
+    "PR048": {
+      "clientId": "CL020",
+      "clientName": "Andrea Ferrante",
+      "createdAt": 1746689747331,
+      "date": "2025-05-08",
+      "id": "PR048",
+      "items": [
+        {
+          "id": "032c4724-7209-4897-8962-35f4c782065b",
+          "laborHours": 1,
+          "laborPrice": 45,
+          "notes": "",
+          "parts": [
+            {
+              "brand": "fu",
+              "category": "tagliando",
+              "code": "notufi",
+              "finalPrice": 111,
+              "id": "3ad0d14a-b99b-49e3-8e8c-0226dc803913",
+              "name": "ufi",
+              "quantity": 1,
+              "unitPrice": 111
+            }
+          ],
+          "serviceType": {
+            "category": "Tagliando",
+            "description": "Tagliando - Filtro Abitacolo",
+            "id": "ST004",
+            "laborPrice": 0,
+            "name": "Filtro Abitacolo"
+          },
+          "totalPrice": 111
+        }
+      ],
+      "kilometrage": 0,
+      "laborHours": 0,
+      "laborPrice": 45,
+      "laborTotal": 45,
+      "model": "",
+      "notes": "",
+      "parts": [
+        {
+          "code": "notufi",
+          "description": "",
+          "price": 111,
+          "quantity": 1
+        }
+      ],
+      "partsSubtotal": 111,
+      "phone": "3213123123",
+      "plate": "FH612RZ",
+      "status": "accettato",
+      "subtotal": 156,
+      "taxAmount": 34.32,
+      "taxRate": 22,
+      "total": 190.32,
+      "totalPrice": 135.42000000000002,
+      "vin": ""
+    }
+  },
+  "serviceTypes": {
+    "ST001": {
+      "category": "Tagliando",
+      "description": "Sostituzione filtro aria",
+      "id": "ST001",
+      "name": "Filtro Aria"
+    },
+    "ST003": {
+      "category": "Tagliando",
+      "description": "Sostituzione filtro carburante",
+      "id": "ST003",
+      "name": "Filtro Carburante"
+    },
+    "ST004": {
+      "category": "Tagliando",
+      "description": "Sostituzione filtro abitacolo",
+      "id": "ST004",
+      "name": "Filtro Abitacolo"
+    },
+    "ST005": {
+      "category": "Tagliando",
+      "description": "Cambio olio motore",
+      "id": "ST005",
+      "name": "Olio"
+    },
+    "ST007": {
+      "category": "Frenante",
+      "description": "Sostituzione pattini freni anteriori",
+      "id": "ST007",
+      "name": "Pattini Anteriori"
+    },
+    "ST008": {
+      "category": "Frenante",
+      "description": "Sostituzione pattini freni posteriori",
+      "id": "ST008",
+      "name": "Pattini Posteriori"
+    },
+    "ST009": {
+      "category": "Frenante",
+      "description": "Sostituzione dischi freni anteriori",
+      "id": "ST009",
+      "name": "Dischi Anteriori"
+    },
+    "ST010": {
+      "category": "Frenante",
+      "description": "Sostituzione dischi o ganasce posteriori",
+      "id": "ST010",
+      "laborPrice": 50,
+      "name": "Dischi/Ganasce Posteriori"
+    },
+    "ST012": {
+      "category": "Sospensioni",
+      "description": "Sostituzione ammortizzatori anteriori",
+      "id": "ST012",
+      "laborPrice": 60,
+      "name": "Ammortizzatori Anteriori"
+    },
+    "ST013": {
+      "category": "Sospensioni",
+      "description": "Sostituzione ammortizzatori posteriori",
+      "id": "ST013",
+      "laborPrice": 60,
+      "name": "Ammortizzatori Posteriori"
+    },
+    "ST014": {
+      "category": "Sospensioni",
+      "description": "Sostituzione braccetti sospensioni",
+      "id": "ST014",
+      "laborPrice": 50,
+      "name": "Braccetti"
+    },
+    "ST016": {
+      "category": "Accessori",
+      "description": "Sostituzione spazzole tergicristalli",
+      "id": "ST016",
+      "laborPrice": 10,
+      "name": "Spazzole"
+    },
+    "ST017": {
+      "category": "Accessori",
+      "description": "Sostituzione batteria",
+      "id": "ST017",
+      "laborPrice": 15,
+      "name": "Batteria"
+    },
+    "ST018": {
+      "category": "Accessori",
+      "description": "Aggiunta additivi",
+      "id": "ST018",
+      "laborPrice": 5,
+      "name": "Additivi"
+    },
+    "ST019": {
+      "category": "Accessori",
+      "description": "Altri accessori",
+      "id": "ST019",
+      "laborPrice": 15,
+      "name": "Ricarica Aria Condizionata"
+    },
+    "ST021": {
+      "category": "Tagliando",
+      "description": "Sostituzione Filtro Olio",
+      "id": "ST021",
+      "laborPrice": 0,
+      "name": "Filtro Olio"
+    },
+    "ST022": {
+      "category": "Altro",
+      "description": "Inserimento Manuale",
+      "id": "ST022",
+      "laborPrice": 0,
+      "name": "Altro"
+    },
+    "ST023": {
+      "category": "Sospensioni",
+      "description": "Sostituzione Tiranteria",
+      "id": "ST023",
+      "laborPrice": 0,
+      "name": "Tiranteria"
+    }
+  },
+  "vehicles": {
+    "FH612RZ": {
+      "checklist": {
+        "ammortizzatoreAnterioreD": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "ammortizzatoreAnterioreS": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "barraStabilizzatriceAnte": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "battistradaAnt": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "battistradaPost": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "braccioInferioreD": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "braccioInferioreS": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "checklist": {
+          "note": "",
+          "stato": "DA FARE"
+        },
+        "ciaouser_1746696191301": {
+          "note": "dddd",
+          "stato": "NON CONTROLLATO"
+        },
+        "cinghiaDistribuzione": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "cinghiaServizi": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "controlloPressione": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "cuffiaStelo": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "cuffiaTiranteDx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "cuffiaTiranteSx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "dddd_1746697037177": {
+          "note": "dddddd",
+          "stato": "DA FARE"
+        },
+        "discoAntDx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "discoAntSx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "discoPostDx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "discoPostSx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "filtroAbitacolo": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "filtroAria": {
+          "note": "s",
+          "stato": "DA FARE"
+        },
+        "filtroOlio": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "gomminiBarraStabilizzatrice": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "livelloOlioFreni": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "livelloOlioMotore": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "livelloRefrigerante": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "mollaElicoidaleAnterioreD": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "mollaElicoidaleAnterioreS": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "olioMotore": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "paraPolvere": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "pastiglieAntDx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "pastiglieAntSx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "pastigliePostDx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "pastigliePostSx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "provaSuStrada": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "sistemaVacuum": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "testinaDx": {
+          "note": "",
+          "stato": "DA FARE"
+        },
+        "testinaSx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "tiranteAmmortizzatoreSospesoD": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "tiranteAmmortizzatoreSospesoS": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "tiranteDx": {
+          "note": "dddd",
+          "stato": "NON CONTROLLATO"
+        },
+        "tiranteSx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "tubiFrenoAnt": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "tubiFrenoPost": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        }
+      },
+      "clienteNotificato": false,
+      "commenti": "dddd",
+      "controlli": {
+        "acceptanceCompleted": true,
+        "acceptanceDate": "2025-05-08T09:37:20.698Z",
+        "fuelLevel": "empty",
+        "mileage": "1",
+        "photos": [
+          "https://i.ibb.co/DfCJ1SNF/1.jpg",
+          "https://i.ibb.co/Lh8YX3bb/2.jpg",
+          "https://i.ibb.co/ksW3WN40/3.jpg",
+          "https://i.ibb.co/fYPD6sBR/4.jpg"
+        ]
+      },
+      "deliveryCompleted": true,
+      "deliveryDate": "2025-05-08T09:38:04.367Z",
+      "deliveryNotes": "",
+      "fase2": {
+        "checklist": {
+          "ammortizzatoreAnterioreD": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "ammortizzatoreAnterioreS": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "barraStabilizzatriceAnte": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "battistradaAnt": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "battistradaPost": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "braccioInferioreD": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "braccioInferioreS": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "checklist": {
+            "note": "",
+            "stato": "DA FARE"
+          },
+          "ciaouser_1746696191301": {
+            "note": "dddd",
+            "stato": "NON CONTROLLATO"
+          },
+          "cinghiaDistribuzione": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "cinghiaServizi": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "controlloPressione": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "cuffiaStelo": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "cuffiaTiranteDx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "cuffiaTiranteSx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "dddd_1746697037177": {
+            "note": "dddddd",
+            "stato": "DA FARE"
+          },
+          "discoAntDx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "discoAntSx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "discoPostDx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "discoPostSx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "filtroAbitacolo": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "filtroAria": {
+            "note": "s",
+            "stato": "DA FARE"
+          },
+          "filtroOlio": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "gomminiBarraStabilizzatrice": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "livelloOlioFreni": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "livelloOlioMotore": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "livelloRefrigerante": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "mollaElicoidaleAnterioreD": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "mollaElicoidaleAnterioreS": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "olioMotore": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "paraPolvere": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "pastiglieAntDx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "pastiglieAntSx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "pastigliePostDx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "pastigliePostSx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "provaSuStrada": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "sistemaVacuum": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "testinaDx": {
+            "note": "",
+            "stato": "DA FARE"
+          },
+          "testinaSx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "tiranteAmmortizzatoreSospesoD": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "tiranteAmmortizzatoreSospesoS": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "tiranteDx": {
+            "note": "dddd",
+            "stato": "NON CONTROLLATO"
+          },
+          "tiranteSx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "tubiFrenoAnt": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "tubiFrenoPost": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          }
+        },
+        "controls": {
+          "ciaouser_1746696191301": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "dddd_1746697037177": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "test_1746696081138": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          }
+        },
+        "parametriChecklist": {
+          "D": "D"
+        }
+      },
+      "fuelLevel": "empty",
+      "lavorazione": {
+        "checklist": {
+          "ammortizzatoreAnterioreD": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "ammortizzatoreAnterioreS": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "barraStabilizzatriceAnte": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "battistradaAnt": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "battistradaPost": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "braccioInferioreD": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "braccioInferioreS": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "checklist": {
+            "note": "",
+            "stato": "DA FARE"
+          },
+          "ciaouser_1746696191301": {
+            "note": "dddd",
+            "stato": "NON CONTROLLATO"
+          },
+          "cinghiaDistribuzione": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "cinghiaServizi": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "controlloPressione": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "cuffiaStelo": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "cuffiaTiranteDx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "cuffiaTiranteSx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "dddd_1746697037177": {
+            "note": "dddddd",
+            "stato": "DA FARE"
+          },
+          "discoAntDx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "discoAntSx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "discoPostDx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "discoPostSx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "filtroAbitacolo": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "filtroAria": {
+            "note": "s",
+            "stato": "DA FARE"
+          },
+          "filtroOlio": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "gomminiBarraStabilizzatrice": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "livelloOlioFreni": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "livelloOlioMotore": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "livelloRefrigerante": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "mollaElicoidaleAnterioreD": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "mollaElicoidaleAnterioreS": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "olioMotore": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "paraPolvere": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "pastiglieAntDx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "pastiglieAntSx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "pastigliePostDx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "pastigliePostSx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "provaSuStrada": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "sistemaVacuum": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "testinaDx": {
+            "note": "",
+            "stato": "DA FARE"
+          },
+          "testinaSx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "tiranteAmmortizzatoreSospesoD": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "tiranteAmmortizzatoreSospesoS": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "tiranteDx": {
+            "note": "dddd",
+            "stato": "NON CONTROLLATO"
+          },
+          "tiranteSx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "tubiFrenoAnt": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "tubiFrenoPost": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          }
+        },
+        "parametriChecklist": {
+          "D": "D"
+        }
+      },
+      "mileage": "1",
+      "note": "dddd",
+      "noteGenerali": "dddd",
+      "parametriChecklist": {
+        "D": "D"
+      },
+      "quoteId": "PR048",
+      "workCompleted": true,
+      "workCompletionDate": "2025-05-08T09:38:02.756Z",
+      "workPhase": {
+        "completed": true,
+        "completionDate": "2025-05-08T09:38:02.756Z",
+        "quoteId": "PR048",
+        "spareParts": [
+          {
+            "brand": "fu",
+            "category": "tagliando",
+            "code": "notufi",
+            "finalPrice": 111,
+            "id": "3ad0d14a-b99b-49e3-8e8c-0226dc803913",
+            "name": "ufi",
+            "quantity": 1,
+            "unitPrice": 111
+          }
+        ]
+      },
+      "workSpareParts": [
+        {
+          "brand": "fu",
+          "category": "tagliando",
+          "code": "notufi",
+          "finalPrice": 111,
+          "id": "3ad0d14a-b99b-49e3-8e8c-0226dc803913",
+          "name": "ufi",
+          "quantity": 1,
+          "unitPrice": 111
+        }
+      ],
+      "workingPhase": {
+        "checklist": {
+          "ammortizzatoreAnterioreD": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "ammortizzatoreAnterioreS": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "barraStabilizzatriceAnte": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "battistradaAnt": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "battistradaPost": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "braccioInferioreD": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "braccioInferioreS": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "checklist": {
+            "note": "",
+            "stato": "DA FARE"
+          },
+          "ciaouser_1746696191301": {
+            "note": "dddd",
+            "stato": "NON CONTROLLATO"
+          },
+          "cinghiaDistribuzione": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "cinghiaServizi": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "controlloPressione": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "cuffiaStelo": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "cuffiaTiranteDx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "cuffiaTiranteSx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "dddd_1746697037177": {
+            "note": "dddddd",
+            "stato": "DA FARE"
+          },
+          "discoAntDx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "discoAntSx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "discoPostDx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "discoPostSx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "filtroAbitacolo": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "filtroAria": {
+            "note": "s",
+            "stato": "DA FARE"
+          },
+          "filtroOlio": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "gomminiBarraStabilizzatrice": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "livelloOlioFreni": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "livelloOlioMotore": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "livelloRefrigerante": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "mollaElicoidaleAnterioreD": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "mollaElicoidaleAnterioreS": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "olioMotore": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "paraPolvere": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "pastiglieAntDx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "pastiglieAntSx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "pastigliePostDx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "pastigliePostSx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "provaSuStrada": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "sistemaVacuum": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "testinaDx": {
+            "note": "",
+            "stato": "DA FARE"
+          },
+          "testinaSx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "tiranteAmmortizzatoreSospesoD": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "tiranteAmmortizzatoreSospesoS": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "tiranteDx": {
+            "note": "dddd",
+            "stato": "NON CONTROLLATO"
+          },
+          "tiranteSx": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "tubiFrenoAnt": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "tubiFrenoPost": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          }
+        },
+        "controls": {
+          "ciaouser_1746696191301": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "dddd_1746697037177": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "test_1746696081138": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          }
+        },
+        "parametriChecklist": {
+          "D": "D"
+        }
+      }
+    },
+    "GN791KP": {
+      "checklist": {
+        "ammortizzatoreAntDx": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "ammortizzatoreAntSx": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "ammortizzatoreAnterioreD": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "ammortizzatoreAnterioreS": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "barraStabilizzatriceAnt": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "barraStabilizzatriceAnte": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "battistradaAnt": {
+          "note": "7mm",
+          "stato": "CONTROLLATO"
+        },
+        "battistradaPost": {
+          "note": "8mm",
+          "stato": "CONTROLLATO"
+        },
+        "braccioInfDx": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "braccioInfSx": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "braccioInferioreD": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "braccioInferioreS": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "checklist": {
+          "note": "",
+          "stato": "DA FARE"
+        },
+        "cinghiaDistribuzione": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "cinghiaServizi": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "controlloPressione": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "cuffiaStelo": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "cuffiaTiranteDx": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "cuffiaTiranteSx": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "discoAntDx": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "discoAntSx": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "discoPostDx": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "discoPostSx": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "filtroAbitacolo": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "filtroAria": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "filtroOlio": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "gomminiBarraStab": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "gomminiBarraStabilizzatrice": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "livelloOlioFreni": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "livelloOlioMotore": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "livelloRefrigerante": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "mollaElicoidaleAntDx": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "mollaElicoidaleAntSx": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "mollaElicoidaleAnterioreD": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "mollaElicoidaleAnterioreS": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "olioMotore": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "paraPolvere": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "pastiglieAntDx": {
+          "note": "Sostituite ",
+          "stato": "CONTROLLATO"
+        },
+        "pastiglieAntSx": {
+          "note": "Sostituite ",
+          "stato": "CONTROLLATO"
+        },
+        "pastigliePostDx": {
+          "note": "Sostituite ",
+          "stato": "CONTROLLATO"
+        },
+        "pastigliePostSx": {
+          "note": "Sostituite ",
+          "stato": "CONTROLLATO"
+        },
+        "provaSuStrada": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "sistemaVacuum": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "testinaDx": {
+          "note": "",
+          "stato": "DA FARE"
+        },
+        "testinaSx": {
+          "note": "",
+          "stato": "DA FARE"
+        },
+        "tiranteAmmSospDx": {
+          "note": "",
+          "stato": "DA FARE"
+        },
+        "tiranteAmmSospSx": {
+          "note": "",
+          "stato": "DA FARE"
+        },
+        "tiranteAmmortizzatoreSospesoD": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "tiranteAmmortizzatoreSospesoS": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "tiranteDx": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "tiranteSx": {
+          "note": "",
+          "stato": "DA FARE"
+        },
+        "tubiFrenoAnt": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "tubiFrenoPost": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        }
+      },
+      "clienteNotificato": false,
+      "controlli": {
+        "acceptanceCompleted": true,
+        "acceptanceDate": "2025-05-07T12:35:07.138Z",
+        "fuelLevel": "full",
+        "mileage": "74.429",
+        "photos": [
+          "https://i.ibb.co/SwGwY0tz/Whats-App-Image-2025-05-07-at-10-55-07-4.jpg",
+          "https://i.ibb.co/wN6SW44y/Whats-App-Image-2025-05-07-at-10-55-07-2.jpg",
+          "https://i.ibb.co/C53jtHKP/Whats-App-Image-2025-05-07-at-14-21-31-1.jpg",
+          "https://i.ibb.co/LzwSz8nn/Whats-App-Image-2025-05-07-at-14-21-31.jpg"
+        ]
+      },
+      "deliveryCompleted": true,
+      "deliveryDate": "2025-05-07T14:17:47.515Z",
+      "deliveryNotes": "",
+      "fase2": {
+        "checklist": {
+          "ammortizzatoreAntDx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "ammortizzatoreAntSx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "ammortizzatoreAnterioreD": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "ammortizzatoreAnterioreS": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "barraStabilizzatriceAnt": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "barraStabilizzatriceAnte": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "battistradaAnt": {
+            "note": "7mm",
+            "stato": "CONTROLLATO"
+          },
+          "battistradaPost": {
+            "note": "8mm",
+            "stato": "CONTROLLATO"
+          },
+          "braccioInfDx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "braccioInfSx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "braccioInferioreD": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "braccioInferioreS": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "checklist": {
+            "note": "",
+            "stato": "DA FARE"
+          },
+          "ciaouser_1746696191301": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "cinghiaDistribuzione": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "cinghiaServizi": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "controlloPressione": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "cuffiaStelo": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "cuffiaTiranteDx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "cuffiaTiranteSx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "dddd_1746697037177": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "discoAntDx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "discoAntSx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "discoPostDx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "discoPostSx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "filtroAbitacolo": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "filtroAria": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "filtroOlio": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "gomminiBarraStab": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "gomminiBarraStabilizzatrice": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "livelloOlioFreni": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "livelloOlioMotore": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "livelloRefrigerante": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "mollaElicoidaleAntDx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "mollaElicoidaleAntSx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "mollaElicoidaleAnterioreD": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "mollaElicoidaleAnterioreS": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "olioMotore": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "paraPolvere": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "pastiglieAntDx": {
+            "note": "Sostituite ",
+            "stato": "CONTROLLATO"
+          },
+          "pastiglieAntSx": {
+            "note": "Sostituite ",
+            "stato": "CONTROLLATO"
+          },
+          "pastigliePostDx": {
+            "note": "Sostituite ",
+            "stato": "CONTROLLATO"
+          },
+          "pastigliePostSx": {
+            "note": "Sostituite ",
+            "stato": "CONTROLLATO"
+          },
+          "provaSuStrada": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "sistemaVacuum": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "test_1746696081138": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "testinaDx": {
+            "note": "",
+            "stato": "DA FARE"
+          },
+          "testinaSx": {
+            "note": "",
+            "stato": "DA FARE"
+          },
+          "tiranteAmmSospDx": {
+            "note": "",
+            "stato": "DA FARE"
+          },
+          "tiranteAmmSospSx": {
+            "note": "",
+            "stato": "DA FARE"
+          },
+          "tiranteAmmortizzatoreSospesoD": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "tiranteAmmortizzatoreSospesoS": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "tiranteDx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "tiranteSx": {
+            "note": "",
+            "stato": "DA FARE"
+          },
+          "tubiFrenoAnt": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "tubiFrenoPost": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          }
+        },
+        "controls": {
+          "ciaouser_1746696191301": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "dddd_1746697037177": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "test_1746696081138": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          }
+        }
+      },
+      "fuelLevel": "full",
+      "lavorazione": {
+        "checklist": {
+          "ammortizzatoreAntDx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "ammortizzatoreAntSx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "ammortizzatoreAnterioreD": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "ammortizzatoreAnterioreS": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "barraStabilizzatriceAnt": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "barraStabilizzatriceAnte": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "battistradaAnt": {
+            "note": "7mm",
+            "stato": "CONTROLLATO"
+          },
+          "battistradaPost": {
+            "note": "8mm",
+            "stato": "CONTROLLATO"
+          },
+          "braccioInfDx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "braccioInfSx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "braccioInferioreD": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "braccioInferioreS": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "checklist": {
+            "note": "",
+            "stato": "DA FARE"
+          },
+          "cinghiaDistribuzione": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "cinghiaServizi": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "controlloPressione": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "cuffiaStelo": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "cuffiaTiranteDx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "cuffiaTiranteSx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "discoAntDx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "discoAntSx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "discoPostDx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "discoPostSx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "filtroAbitacolo": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "filtroAria": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "filtroOlio": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "gomminiBarraStab": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "gomminiBarraStabilizzatrice": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "livelloOlioFreni": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "livelloOlioMotore": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "livelloRefrigerante": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "mollaElicoidaleAntDx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "mollaElicoidaleAntSx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "mollaElicoidaleAnterioreD": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "mollaElicoidaleAnterioreS": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "olioMotore": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "paraPolvere": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "pastiglieAntDx": {
+            "note": "Sostituite ",
+            "stato": "CONTROLLATO"
+          },
+          "pastiglieAntSx": {
+            "note": "Sostituite ",
+            "stato": "CONTROLLATO"
+          },
+          "pastigliePostDx": {
+            "note": "Sostituite ",
+            "stato": "CONTROLLATO"
+          },
+          "pastigliePostSx": {
+            "note": "Sostituite ",
+            "stato": "CONTROLLATO"
+          },
+          "provaSuStrada": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "sistemaVacuum": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "testinaDx": {
+            "note": "",
+            "stato": "DA FARE"
+          },
+          "testinaSx": {
+            "note": "",
+            "stato": "DA FARE"
+          },
+          "tiranteAmmSospDx": {
+            "note": "",
+            "stato": "DA FARE"
+          },
+          "tiranteAmmSospSx": {
+            "note": "",
+            "stato": "DA FARE"
+          },
+          "tiranteAmmortizzatoreSospesoD": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "tiranteAmmortizzatoreSospesoS": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "tiranteDx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "tiranteSx": {
+            "note": "",
+            "stato": "DA FARE"
+          },
+          "tubiFrenoAnt": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "tubiFrenoPost": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          }
+        }
+      },
+      "mileage": "74.429",
+      "quoteId": "PR038",
+      "sparePartPhoto": "https://i.ibb.co/DP1srdrj/Whats-App-Image-2025-05-07-at-10-55-06-1.jpg",
+      "sparePartPhotos": [
+        "https://i.ibb.co/DP1srdrj/Whats-App-Image-2025-05-07-at-10-55-06-1.jpg",
+        "https://i.ibb.co/6cDfdqt0/Whats-App-Image-2025-05-07-at-10-55-07-1.jpg"
+      ],
+      "workCompleted": true,
+      "workCompletionDate": "2025-05-07T12:43:03.002Z",
+      "workPhase": {
+        "completed": true,
+        "completionDate": "2025-05-07T12:43:03.002Z",
+        "photos": [
+          "https://i.ibb.co/DP1srdrj/Whats-App-Image-2025-05-07-at-10-55-06-1.jpg",
+          "https://i.ibb.co/6cDfdqt0/Whats-App-Image-2025-05-07-at-10-55-07-1.jpg"
+        ],
+        "quoteId": "PR038",
+        "spareParts": [
+          {
+            "brand": "ATE",
+            "category": "frenante",
+            "code": "ATE602668",
+            "finalPrice": 57.85,
+            "id": "8c0e55b0-f75a-4b56-be50-ed31218ecfc8",
+            "name": "\tATE SERIE P. FRENO ANT. OPEL ASTRA L SPORTS TOURER",
+            "quantity": 1,
+            "unitPrice": 57.85
+          },
+          {
+            "brand": "ATE",
+            "category": "frenante",
+            "code": "ATE603872",
+            "finalPrice": 42.4,
+            "id": "96419606-61ac-48cb-ae8d-d71bcf0feadb",
+            "name": "\tATE P.FRENO PEUGEOT 308 1.6HDI 14-",
+            "quantity": 1,
+            "unitPrice": 42.4
+          }
+        ]
+      },
+      "workSpareParts": [
+        {
+          "brand": "ATE",
+          "category": "frenante",
+          "code": "ATE602668",
+          "finalPrice": 57.85,
+          "id": "8c0e55b0-f75a-4b56-be50-ed31218ecfc8",
+          "name": "\tATE SERIE P. FRENO ANT. OPEL ASTRA L SPORTS TOURER",
+          "quantity": 1,
+          "unitPrice": 57.85
+        },
+        {
+          "brand": "ATE",
+          "category": "frenante",
+          "code": "ATE603872",
+          "finalPrice": 42.4,
+          "id": "96419606-61ac-48cb-ae8d-d71bcf0feadb",
+          "name": "\tATE P.FRENO PEUGEOT 308 1.6HDI 14-",
+          "quantity": 1,
+          "unitPrice": 42.4
+        }
+      ],
+      "workingPhase": {
+        "checklist": {
+          "ammortizzatoreAntDx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "ammortizzatoreAntSx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "ammortizzatoreAnterioreD": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "ammortizzatoreAnterioreS": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "barraStabilizzatriceAnt": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "barraStabilizzatriceAnte": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "battistradaAnt": {
+            "note": "7mm",
+            "stato": "CONTROLLATO"
+          },
+          "battistradaPost": {
+            "note": "8mm",
+            "stato": "CONTROLLATO"
+          },
+          "braccioInfDx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "braccioInfSx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "braccioInferioreD": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "braccioInferioreS": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "checklist": {
+            "note": "",
+            "stato": "DA FARE"
+          },
+          "ciaouser_1746696191301": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "cinghiaDistribuzione": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "cinghiaServizi": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "controlloPressione": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "cuffiaStelo": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "cuffiaTiranteDx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "cuffiaTiranteSx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "dddd_1746697037177": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "discoAntDx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "discoAntSx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "discoPostDx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "discoPostSx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "filtroAbitacolo": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "filtroAria": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "filtroOlio": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "gomminiBarraStab": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "gomminiBarraStabilizzatrice": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "livelloOlioFreni": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "livelloOlioMotore": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "livelloRefrigerante": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "mollaElicoidaleAntDx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "mollaElicoidaleAntSx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "mollaElicoidaleAnterioreD": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "mollaElicoidaleAnterioreS": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "olioMotore": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "paraPolvere": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "pastiglieAntDx": {
+            "note": "Sostituite ",
+            "stato": "CONTROLLATO"
+          },
+          "pastiglieAntSx": {
+            "note": "Sostituite ",
+            "stato": "CONTROLLATO"
+          },
+          "pastigliePostDx": {
+            "note": "Sostituite ",
+            "stato": "CONTROLLATO"
+          },
+          "pastigliePostSx": {
+            "note": "Sostituite ",
+            "stato": "CONTROLLATO"
+          },
+          "provaSuStrada": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "sistemaVacuum": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "test_1746696081138": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "testinaDx": {
+            "note": "",
+            "stato": "DA FARE"
+          },
+          "testinaSx": {
+            "note": "",
+            "stato": "DA FARE"
+          },
+          "tiranteAmmSospDx": {
+            "note": "",
+            "stato": "DA FARE"
+          },
+          "tiranteAmmSospSx": {
+            "note": "",
+            "stato": "DA FARE"
+          },
+          "tiranteAmmortizzatoreSospesoD": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "tiranteAmmortizzatoreSospesoS": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "tiranteDx": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "tiranteSx": {
+            "note": "",
+            "stato": "DA FARE"
+          },
+          "tubiFrenoAnt": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          },
+          "tubiFrenoPost": {
+            "note": "",
+            "stato": "CONTROLLATO"
+          }
+        },
+        "controls": {
+          "ciaouser_1746696191301": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "dddd_1746697037177": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          },
+          "test_1746696081138": {
+            "note": "",
+            "stato": "NON CONTROLLATO"
+          }
+        }
+      }
+    }
+  },
+  "workingPhase": {
+    "FH612RZ": {
+      "checklist": {
+        "ammortizzatoreAnterioreD": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "ammortizzatoreAnterioreS": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "barraStabilizzatriceAnte": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "battistradaAnt": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "battistradaPost": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "braccioInferioreD": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "braccioInferioreS": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "checklist": {
+          "note": "",
+          "stato": "DA FARE"
+        },
+        "ciaouser_1746696191301": {
+          "note": "dddd",
+          "stato": "NON CONTROLLATO"
+        },
+        "cinghiaDistribuzione": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "cinghiaServizi": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "controlloPressione": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "cuffiaStelo": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "cuffiaTiranteDx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "cuffiaTiranteSx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "dddd_1746697037177": {
+          "note": "dddddd",
+          "stato": "DA FARE"
+        },
+        "discoAntDx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "discoAntSx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "discoPostDx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "discoPostSx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "filtroAbitacolo": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "filtroAria": {
+          "note": "s",
+          "stato": "DA FARE"
+        },
+        "filtroOlio": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "gomminiBarraStabilizzatrice": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "livelloOlioFreni": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "livelloOlioMotore": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "livelloRefrigerante": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "mollaElicoidaleAnterioreD": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "mollaElicoidaleAnterioreS": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "olioMotore": {
+          "note": "",
+          "stato": "CONTROLLATO"
+        },
+        "paraPolvere": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "pastiglieAntDx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "pastiglieAntSx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "pastigliePostDx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "pastigliePostSx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "provaSuStrada": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "sistemaVacuum": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "testinaDx": {
+          "note": "",
+          "stato": "DA FARE"
+        },
+        "testinaSx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "tiranteAmmortizzatoreSospesoD": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "tiranteAmmortizzatoreSospesoS": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "tiranteDx": {
+          "note": "dddd",
+          "stato": "NON CONTROLLATO"
+        },
+        "tiranteSx": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "tubiFrenoAnt": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "tubiFrenoPost": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        }
+      },
+      "controls": {
+        "ciaouser_1746696191301": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "dddd_1746697037177": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        },
+        "test_1746696081138": {
+          "note": "",
+          "stato": "NON CONTROLLATO"
+        }
+      },
+      "parametriChecklist": {
+        "D": "D"
+      }
+    }
+  }
+}

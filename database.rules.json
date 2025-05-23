@@ -1,0 +1,9 @@
+{
+  "rules": {
+    ".read": true,
+    ".write": true,
+    "appointments": {
+      ".indexOn": ["plate", "clientId", "date", "status"]
+    }
+  }
+  }

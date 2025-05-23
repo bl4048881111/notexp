@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Download } from "lucide-react";
 
 import { getAllClients } from "@shared/firebase";
@@ -24,6 +24,8 @@ export default function ClientsPage() {
   const [noResultsAfterCreate, setNoResultsAfterCreate] = useState(false);
   
   const { toast } = useToast();
+  
+  const queryClient = useQueryClient();
   
   // Fetch clients
   const { 
@@ -119,7 +121,38 @@ export default function ClientsPage() {
   };
   
   const handleFormSubmit = async () => {
-    await refetch();
+    try {
+      // Primo passo: invalida la cache
+      await queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
+      
+      // Secondo passo: forza il refetch cancellando eventuali refetch pendenti
+      await queryClient.refetchQueries({ 
+        queryKey: ['/api/clients'],
+        type: 'active',
+        exact: true 
+      });
+      
+      console.log("Dati clienti aggiornati con successo");
+      
+      // Terzo passo: esegui un secondo refetch con un piccolo ritardo
+      // per assicurarti che i dati dal server siano completamente aggiornati
+      setTimeout(async () => {
+        await refetch();
+        console.log("Seconda ricerca completata");
+      }, 500);
+      
+      toast({
+        description: "Dati clienti aggiornati",
+      });
+    } catch (error) {
+      console.error("Errore durante l'aggiornamento della lista clienti:", error);
+      toast({
+        title: "Errore aggiornamento",
+        description: "Impossibile aggiornare la lista clienti. Ricarica la pagina.",
+        variant: "destructive"
+      });
+    }
+    
     setIsFormOpen(false);
     setEditingClient(null);
   };

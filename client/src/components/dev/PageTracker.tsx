@@ -9,7 +9,8 @@ const pageNameMap: Record<string, string> = {
   '/clients': 'Clienti',
   '/appointments': 'Appuntamenti',
   '/quotes': 'Preventivi',
-  '/service-management': 'Gestione Servizi'
+  '/service-management': 'Gestione Servizi',
+  '/tagliando': 'Processo Tagliando'
 };
 
 export default function PageTracker() {

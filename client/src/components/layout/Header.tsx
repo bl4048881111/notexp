@@ -1,15 +1,46 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { Menu, X, User } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import MobileNav from "@/components/layout/MobileNav";
-import { useAuth } from "@/contexts/AuthContext";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
+import { UserMenu } from "@/components/header/UserMenu";
+
+// Definizione diretta di MobileNav invece di importarlo
+const MobileNav = ({ onNavClick }: { onNavClick: () => void }) => {
+  return (
+    <div className="flex flex-col gap-4 p-6">
+      <Link href="/">
+        <a onClick={onNavClick} className="flex items-center space-x-2">
+          <span className="font-bold text-xl text-primary">AutoeXpress</span>
+        </a>
+      </Link>
+      <div className="flex flex-col gap-2">
+        <Link href="/">
+          <a onClick={onNavClick} className="text-foreground py-2 px-3 rounded-md hover:bg-accent">Dashboard</a>
+        </Link>
+        <Link href="/clients">
+          <a onClick={onNavClick} className="text-foreground py-2 px-3 rounded-md hover:bg-accent">Clienti</a>
+        </Link>
+        <Link href="/quotes">
+          <a onClick={onNavClick} className="text-foreground py-2 px-3 rounded-md hover:bg-accent">Preventivi</a>
+        </Link>
+        <Link href="/appointments">
+          <a onClick={onNavClick} className="text-foreground py-2 px-3 rounded-md hover:bg-accent">Appuntamenti</a>
+        </Link>
+        <Link href="/services">
+          <a onClick={onNavClick} className="text-foreground py-2 px-3 rounded-md hover:bg-accent">Servizi</a>
+        </Link>
+        <Link href="/admin/db-changes">
+          <a onClick={onNavClick} className="text-foreground py-2 px-3 rounded-md hover:bg-accent">Modifiche Database</a>
+        </Link>
+      </div>
+    </div>
+  );
+};
 
 export default function Header() {
-  const { user, logout } = useAuth();
   const [, navigate] = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -22,11 +53,6 @@ export default function Header() {
     
     return () => clearInterval(timer);
   }, []);
-
-  const handleLogout = async () => {
-    await logout();
-    navigate('/login');
-  };
 
   return (
     <header className="bg-background border-b border-border sticky top-0 z-40">
@@ -68,19 +94,8 @@ export default function Header() {
             </div>
           </div>
           
-          {user && (
-            <div className="flex items-center gap-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="rounded-full w-8 h-8 p-0" 
-                onClick={handleLogout}
-                title="Logout"
-              >
-                <User className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
+          {/* Menu utente */}
+          <UserMenu />
 
           <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
             <SheetTrigger asChild className="lg:hidden">

@@ -1,0 +1,52 @@
+[build]
+  publish = "client/dist"
+  command = "cd client && npm run build"
+
+[build.environment]
+  NODE_VERSION = "18"
+  SMTP_HOST = "smtp.gmail.com"
+  SMTP_USER = "your-email@gmail.com"
+  SMTP_PASS = "your-app-password"
+
+# Redirects per le pagine di successo
+[[redirects]]
+  from = "/success-preventivo"
+  to = "/success-preventivo.html"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/success-checkup"
+  to = "/success-checkup.html"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/success"
+  to = "/success.html"
+  status = 200
+  force = true
+
+# Login page
+[[redirects]]
+  from = "/login"
+  to = "/login"
+  status = 200
+
+# API routing
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+# SPA routing
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Configurazione per il caching di risorse statiche
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

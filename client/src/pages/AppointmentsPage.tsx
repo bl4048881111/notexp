@@ -1,14 +1,16 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Plus, Download, Calendar, List, RefreshCw } from "lucide-react";
+import { Plus, Download, Calendar, List, RefreshCw, CalendarPlus, FileDown, Search } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { SimpleDropdown, DropdownMenuItem } from "@/components/ui/CustomUIComponents";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 import { getAllAppointments, getQuoteById } from "@shared/firebase";
 import { Appointment, Quote } from "@shared/schema";
@@ -19,23 +21,27 @@ import TableView from "@/components/appointments/TableView";
 import QuoteForm from "@/components/quotes/QuoteForm";
 import { exportAppointmentsToExcel, exportAppointmentsToPDF } from "@/services/exportService";
 import { appointmentService } from "@/services/appointmentService";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function AppointmentsPage() {
-  const [view, setView] = useState<"calendar" | "table">("calendar");
+  const [view, setView] = useState<"calendar" | "table">("table");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isQuoteFormOpen, setIsQuoteFormOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<string | null>(format(new Date(), 'yyyy-MM-dd'));
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [editingQuote, setEditingQuote] = useState<Quote | null>(null);
-  const [clientIdForQuote, setClientIdForQuote] = useState<string | null>(null);
-  const [initialViewDay, setInitialViewDay] = useState(true);
+  const [clientIdForQuote, setClientIdForQuote] = useState<string>("");
+  const [initialViewDay, setInitialViewDay] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [showCompletedAppointments, setShowCompletedAppointments] = useState(false);
   
   const { toast } = useToast();
+  const { user } = useAuth();
+  const isClient = !!user?.clientId;
   
   // Fetch appointments
   const { 
@@ -45,11 +51,45 @@ export default function AppointmentsPage() {
     isRefetching,
     status 
   } = useQuery({ 
-    queryKey: ['/api/appointments'],
-    queryFn: getAllAppointments,
-    refetchOnWindowFocus: false, // Disattiva il refetch automatico
-    staleTime: 0, // Considera sempre i dati obsoleti
-    gcTime: 0, // Non memorizzare i dati nella cache (sostituisce cacheTime)
+    queryKey: ['/appointments', user?.clientId],
+    queryFn: async () => {
+      const allAppointments = await appointmentService.getAll();
+      
+      // Filtra gli appuntamenti per cliente se l'utente è un cliente
+      const filteredAppointments = isClient 
+        ? allAppointments.filter(app => app.clientId === user?.clientId)
+        : allAppointments;
+      
+      // IMPORTANTE: Normalizziamo i valori di duration e quoteLaborHours
+      // per evitare incongruenze quando si passa dalla dashboard ai preventivi
+      return filteredAppointments.map(app => {
+        // Assicuriamoci che entrambi i valori siano numeri
+        let duration = typeof app.duration === 'number' ? app.duration : 
+                      typeof app.duration === 'string' ? parseFloat(app.duration) : 1;
+        
+        let quoteLaborHours = typeof app.quoteLaborHours === 'number' ? app.quoteLaborHours : 
+                             typeof app.quoteLaborHours === 'string' ? parseFloat(app.quoteLaborHours) : 0;
+        
+        // Se duration non è valido, impostiamo a 1
+        if (isNaN(duration) || duration <= 0) duration = 1;
+        
+        // Se quoteLaborHours non è valido, impostiamo uguale a duration
+        if (isNaN(quoteLaborHours) || quoteLaborHours <= 0) quoteLaborHours = duration;
+        
+        // Sincronizziamo sempre i due valori, utilizza il valore maggiore tra i due
+        // per garantire coerenza in tutte le viste
+        const finalValue = Math.max(duration, quoteLaborHours);
+        
+        return {
+          ...app,
+          duration: finalValue,
+          quoteLaborHours: finalValue
+        };
+      });
+    },
+    staleTime: 0,
+    refetchInterval: 60000, // Aggiornamento automatico ogni minuto
+    refetchOnWindowFocus: true
   });
   
   // Log di debug per monitorare lo stato della query
@@ -74,7 +114,11 @@ export default function AppointmentsPage() {
     const matchesStatus = statusFilter === "all" || appointment.status === statusFilter;
     const matchesDate = !dateFilter || appointment.date === dateFilter;
     
-    return matchesSearch && matchesStatus && matchesDate;
+    // Filtra gli appuntamenti completati in base all'opzione selezionata
+    const completedStatus = appointment.status === "completato";
+    const showBasedOnCompletedFilter = showCompletedAppointments || !completedStatus;
+    
+    return matchesSearch && matchesStatus && matchesDate && showBasedOnCompletedFilter;
   });
   
   const handleExportAppointments = async () => {
@@ -94,11 +138,30 @@ export default function AppointmentsPage() {
   };
   
   const handleEditAppointment = (appointment: Appointment) => {
+    // I clienti non possono modificare gli appuntamenti
+    if (isClient) {
+      toast({
+        title: "Operazione non consentita",
+        description: "Solo gli amministratori possono modificare gli appuntamenti",
+        variant: "destructive",
+      });
+      return;
+    }
     setEditingAppointment(appointment);
     setIsFormOpen(true);
   };
   
   const handleAddAppointment = (date?: string | Date) => {
+    // I clienti non possono creare appuntamenti
+    if (isClient) {
+      toast({
+        title: "Operazione non consentita",
+        description: "Solo gli amministratori possono creare nuovi appuntamenti",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     // Se è una data, convertila in stringa
     if (date instanceof Date) {
       setSelectedDate(format(date, 'yyyy-MM-dd'));
@@ -145,11 +208,29 @@ export default function AppointmentsPage() {
   };
 
   const handleEditQuote = (quote: Quote) => {
+    // I clienti non possono modificare i preventivi
+    if (isClient) {
+      toast({
+        title: "Operazione non consentita",
+        description: "Solo gli amministratori possono modificare i preventivi",
+        variant: "destructive",
+      });
+      return;
+    }
     setEditingQuote(quote);
     setIsQuoteFormOpen(true);
   };
 
   const handleCreateNewQuote = (clientId: string) => {
+    // I clienti non possono creare preventivi
+    if (isClient) {
+      toast({
+        title: "Operazione non consentita",
+        description: "Solo gli amministratori possono creare nuovi preventivi",
+        variant: "destructive",
+      });
+      return;
+    }
     setClientIdForQuote(clientId);
     setEditingQuote(null);
     setIsQuoteFormOpen(true);
@@ -158,91 +239,15 @@ export default function AppointmentsPage() {
   const handleQuoteFormClose = () => {
     setIsQuoteFormOpen(false);
     setEditingQuote(null);
-    setClientIdForQuote(null);
+    setClientIdForQuote("");
   };
 
   const handleQuoteFormSubmit = async () => {
     setIsQuoteFormOpen(false);
     setEditingQuote(null);
-    setClientIdForQuote(null);
+    setClientIdForQuote("");
     // Riapriamo il form appuntamento dopo aver creato il preventivo
     setIsFormOpen(true);
-  };
-
-  const handleSyncAppointments = async () => {
-    toast({
-      title: "Sincronizzazione avviata",
-      description: "Sincronizzazione degli appuntamenti con i preventivi in corso...",
-    });
-    
-    try {
-      // Ottieni tutti gli appuntamenti
-      const allAppointments = await appointmentService.getAll();
-      
-      // Filtra solo quelli con un preventivo collegato
-      const appointmentsWithQuotes = allAppointments.filter(app => app.quoteId && app.quoteId.trim() !== "");
-      
-      console.log(`Trovati ${appointmentsWithQuotes.length} appuntamenti con preventivi collegati`);
-      
-      let syncCount = 0;
-      let skipCount = 0;
-      let errorCount = 0;
-      
-      // Per ogni appuntamento con preventivo
-      for (const app of appointmentsWithQuotes) {
-        try {
-          // Ottieni il preventivo collegato
-          const quote = await getQuoteById(app.quoteId as string);
-          
-          if (quote) {
-            // Leggi le ore di manodopera dal preventivo
-            const laborHours = quote.laborHours || 0;
-            
-            // MODIFICATO: Aggiorna SEMPRE le ore di manodopera e durata,
-            // mantenendo lo stato attuale di partsOrdered invariato
-            console.log(`IMPORTANTE: Sincronizzazione appuntamento ${app.id} - Cliente ${app.clientName}`);
-            console.log(`DETTAGLI: Durata attuale = ${app.duration}h, quoteLaborHours attuale = ${app.quoteLaborHours || 'non impostato'}`);
-            console.log(`DETTAGLI: Ore manodopera preventivo = ${laborHours}h (ID preventivo: ${app.quoteId})`);
-            
-            // Aggiornamento dei campi per le ore di manodopera
-            const updateData = {
-              duration: laborHours,                // Manteniamo la sincronizzazione del campo duration
-              quoteLaborHours: laborHours,         // Aggiornamento del campo specifico per le ore MdO del preventivo
-              // Mantieni lo stato attuale dei ricambi ordinati (non lo modifichiamo)
-              partsOrdered: app.partsOrdered
-            };
-            
-            // Effettua l'aggiornamento
-            await appointmentService.update(app.id, updateData);
-            
-            console.log(`SUCCESSO: Appuntamento ${app.id} (${app.clientName}) sincronizzato con laborHours=${laborHours}`);
-            console.log(`DETTAGLI AGGIORNAMENTO:`, updateData);
-            syncCount++;
-          } else {
-            console.warn(`ERRORE: Preventivo ${app.quoteId} non trovato per l'appuntamento ${app.id} (${app.clientName})`);
-            skipCount++;
-          }
-        } catch (error) {
-          console.error(`ERRORE: Sincronizzazione dell'appuntamento ${app.id} fallita:`, error);
-          errorCount++;
-        }
-      }
-      
-      // Ricarica i dati
-      await refetch();
-      
-      toast({
-        title: "Sincronizzazione completata",
-        description: `${syncCount} appuntamenti sincronizzati, ${skipCount} invariati, ${errorCount} errori.`,
-      });
-    } catch (error) {
-      console.error("Errore nella sincronizzazione degli appuntamenti:", error);
-      toast({
-        title: "Errore",
-        description: "Si è verificato un errore durante la sincronizzazione.",
-        variant: "destructive",
-      });
-    }
   };
 
   // Funzione per aggiornare un appuntamento
@@ -284,12 +289,26 @@ export default function AppointmentsPage() {
       // Effettua l'aggiornamento
       await appointmentService.update(updatedAppointment.id, updatedAppointment);
       
-      // Ricarica gli appuntamenti e mostra un messaggio di successo
-      await refetch();
+      // Aggiorna lo stato locale IMMEDIATAMENTE per evitare di dover ricaricare tutta la pagina
+      setAppointments(prevAppointments => {
+        const updatedAppointments = prevAppointments.map(app => 
+          app.id === updatedAppointment.id ? { ...app, ...updatedAppointment } : app
+        );
+        return updatedAppointments;
+      });
+      
+      // Mostra un messaggio di successo senza ricaricare
       toast({
         title: "Successo",
         description: "Appuntamento aggiornato con successo",
       });
+      
+      // Forza l'aggiornamento della vista calendario se esiste la funzione
+      if (window && (window as any).forceCalendarRefresh) {
+        setTimeout(() => {
+          (window as any).forceCalendarRefresh();
+        }, 100);
+      }
     } catch (error) {
       console.error("Errore durante l'aggiornamento dell'appuntamento:", error);
       toast({
@@ -359,155 +378,227 @@ export default function AppointmentsPage() {
     };
   }, [refetch]);
 
+  // Funzione per confermare eliminazione appuntamento
+  const handleConfirmDeleteAppointment = async (id: string) => {
+    if (confirm("Sei sicuro di voler eliminare questo appuntamento?")) {
+      try {
+        await appointmentService.delete(id);
+        await refetch();
+        toast({
+          title: "Appuntamento eliminato",
+          description: "L'appuntamento è stato eliminato con successo"
+        });
+      } catch (error) {
+        console.error("Errore durante l'eliminazione:", error);
+        toast({
+          title: "Errore",
+          description: "Impossibile eliminare l'appuntamento",
+          variant: "destructive"
+        });
+      }
+    }
+  };
+
+  // Funzione per gestire il cambio di stato degli appuntamenti (con la firma corretta)
+  const handleQuickUpdateAppointment = async (appointmentId: string, data: Partial<Appointment>) => {
+    try {
+      await appointmentService.update(appointmentId, data);
+      refetch();
+      toast({
+        title: "Appuntamento aggiornato",
+        description: "Lo stato dell'appuntamento è stato aggiornato con successo"
+      });
+    } catch (error) {
+      console.error("Errore durante l'aggiornamento:", error);
+      toast({
+        title: "Errore",
+        description: "Impossibile aggiornare lo stato dell'appuntamento",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Funzione per forzare il refresh dei dati
+  const handleForceRefresh = async () => {
+    try {
+      await refetch();
+      toast({
+        title: "Dati aggiornati",
+        description: "Gli appuntamenti sono stati aggiornati con successo"
+      });
+    } catch (error) {
+      console.error("Errore durante l'aggiornamento:", error);
+      toast({
+        title: "Errore",
+        description: "Impossibile aggiornare i dati",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Funzione per esportare gli appuntamenti in PDF
+  const handleExportAppointmentsPDF = () => {
+    try {
+      exportAppointmentsToPDF(filteredAppointments);
+      toast({
+        title: "Esportazione completata",
+        description: "Gli appuntamenti sono stati esportati in PDF con successo",
+      });
+    } catch (error) {
+      toast({
+        title: "Errore di esportazione",
+        description: "Si è verificato un errore durante l'esportazione in PDF",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Gestione dello stato dell'appuntamento cambiato
+  const handleAppointmentStatusChange = () => {
+    // Ricarica i dati dopo il cambio di stato
+    refetch();
+  };
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0">
-        <h2 className="text-xl md:text-2xl font-bold">Appuntamenti</h2>
+    <div className="container py-4 w-full">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between mb-6 gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
+          <h1 className="text-2xl font-bold">
+            {isClient ? "I Tuoi Appuntamenti" : "Gestione Appuntamenti"}
+          </h1>
+          
+          <Tabs 
+            value={view} 
+            onValueChange={(value) => setView(value as "calendar" | "table")}
+            className="w-auto"
+          >
+            <TabsList className="h-9">
+              <TabsTrigger value="table" className="px-3">
+                <List className="h-4 w-4 mr-2" />
+                <span className="hidden sm:inline">Tabella</span>
+              </TabsTrigger>
+              <TabsTrigger value="calendar" className="px-3">
+                <Calendar className="h-4 w-4 mr-2" />
+                <span className="hidden sm:inline">Calendario</span>
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
         
-        <div className="flex flex-wrap w-full sm:w-auto gap-2 sm:space-x-3">
-          <Button className="w-full sm:w-auto" onClick={() => handleAddAppointment()}>
-            <Plus className="mr-2 h-4 w-4" />
-            <span className="sm:inline">Nuovo Appuntamento</span>
-            <span className="inline sm:hidden">Nuovo</span>
-          </Button>
+        <div className="flex items-center space-x-2 justify-end">
+          {!isClient && (
+            <>
+              <Button onClick={() => handleAddAppointment()} className="gap-1 sm:gap-2 px-2 sm:px-3 h-9">
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">Nuovo Appuntamento</span>
+                <span className="sm:hidden">Nuovo</span>
+              </Button>
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="h-9 px-2 sm:px-3">
+                    <FileDown className="h-4 w-4" />
+                    <span className="ml-2 hidden sm:inline">Esporta</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onClick={handleExportAppointments}>
+                    <Download className="mr-2 h-4 w-4" />
+                    <span>Esporta in Excel</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleExportAppointmentsPDF}>
+                    <Download className="mr-2 h-4 w-4" />
+                    <span>Esporta in PDF</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          )}
           
           <Button 
             variant="outline" 
-            className="w-full sm:w-auto"
-            onClick={handleSyncAppointments}
+            size="icon" 
+            onClick={handleForceRefresh}
+            className="h-9 w-9"
           >
-            <RefreshCw className="mr-2 h-4 w-4" />
-            <span>Sincronizza Preventivi</span>
+            <RefreshCw className="h-4 w-4" />
           </Button>
+        </div>
+      </div>
+
+      <div className={`flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 mb-6 ${view === "calendar" ? "hidden" : ""}`}>
+        <div className="relative flex-1">
+          <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Cerca per cliente, targa o servizio"
+            className="pl-8"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        
+        <div className="flex flex-row space-x-2">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-32 md:w-[180px]">
+              <SelectValue placeholder="Stato" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tutti gli stati</SelectItem>
+              <SelectItem value="programmato">Programmato</SelectItem>
+              <SelectItem value="in_lavorazione">In lavorazione</SelectItem>
+              <SelectItem value="completato">Completato</SelectItem>
+              <SelectItem value="annullato">Annullato</SelectItem>
+            </SelectContent>
+          </Select>
           
-          <div className="flex w-full sm:w-auto border border-border rounded-md overflow-hidden">
-            <Button 
-              variant={view === "calendar" ? "default" : "ghost"}
-              onClick={() => setView("calendar")}
-              className="rounded-none flex-1"
-            >
-              <Calendar className="mr-2 h-4 w-4" />
-              <span className="hidden sm:inline">Calendario</span>
-              <span className="inline sm:hidden">Cal</span>
-            </Button>
-            
-            <Button 
-              variant={view === "table" ? "default" : "ghost"}
-              onClick={() => setView("table")}
-              className="rounded-none flex-1"
-            >
-              <List className="mr-2 h-4 w-4" />
-              <span className="hidden sm:inline">Lista</span>
-              <span className="inline sm:hidden">Tab</span>
-            </Button>
-          </div>
-          
-          <div className="relative w-full sm:w-auto">
-            <SimpleDropdown
-              trigger={
-                <Button variant="outline" className="w-full sm:w-auto">
-                  <Download className="mr-2 h-4 w-4" />
-                  Esporta
-                </Button>
-              }
-              content={
-                <div>
-                  <DropdownMenuItem onClick={handleExportAppointments}>
-                    Esporta in Excel
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => {
-                    try {
-                      exportAppointmentsToPDF(filteredAppointments);
-                      toast({
-                        title: "Esportazione completata",
-                        description: "Gli appuntamenti sono stati esportati in PDF con successo",
-                      });
-                    } catch (error) {
-                      toast({
-                        title: "Errore di esportazione",
-                        description: "Si è verificato un errore durante l'esportazione in PDF",
-                        variant: "destructive",
-                      });
-                    }
-                  }}>
-                    Esporta in PDF
-                  </DropdownMenuItem>
-                </div>
-              }
-            />
-          </div>
+          <Input
+            type="date"
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value)}
+            className="w-32 md:w-[180px]"
+          />
         </div>
       </div>
       
-      {view === "table" && (
-        <div className="bg-card rounded-lg shadow-md overflow-hidden border border-border">
-          <div className="p-4 border-b border-border flex flex-col sm:flex-row justify-between gap-4">
-            <div className="relative flex-grow">
-              <Input
-                type="text"
-                placeholder="Cerca appuntamento per cliente, targa o servizio..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8"
-              />
-              <svg 
-                xmlns="http://www.w3.org/2000/svg" 
-                className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground"
-                fill="none" 
-                viewBox="0 0 24 24" 
-                stroke="currentColor"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-            
-            <div className="flex space-x-2">
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Stato appuntamento" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Tutti gli stati</SelectItem>
-                  <SelectItem value="programmato">Confermato</SelectItem>
-                  <SelectItem value="completato">Completato</SelectItem>
-                  <SelectItem value="annullato">Annullato</SelectItem>
-                </SelectContent>
-              </Select>
-              
-              <Input
-                type="date"
-                value={dateFilter}
-                onChange={(e) => setDateFilter(e.target.value)}
-                className="w-[180px]"
-              />
-            </div>
-          </div>
-          
-          <TableView 
-            appointments={filteredAppointments} 
-            isLoading={isLoading} 
+      <div className={`flex items-center space-x-2 mb-4 ${view === "calendar" ? "hidden" : ""}`}>
+        <Checkbox 
+          id="showCompleted" 
+          checked={showCompletedAppointments} 
+          onCheckedChange={(checked) => {
+            setShowCompletedAppointments(checked as boolean);
+            handleAppointmentStatusChange();
+          }}
+        />
+        <Label htmlFor="showCompleted">Mostra appuntamenti completati</Label>
+      </div>
+
+      <Tabs value={view} onValueChange={(value) => setView(value as "calendar" | "table")}>
+        <TabsContent value="table">
+          <TableView
+            appointments={filteredAppointments}
+            isLoading={queryLoading || isRefetching}
             onEdit={handleEditAppointment}
-            onDeleteSuccess={refetch}
-            onStatusChange={refetch}
+            onDeleteSuccess={() => refetch()}
+            onStatusChange={handleQuickUpdateAppointment}
             onEditQuote={handleEditQuote}
+            showCompletedAppointments={showCompletedAppointments}
+            isClient={isClient}
           />
-        </div>
-      )}
-      
-      {view === "calendar" && (
-        <div className="space-y-4">
-          <div className="max-w-full overflow-hidden">
-            <CalendarView
-              appointments={appointments} // Usa gli appuntamenti dallo stato locale
-              isLoading={isLoading || queryLoading || isRefetching}
-              onSelectDate={handleCalendarSelectDate}
-              onSelectAppointment={handleEditAppointment}
-              initialView={initialViewDay ? "day" : "week"}
-            />
-          </div>
-        </div>
-      )}
-      
+        </TabsContent>
+        <TabsContent value="calendar">
+          <CalendarView
+            appointments={filteredAppointments}
+            isLoading={queryLoading || isRefetching}
+            onSelectDate={handleCalendarSelectDate}
+            onSelectAppointment={handleEditAppointment}
+            initialView={initialViewDay ? "day" : "month"}
+            showCompletedAppointments={showCompletedAppointments}
+            isClient={isClient}
+          />
+        </TabsContent>
+      </Tabs>
+
+      {/* Modal per il form degli appuntamenti */}
       {isFormOpen && (
         <AppointmentForm
           isOpen={isFormOpen}

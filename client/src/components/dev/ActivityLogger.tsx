@@ -43,6 +43,7 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T 
 export type ActivityType = 
   | 'login'
   | 'logout'
+  | 'login_failed'
   | 'create_client'
   | 'update_client'
   | 'delete_client'
@@ -65,12 +66,16 @@ export interface Activity {
   ipAddress?: string;
   details?: Record<string, any>;
   timestamp: Date;
+  isLocalActivity: boolean; // Flag per distinguere attività locali da quelle web
+  deviceFingerprint?: string; // Identificatore unico del dispositivo
+  deviceInfo?: Record<string, string>; // Informazioni sul dispositivo
 }
 
 interface ActivityLoggerContextType {
   logs: Activity[];
-  logActivity: (type: ActivityType, description: string, details?: Record<string, any>) => void;
+  logActivity: (type: ActivityType, description: string, details?: Record<string, any>, isLocalActivity?: boolean) => void;
   clearLogs: () => void;
+  getLocalActivities: () => Activity[];
 }
 
 // Creazione del contesto per il logger di attività
@@ -116,11 +121,43 @@ export const ActivityLoggerProvider: React.FC<{ children: React.ReactNode }> = (
   };
 
   // Funzione per registrare una nuova attività
-  const logActivity = async (type: ActivityType, description: string, details?: Record<string, any>) => {
-    // Ottieni indirizzo IP solo per log di operazioni su database o errori
+  const logActivity = async (
+    type: ActivityType, 
+    description: string, 
+    details?: Record<string, any>,
+    isLocalActivity: boolean = false // Di default, le attività non sono locali
+  ) => {
+    // Ottieni indirizzo IP per tutti i tipi di attività
     let ipAddress = undefined;
-    if (type !== 'login' && type !== 'logout') {
-      ipAddress = await getUserIP();
+    let deviceFingerprint = undefined;
+    let deviceInfo = undefined;
+    
+    // Ottieni informazioni sull'identità dall'authService
+    try {
+      const { authService } = await import('../../services/authService');
+      const identityInfo = await authService.getIdentityInfo();
+      ipAddress = identityInfo.ip;
+      deviceFingerprint = identityInfo.fingerprint;
+      deviceInfo = identityInfo.deviceInfo;
+    } catch (error) {
+      console.warn("Impossibile ottenere le informazioni di identità:", error);
+      
+      // Se i dettagli includono già un indirizzo IP, usalo come fallback
+      if (details && details.ipAddress) {
+        ipAddress = details.ipAddress;
+        // Rimuovi l'IP dai dettagli per evitare duplicazioni
+        const { ipAddress: _, ...restDetails } = details;
+        details = restDetails;
+      } 
+      // Altrimenti ottieni l'IP per qualsiasi tipo di attività come ultimo fallback
+      else {
+        try {
+          ipAddress = await getUserIP();
+        } catch (error) {
+          console.warn("Impossibile ottenere l'IP:", error);
+          ipAddress = "unknown";
+        }
+      }
     }
     
     const newActivity: Activity = {
@@ -129,7 +166,10 @@ export const ActivityLoggerProvider: React.FC<{ children: React.ReactNode }> = (
       description,
       ipAddress,
       details,
-      timestamp: new Date()
+      timestamp: new Date(),
+      isLocalActivity,
+      deviceFingerprint,
+      deviceInfo
     };
 
     // Aggiungi al logger di sviluppo se disponibile
@@ -145,14 +185,37 @@ export const ActivityLoggerProvider: React.FC<{ children: React.ReactNode }> = (
       );
     } catch (error) {
       // Se il logger di sviluppo non è disponibile, fallback su console
-      console.log(`[Attività] ${description}`, details || {});
+      console.log(`[Attività] ${description}`, details || {}, `IP: ${ipAddress}`);
     }
 
-    setLogs(prev => {
-      // Limita il numero di log salvati
-      const newLogs = [newActivity, ...prev];
-      return newLogs.slice(0, 100); // Mantiene solo gli ultimi 100 log
-    });
+    // Recupera i log attuali e aggiungi il nuovo - Questo garantisce che tutti i log vengano salvati
+    let currentLogs: Activity[] = [];
+    try {
+      const storedLogs = localStorage.getItem('activity_logs');
+      if (storedLogs) {
+        currentLogs = JSON.parse(storedLogs);
+      }
+    } catch (e) {
+      console.error("Errore durante il recupero dei log:", e);
+    }
+
+    // Aggiungi il nuovo log all'inizio dell'array
+    const updatedLogs = [newActivity, ...currentLogs].slice(0, 500);
+
+    // Salva direttamente nel localStorage
+    try {
+      localStorage.setItem('activity_logs', JSON.stringify(updatedLogs));
+    } catch (e) {
+      console.error("Errore durante il salvataggio dei log:", e);
+    }
+
+    // Aggiorna lo stato
+    setLogs(updatedLogs);
+  };
+
+  // Funzione per ottenere solo le attività locali
+  const getLocalActivities = () => {
+    return logs.filter(log => log.isLocalActivity);
   };
 
   // Funzione per cancellare tutti i log
@@ -161,7 +224,7 @@ export const ActivityLoggerProvider: React.FC<{ children: React.ReactNode }> = (
   };
 
   return (
-    <ActivityLoggerContext.Provider value={{ logs, logActivity, clearLogs }}>
+    <ActivityLoggerContext.Provider value={{ logs, logActivity, clearLogs, getLocalActivities }}>
       {children}
     </ActivityLoggerContext.Provider>
   );
@@ -172,13 +235,17 @@ export const RecentActivityList: React.FC<{
   limit?: number; 
   showTitle?: boolean;
   filtered?: ActivityType[];
-}> = ({ limit = 5, showTitle = true, filtered }) => {
-  const { logs } = useActivityLogger();
+  localOnly?: boolean; // Nuovo parametro per filtrare solo attività locali
+}> = ({ limit = 5, showTitle = true, filtered, localOnly = false }) => {
+  const { logs, getLocalActivities } = useActivityLogger();
+  
+  // Ottieni i log appropriati
+  const sourceLogs = localOnly ? getLocalActivities() : logs;
   
   // Filtra i log in base al tipo se necessario
   const filteredLogs = filtered 
-    ? logs.filter(log => filtered.includes(log.type))
-    : logs;
+    ? sourceLogs.filter(log => filtered.includes(log.type))
+    : sourceLogs;
   
   // Prendi solo i log più recenti fino al limite
   const recentLogs = filteredLogs.slice(0, limit);

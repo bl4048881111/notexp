@@ -49,8 +49,16 @@ export const clientService = {
     return clients.filter(client => 
       client.name.toLowerCase().includes(lowerQuery) ||
       client.surname.toLowerCase().includes(lowerQuery) ||
-      client.plate.toLowerCase().includes(lowerQuery) ||
-      client.model.toLowerCase().includes(lowerQuery)
+      client.plate.toLowerCase().includes(lowerQuery)
+    );
+  },
+  
+  // Cerca un cliente tramite codice cliente o email
+  findByCodeOrEmail: async (identifier: string): Promise<Client | null> => {
+    const clients = await getAllClients();
+    const lowered = identifier.toLowerCase();
+    return (
+      clients.find(c => c.id?.toLowerCase() === lowered || c.email?.toLowerCase() === lowered) || null
     );
   }
 };
