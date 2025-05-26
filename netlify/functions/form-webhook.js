@@ -26,12 +26,12 @@ exports.handler = async (event, context) => {
 
     // Configura il trasport SMTP
     const transporter = nodemailer.createTransporter({
-      host: process.env.SMTP_HOST,
-      port: 587,
-      secure: false,
+      host: 'smtps.register.it',
+      port: 465,
+      secure: true, // true per 465, false per altri port
       auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
+        user: 'web@autoexpressadservice.it',
+        pass: '@utwe0Xprb3$$'
       }
     });
 
@@ -259,7 +259,7 @@ Questa email è stata generata automaticamente da Netlify Forms
     `;
 
     const mailOptions = {
-      from: `AutoExpress Sito <${process.env.SMTP_USER}>`,
+      from: `AutoExpress Service <web@autoexpressadservice.it>`,
       to: "autoexpressadservice@gmail.com",
       subject: emailSubject,
       html: emailBodyHtml,

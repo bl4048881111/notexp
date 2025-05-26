@@ -128,14 +128,14 @@ exports.handler = async (event, context) => {
 };
 
 async function sendEmailNotification(data, tipoRichiesta) {
-  // Configurazione SMTP (usa variabili d'ambiente se disponibili)
+  // Configurazione SMTP Register.it
   const transporter = nodemailer.createTransporter({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: 587,
-    secure: false,
+    host: 'smtps.register.it',
+    port: 465,
+    secure: true, // true per 465, false per altri port
     auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS
+      user: 'web@autoexpressadservice.it',
+      pass: '@utwe0Xprb3$$'
     }
   });
 
@@ -322,7 +322,7 @@ Questa email è stata generata automaticamente
   `;
 
   const mailOptions = {
-    from: process.env.SMTP_USER,
+    from: 'AutoExpress Service <web@autoexpressadservice.it>',
     to: 'autoexpressadservice@gmail.com',
     subject: subject,
     html: emailBodyHtml,
