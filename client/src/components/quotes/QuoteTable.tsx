@@ -37,7 +37,8 @@ import {
   Timer,
   CheckCircle2,
   Loader2,
-  MergeIcon
+  MergeIcon,
+  Archive
 } from "lucide-react";
 import { appointmentService } from "@/services/appointmentService";
 import { Appointment } from "@shared/types";
@@ -89,7 +90,8 @@ export default function QuoteTable({
       'inviato': 2, 
       'accettato': 3,
       'completato': 4,
-      'scaduto': 5
+      'scaduto': 5,
+      'archiviato': 6
     };
     
     return [...quotes].sort((a, b) => {
@@ -350,7 +352,8 @@ export default function QuoteTable({
       'inviato': 'Inviato',
       'accettato': 'Accettato',
       'scaduto': 'Scaduto',
-      'completato': 'Completato'
+      'completato': 'Completato',
+      'archiviato': 'Archiviato'
     };
     return statusMap[status] || status;
   };
@@ -362,7 +365,8 @@ export default function QuoteTable({
       'inviato': "secondary",
       'accettato': "default",
       'scaduto': "outline",
-      'completato': "success"
+      'completato': "success",
+      'archiviato': "destructive"
     };
     return variantMap[status];
   };
@@ -374,7 +378,8 @@ export default function QuoteTable({
       'inviato': <Send className="h-4 w-4" />,
       'accettato': <CheckCircle className="h-4 w-4" />,
       'scaduto': <Clock className="h-4 w-4" />,
-      'completato': <CheckCircle2 className="h-4 w-4 text-green-600" />
+      'completato': <CheckCircle2 className="h-4 w-4 text-green-600" />,
+      'archiviato': <Archive className="h-4 w-4" />
     };
     return iconMap[status];
   };
@@ -584,6 +589,7 @@ export default function QuoteTable({
                           <DropdownMenuItem onClick={() => handleStatusChange(quote, "inviato")}> <Send className="mr-2 h-4 w-4" /> Stato: Inviato </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleStatusChange(quote, "accettato")}> <CheckCircle className="mr-2 h-4 w-4" /> Stato: Accettato </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleStatusChange(quote, "completato")}> <CheckCircle2 className="mr-2 h-4 w-4" /> Stato: Completato </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleStatusChange(quote, "archiviato")}> <Archive className="mr-2 h-4 w-4" /> Stato: Archiviato </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           {(quote.status === "inviato" || quote.status === "accettato") && (
                             <DropdownMenuItem onClick={() => onRequestAppointment && onRequestAppointment(quote)}>

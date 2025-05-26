@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
-import { XCircle, FileText, Check, ArrowRight, Plus, Trash2, CalendarIcon, Calendar as CalendarIcon2, SearchIcon, Clock } from "lucide-react";
+import { XCircle, FileText, Check, ArrowRight, Plus, Trash2, CalendarIcon, Calendar as CalendarIcon2, SearchIcon, Clock, Edit } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import {
@@ -350,23 +350,38 @@ export default function AppointmentForm({
   };
   
   const handleEditQuote = (quote: Quote) => {
-    if (onEditQuote) {
-      // Verifica se ci sono modifiche effettive prima di chiamare onEditQuote
-      const currentQuote = selectedQuote;
-      if (currentQuote && JSON.stringify(currentQuote) === JSON.stringify(quote)) {
-        // Non ci sono modifiche, non fare nulla
-        return;
-      }
-      
-      // Chiudi il form di appuntamento prima di aprire il form di modifica preventivo
-      // per evitare sovrapposizioni e conflitti tra i form
+    console.log("handleEditQuote chiamata con preventivo:", quote.id);
+    console.log("onEditQuote disponibile:", !!onEditQuote);
+    
+    if (!onEditQuote) {
+      console.error("onEditQuote non è definita!");
+      toast({
+        title: "Errore",
+        description: "Funzione di modifica preventivo non disponibile",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
       console.log("Chiusura form appuntamento prima di modificare il preventivo");
-      onClose();
       
-      // Dopo una breve pausa per garantire la chiusura, apri il form di modifica preventivo
+      // Chiama direttamente onEditQuote senza chiudere il form
+      // per evitare problemi di timing
+      onEditQuote(quote);
+      
+      // Chiudi il form dopo aver chiamato onEditQuote
       setTimeout(() => {
-        onEditQuote(quote);
-      }, 200);
+        onClose();
+      }, 100);
+      
+    } catch (error) {
+      console.error("Errore nella modifica del preventivo:", error);
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore durante l'apertura del form di modifica",
+        variant: "destructive",
+      });
     }
   };
   
@@ -497,8 +512,19 @@ export default function AppointmentForm({
     setIsSubmitting(true);
     
     try {
+      // Verifica che ci sia un preventivo selezionato
+      if (!selectedQuote) {
+        toast({
+          title: "Preventivo richiesto",
+          description: "È necessario selezionare un preventivo per creare l'appuntamento",
+          variant: "destructive",
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
       // Imposta lo stato del preventivo a "accettato" quando si salva l'appuntamento
-      if (selectedQuote && selectedQuote.status !== "accettato") {
+      if (selectedQuote.status !== "accettato") {
         try {
           await updateQuote(selectedQuote.id, { status: "accettato" });
           toast({
@@ -536,8 +562,7 @@ export default function AppointmentForm({
       }
       
       // IMPORTANTE: Imposta sempre quoteLaborHours uguale a duration
-      // Questo risolve il problema della visualizzazione nel calendario
-      // e della sincronizzazione tra preventivi e appuntamenti
+      // dato che ora abbiamo sempre un preventivo associato
       const quoteLaborHoursValue = durationValue;
       
       console.log("DEBUG FORM - Valori sincronizzati prima dell'invio:", {
@@ -545,7 +570,8 @@ export default function AppointmentForm({
         tipoDurata: typeof durationValue,
         quoteLaborHours: quoteLaborHoursValue,
         tipoQuoteLaborHours: typeof quoteLaborHoursValue,
-        nota: "quoteLaborHours impostato uguale a duration per garantire coerenza"
+        preventivoId: selectedQuote.id,
+        nota: "quoteLaborHours impostato uguale a duration con preventivo obbligatorio"
       });
       
       // Rimappa i dati per adattarli al formato dell'appuntamento
@@ -556,7 +582,7 @@ export default function AppointmentForm({
         date: formatAppointmentDate(data.date),
         time: formatAppointmentTime(data.time),
         duration: durationValue,
-        quoteId: data.quoteId || undefined,
+        quoteId: selectedQuote.id, // Ora sempre presente
         quoteLaborHours: quoteLaborHoursValue, // Sempre sincronizzato con duration
         partsOrdered: data.partsOrdered === null ? undefined : data.partsOrdered,
         services: data.services || [],
@@ -564,7 +590,12 @@ export default function AppointmentForm({
         status: data.status || "programmato",
       };
       
-      console.log("DEBUG AppointmentForm - Sto salvando l'appuntamento con durata:", appointmentData.duration, "e quoteLaborHours:", appointmentData.quoteLaborHours);
+      console.log("DEBUG AppointmentForm - Sto salvando l'appuntamento:", {
+        durata: appointmentData.duration,
+        quoteLaborHours: appointmentData.quoteLaborHours,
+        quoteId: appointmentData.quoteId,
+        preventivoObbligatorio: true
+      });
       
       let savedId;
       
@@ -930,29 +961,12 @@ export default function AppointmentForm({
                       </div>
                       
                       <div className="space-y-4">
+                        {/* Preventivi disponibili */}
                         {selectedClient && (
-                          <div className="flex flex-col gap-2">
-                            <div className="flex justify-between items-center mb-2">
-                              <div className="flex items-center gap-1.5">
-                                <div className="bg-primary/15 rounded-full p-1.5 text-primary">
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                  </svg>
-                                </div>
-                                <span className="font-medium">{selectedClient.name} {selectedClient.surname}</span>
-                              </div>
-                              <Button 
-                                type="button" 
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setCurrentStep(1)}
-                                className="border-primary/30 text-primary hover:bg-primary/5 gap-1 text-xs"
-                              >
-                                <XCircle className="h-3.5 w-3.5" />
-                                <span>Cambia cliente</span>
-                              </Button>
+                          <div className="space-y-3">
+                            <div className="text-sm font-medium text-muted-foreground">
+                              Preventivi disponibili per {selectedClient.name} {selectedClient.surname}:
                             </div>
-                            <Label className="text-sm font-medium">Preventivi disponibili</Label>
                             
                             {isLoadingQuotes ? (
                               <div className="space-y-2">
@@ -974,58 +988,39 @@ export default function AppointmentForm({
                                   >
                                     <div className="flex-1">
                                       <div className="flex items-center gap-2">
-                                        <FileText className="h-4 w-4 text-primary" />
-                                        <div className="font-medium">{quote.plate} - {(quote as any).model}</div>
-                                        <Badge variant={quote.status === "accettato" ? "secondary" : "outline"} className={`ml-2 px-1 py-0 text-xs ${
-                                          quote.status === "accettato" 
-                                            ? "bg-green-100 text-green-800 border-green-300" 
-                                            : quote.status === "bozza" 
-                                              ? "bg-yellow-100 text-yellow-800 border-yellow-300"
-                                              : quote.status === "completato"
-                                                ? "bg-blue-600 text-white border-blue-600"
-                                                : "bg-blue-100 text-blue-800 border-blue-300"
-                                        }`}>
-                                          {quote.status === "accettato" 
-                                            ? "Accettato" 
-                                            : quote.status === "bozza" 
-                                              ? "Bozza" 
-                                              : quote.status === "completato"
-                                                ? "Completato"
-                                                : "Inviato"}
+                                        <div className="text-sm font-medium">{quote.id}</div>
+                                        <Badge 
+                                          variant={
+                                            quote.status === "accettato" ? "default" :
+                                            quote.status === "inviato" ? "secondary" :
+                                            quote.status === "bozza" ? "outline" :
+                                            "destructive"
+                                          }
+                                          className="text-xs"
+                                        >
+                                          {quote.status}
                                         </Badge>
                                       </div>
-                                      
-                                      <div className="flex items-center mt-1.5 text-sm text-muted-foreground gap-3">
-                                        <span>
-                                          {format(new Date(quote.date), "dd/MM/yyyy", { locale: it })}
-                                        </span>
-                                        <span className="font-semibold text-foreground">
-                                          {((quote.totalPrice || quote.total || 0) > 0 
-                                            ? (quote.totalPrice || quote.total) 
-                                            : (((quote as any).laborTotal || 0) + ((quote as any).partsSubtotal || 0))).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' })}
-                                        </span>
-                                      </div>
-                                      
-                                      <div className="mt-1 text-xs text-muted-foreground">
-                                        {(quote as any).items?.length || 0} servizi, {(quote as any).items?.reduce((acc: number, item: any) => acc + (item.parts?.length || 0), 0) || 0} ricambi
+                                      <div className="text-xs text-muted-foreground mt-1">
+                                        {quote.date} • {quote.totalPrice || quote.total || 0}€
+                                        {quote.laborHours && quote.laborHours > 0 && (
+                                          <span className="ml-2">• {quote.laborHours}h manodopera</span>
+                                        )}
                                       </div>
                                     </div>
-                                    
-                                    <div className="flex items-center gap-1.5">
+                                    <div className="flex items-center gap-2">
                                       <Button
                                         type="button"
                                         variant="ghost"
                                         size="sm"
-                                        className="h-8 w-8 p-0 rounded-full"
+                                        className="h-8 w-8 p-0 rounded-full text-blue-500 hover:text-blue-700 hover:bg-blue-50"
                                         title="Modifica preventivo"
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           handleEditQuote(quote);
                                         }}
                                       >
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                        </svg>
+                                        <Edit className="h-4 w-4" />
                                       </Button>
                                       
                                       <Button
@@ -1061,7 +1056,7 @@ export default function AppointmentForm({
                                   </div>
                                 ))}
                                 
-                                <div className="mt-4 flex justify-between items-center">
+                                <div className="mt-4 flex justify-center">
                                   <Button 
                                     size="sm" 
                                     variant="outline" 
@@ -1075,15 +1070,15 @@ export default function AppointmentForm({
                               </div>
                             ) : (
                               <div className="border border-border rounded-lg bg-background p-4 text-center text-muted-foreground">
-                                <p>Nessun preventivo disponibile per questo cliente.</p>
+                                <p className="mb-3">Nessun preventivo disponibile per questo cliente.</p>
                                 {onCreateQuote && (
                                   <Button 
-                                    variant="link" 
-                                    className="mt-2 text-primary font-medium" 
+                                    variant="default" 
+                                    className="gap-1"
                                     onClick={handleCreateNewQuote}
                                   >
-                                    <Plus className="h-4 w-4 mr-1" />
-                                    Crea un nuovo preventivo
+                                    <Plus className="h-4 w-4" />
+                                    Crea il primo preventivo
                                   </Button>
                                 )}
                               </div>
@@ -1380,11 +1375,20 @@ export default function AppointmentForm({
                           });
                           return;
                         }
+                        if (currentStep === 2 && !selectedQuote) {
+                          toast({
+                            title: "Selezione preventivo richiesta",
+                            description: "Seleziona un preventivo esistente o crea un nuovo preventivo",
+                            variant: "destructive",
+                          });
+                          return;
+                        }
                         setCurrentStep(prev => prev + 1);
                       }}
                       className="gap-2 bg-primary"
                     >
-                      {currentStep === 1 ? "Avanti" : "Aggiungi dettagli"}
+                      {currentStep === 1 ? "Avanti" : 
+                       currentStep === 2 ? "Aggiungi dettagli" : "Avanti"}
                       <ArrowRight className="h-4 w-4" />
                     </Button>
                   ) : (

@@ -31,6 +31,7 @@ import ChecklistEditor from "./components/checklist/ChecklistEditor";
 import BirthdaysPage from "./pages/BirthdaysPage";
 import ProfiloClientePage from "./pages/profilo-cliente";
 import PartiSostituitePage from './pages/PartiSostituitePage';
+import SuccessPage from "./pages/SuccessPage";
 
 // Import global styles
 import "@/styles/globals.css";
@@ -145,6 +146,8 @@ function Router() {
       <Route path="/parti-sostituite">
         {() => <ProtectedRoute component={PartiSostituitePage} path="/parti-sostituite" />}
       </Route>
+      <Route path="/success-preventivo" component={SuccessPage} />
+      <Route path="/success-checkup" component={SuccessPage} />
       <Route path="/" component={LandingPage} />
       <Route component={NotFoundRedirect} />
     </Switch>

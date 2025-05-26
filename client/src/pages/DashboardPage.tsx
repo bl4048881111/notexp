@@ -4,14 +4,14 @@ import { format, parseISO, isBefore, isToday, isAfter, addDays } from "date-fns"
 import { it } from "date-fns/locale";
 import { useState, useEffect } from "react";
 
-import { getAllAppointments, getAllClients, getAllQuotes, getQuoteById } from "@shared/firebase";
+import { getAllAppointments, getAllClients, getAllQuotes, getQuoteById, getAllRequests } from "@shared/firebase";
 import { Appointment } from "@shared/types";
 import { useAuth } from "../hooks/useAuth";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { CalendarIcon, Users, ClipboardList, ArrowRight, Car, Wrench } from "lucide-react";
+import { CalendarIcon, Users, ClipboardList, ArrowRight, Car, Wrench, UserPlus, CheckCircleIcon, ArrowUpRight, ArrowRightToLine } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import TodayBirthdaysWidget from "../components/dashboard/TodayBirthdaysWidget";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -69,6 +69,47 @@ export default function DashboardPage() {
     staleTime: 0
   });
 
+  // Fetch all quotes for real-time updates
+  const { 
+    data: allQuotes = [], 
+    isLoading: isLoadingQuotes 
+  } = useQuery({ 
+    queryKey: ['/api/quotes', clientId],
+    queryFn: async () => {
+      const quotes = await getAllQuotes();
+      // Filtro per clientId se presente
+      return clientId
+        ? quotes.filter(quote => quote.clientId === clientId)
+        : quotes;
+    },
+    refetchOnWindowFocus: true,
+    staleTime: 0
+  });
+
+  // Fetch all clients for admin dashboard
+  const { 
+    data: allClients = [], 
+    isLoading: isLoadingClients 
+  } = useQuery({ 
+    queryKey: ['/api/clients'],
+    queryFn: getAllClients,
+    refetchOnWindowFocus: true,
+    staleTime: 0,
+    enabled: !clientId // Solo per admin
+  });
+
+  // Fetch all requests for admin dashboard
+  const { 
+    data: allRequests = [], 
+    isLoading: isLoadingRequests 
+  } = useQuery({ 
+    queryKey: ['/api/requests'],
+    queryFn: getAllRequests,
+    refetchOnWindowFocus: true,
+    staleTime: 0,
+    enabled: !clientId // Solo per admin
+  });
+
   // Dividiamo gli appuntamenti in "oggi" e "futuri"
   const todayAppointments = allClientAppointments.filter(app => {
     // Convertiamo la data in oggetto Date
@@ -98,16 +139,13 @@ export default function DashboardPage() {
     data: statistics, 
     isLoading: isLoadingStats 
   } = useQuery({ 
-    queryKey: ['/api/statistics', clientId],
+    queryKey: ['/api/statistics', clientId, allClientAppointments.length, allQuotes.length],
     queryFn: async () => {
       if (!clientId) return null;
       
-      const allAppointments = await getAllAppointments();
-      const allQuotes = await getAllQuotes();
-      
-      // Filtro per clientId
-      const filteredAppointments = allAppointments.filter(app => app.clientId === clientId);
-      const filteredQuotes = allQuotes.filter(q => q.clientId === clientId);
+      // Usa i dati già caricati per le statistiche base
+      const filteredAppointments = allClientAppointments;
+      const filteredQuotes = allQuotes;
       
       const sentQuotes = filteredQuotes.filter(quote => quote.status === 'inviato').length;
       const totalQuotes = filteredQuotes.length;
@@ -159,7 +197,9 @@ export default function DashboardPage() {
         partiSostituite
       };
     },
-    enabled: !!clientId // Esegui solo se clientId esiste
+    enabled: !!clientId && allClientAppointments.length >= 0 && allQuotes.length >= 0, // Esegui solo se clientId esiste e i dati sono caricati
+    refetchOnWindowFocus: true,
+    staleTime: 30000 // Cache per 30 secondi per le parti sostituite
   });
 
   // Quick action handlers
@@ -170,7 +210,7 @@ export default function DashboardPage() {
     return (
       <div className="space-y-8">
         {/* Contatori statistiche dell'amministratore */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
           {/* Clienti totali */}
           <Card 
             className="border border-border cursor-pointer transition-all hover:shadow-md hover:border-primary"
@@ -181,13 +221,10 @@ export default function DashboardPage() {
                 <div>
                   <p className="text-muted-foreground text-xs md:text-sm mb-1">Clienti</p>
                   <div className="text-2xl md:text-3xl font-bold">
-                    {isLoadingAppointments ? (
+                    {isLoadingClients ? (
                       <Skeleton className="h-7 md:h-9 w-10 md:w-12" />
                     ) : (
-                      allClientAppointments.reduce((unique, app) => 
-                        unique.includes(app.clientId) ? unique : [...unique, app.clientId], 
-                        [] as string[]
-                      ).length
+                      allClients.length
                     )}
                   </div>
                 </div>
@@ -232,10 +269,10 @@ export default function DashboardPage() {
                 <div>
                   <p className="text-muted-foreground text-xs md:text-sm mb-1">Preventivi Inviati</p>
                   <div className="text-2xl md:text-3xl font-bold">
-                    {isLoadingAppointments ? (
+                    {isLoadingQuotes ? (
                       <Skeleton className="h-7 md:h-9 w-10 md:w-12" />
                     ) : (
-                      1
+                      allQuotes.filter(quote => quote.status === 'inviato').length
                     )}
                   </div>
                 </div>
@@ -256,15 +293,63 @@ export default function DashboardPage() {
                 <div>
                   <p className="text-muted-foreground text-xs md:text-sm mb-1">Preventivi in bozza</p>
                   <div className="text-2xl md:text-3xl font-bold">
-                    {isLoadingAppointments ? (
+                    {isLoadingQuotes ? (
                       <Skeleton className="h-7 md:h-9 w-10 md:w-12" />
                     ) : (
-                      0
+                      allQuotes.filter(quote => quote.status === 'bozza').length
                     )}
                   </div>
                 </div>
                 <div className="h-10 w-10 md:h-12 md:w-12 bg-primary/10 rounded-full flex items-center justify-center">
                   <ClipboardList className="h-5 w-5 md:h-6 md:w-6 text-primary" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          {/* Checkup Ricevuti (Richieste Checkup) */}
+          <Card 
+            className="border border-border cursor-pointer transition-all hover:shadow-md hover:border-primary"
+            onClick={() => setLocation('/requests')}
+          >
+            <CardContent className="pt-4 pb-2 px-3 md:pt-6 md:px-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-muted-foreground text-xs md:text-sm mb-1">Richieste Checkup</p>
+                  <div className="text-2xl md:text-3xl font-bold">
+                    {isLoadingRequests ? (
+                      <Skeleton className="h-7 md:h-9 w-10 md:w-12" />
+                    ) : (
+                      allRequests.filter(request => request.tipoRichiesta === 'checkup').length
+                    )}
+                  </div>
+                </div>
+                <div className="h-10 w-10 md:h-12 md:w-12 bg-primary/10 rounded-full flex items-center justify-center">
+                  <ArrowUpRight className="h-5 w-5 md:h-6 md:w-6 text-primary" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          {/* Invitati (Richieste Preventivo) */}
+          <Card 
+            className="border border-border cursor-pointer transition-all hover:shadow-md hover:border-primary"
+            onClick={() => setLocation('/requests')}
+          >
+            <CardContent className="pt-4 pb-2 px-3 md:pt-6 md:px-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-muted-foreground text-xs md:text-sm mb-1">Richieste Preventivo</p>
+                  <div className="text-2xl md:text-3xl font-bold">
+                    {isLoadingRequests ? (
+                      <Skeleton className="h-7 md:h-9 w-10 md:w-12" />
+                    ) : (
+                      allRequests.filter(request => request.tipoRichiesta === 'preventivo').length
+                    )}
+                  </div>
+                </div>
+                <div className="h-10 w-10 md:h-12 md:w-12 bg-primary/10 rounded-full flex items-center justify-center">
+                  <ArrowUpRight className="h-5 w-5 md:h-6 md:w-6 text-primary" />
                 </div>
               </div>
             </CardContent>

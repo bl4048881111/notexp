@@ -4,7 +4,4 @@
 /success /success.html 200
 
 # Regola esplicita per la pagina di login
-/login /login 200
-
-# Qualsiasi altro percorso con reindirizzamento all'index.html
-/* /index.html 200 
+/login /login 200 

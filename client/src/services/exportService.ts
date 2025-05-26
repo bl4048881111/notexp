@@ -10,6 +10,8 @@ import { text } from 'body-parser';
 interface ExtendedQuote extends Quote {
   partsSubtotal?: number;
   laborTotal?: number;
+  updatedAt?: string;
+  lastModified?: string;
 }
 
 // Export clients to Excel
@@ -459,21 +461,29 @@ export const exportQuoteToPDF = async (quote: Quote): Promise<void> => {
   // Linea di separazione
   doc.setDrawColor(236, 107, 0); // Arancione
   doc.setLineWidth(0.2);
-  doc.line(20, pageHeight - 20, 190, pageHeight - 20);
+  doc.line(20, pageHeight - 25, 190, pageHeight - 25);
   
   doc.setFontSize(8);
   doc.setTextColor(100, 100, 100); // Gray
   
-  // Footer con spaziatura migliorata
-  const footerY1 = pageHeight - 15;
-  const footerY2 = pageHeight - 11;
-  const footerY3 = pageHeight - 8; 
-  const footerY4 = pageHeight - 4;
+  // Footer con spaziatura migliorata e timestamp
+  const footerY1 = pageHeight - 20;
+  const footerY2 = pageHeight - 16;
+  const footerY3 = pageHeight - 12; 
+  const footerY4 = pageHeight - 8;
+  const footerY5 = pageHeight - 4;
   
   doc.text('I prezzi indicati sono IVA esclusa.', 15, footerY1);
   doc.text('Il presente preventivo è stato redatto sulla base di banche dati disponibili', 15, footerY2);
   doc.text('e potrebbe contenere inesattezze.', 15, footerY3);
   doc.text('La validazione definitiva avverrà esclusivamente al momento dell\'installazione dei ricambi.', 15, footerY4);
+  
+  // Timestamp dell'ultima modifica
+  const lastModified = extendedQuote.updatedAt || extendedQuote.lastModified || new Date().toISOString();
+  const timestampText = `Ultima modifica: ${format(new Date(lastModified), 'dd/MM/yyyy HH:mm', { locale: it })}`;
+  doc.setTextColor(150, 150, 150); // Grigio più chiaro per il timestamp
+  doc.text(timestampText, 190, footerY5, { align: 'right' });
+  
   // Save the PDF
   doc.save(`Preventivo_${extendedQuote.id}_${format(new Date(), 'yyyyMMdd')}.pdf`);
 };

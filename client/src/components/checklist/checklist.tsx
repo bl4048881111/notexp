@@ -71,10 +71,10 @@ export default function SchedaIspezioneVeicolo({ vehicleId, appointmentId, model
     
     // Freni
     livelloOlioFreni: { stato: 'CONTROLLATO', note: '' },
-    discoAntSx: { stato: 'DA FARE', note: 'leggero dente' },
-    discoAntDx: { stato: 'DA FARE', note: 'leggero dente' },
-    discoPostSx: { stato: 'DA FARE', note: 'leggero dente' },
-    discoPostDx: { stato: 'DA FARE', note: 'leggero dente' },
+    discoAntSx: { stato: 'DA FARE', note: '' },
+    discoAntDx: { stato: 'DA FARE', note: '' },
+    discoPostSx: { stato: 'DA FARE', note: '' },
+    discoPostDx: { stato: 'DA FARE', note: '' },
     pastiglieAntSx: { stato: 'CONTROLLATO', note: '' },
     pastiglieAntDx: { stato: 'CONTROLLATO', note: '' },
     pastigliePostSx: { stato: 'CONTROLLATO', note: '' },
@@ -98,8 +98,8 @@ export default function SchedaIspezioneVeicolo({ vehicleId, appointmentId, model
     gomminiBarraStabilizzatrice: { stato: 'CONTROLLATO', note: '' },
 
     // Pneumatici
-    battistradaAnt: { stato: 'CONTROLLATO', note: '7mm' },
-    battistradaPost: { stato: 'CONTROLLATO', note: '8mm' },
+    battistradaAnt: { stato: 'CONTROLLATO', note: '' },
+    battistradaPost: { stato: 'CONTROLLATO', note: '' },
     controlloPressione: { stato: 'CONTROLLATO', note: '' },
     
     // Prova su strada
@@ -533,10 +533,10 @@ export default function SchedaIspezioneVeicolo({ vehicleId, appointmentId, model
       title: 'Sistema Freni',
       components: [
         { key: 'livelloOlioFreni', label: 'Livello Olio Freni' },
-        { key: 'discoAntSx', label: 'Disco Anteriore Sinistro', defaultNote: 'leggero dente' },
-        { key: 'discoAntDx', label: 'Disco Anteriore Destro', defaultNote: 'leggero dente' },
-        { key: 'discoPostSx', label: 'Disco Posteriore Sinistro', defaultNote: 'leggero dente' },
-        { key: 'discoPostDx', label: 'Disco Posteriore Destro', defaultNote: 'leggero dente' },
+        { key: 'discoAntSx', label: 'Disco Anteriore Sinistro', defaultNote: '' },
+        { key: 'discoAntDx', label: 'Disco Anteriore Destro', defaultNote: '' },
+        { key: 'discoPostSx', label: 'Disco Posteriore Sinistro', defaultNote: '' },
+        { key: 'discoPostDx', label: 'Disco Posteriore Destro', defaultNote: '' },
         { key: 'pastiglieAntSx', label: 'Pastiglie Anteriore Sinistro' },
         { key: 'pastiglieAntDx', label: 'Pastiglie Anteriore Destro' },
         { key: 'pastigliePostSx', label: 'Pastiglie Posteriore Sinistro' },
@@ -568,8 +568,8 @@ export default function SchedaIspezioneVeicolo({ vehicleId, appointmentId, model
       id: 'pneumatici', 
       title: 'Pneumatici',
       components: [
-        { key: 'battistradaAnt', label: 'Battistrada Anteriore', defaultNote: '7mm' },
-        { key: 'battistradaPost', label: 'Battistrada Posteriore', defaultNote: '8mm' },
+        { key: 'battistradaAnt', label: 'Battistrada Anteriore', defaultNote: '' },
+        { key: 'battistradaPost', label: 'Battistrada Posteriore', defaultNote: '' },
         { key: 'controlloPressione', label: 'Controllo Pressione' },
       ]
     },

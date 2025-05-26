@@ -1,36 +1,37 @@
 [build]
-  publish = "client/dist"
-  command = "cd client && npm run build"
+  command = "npm run build"
+  publish = "dist"
+  functions = "netlify/functions"
 
 [build.environment]
   NODE_VERSION = "18"
-  SMTP_HOST = "smtp.gmail.com"
-  SMTP_USER = "your-email@gmail.com"
-  SMTP_PASS = "your-app-password"
+  SMTP_HOST = ""
+  SMTP_USER = ""
+  SMTP_PASS = ""
 
-# Redirects per le pagine di successo
+# Configurazione webhook per Netlify Forms
+[[plugins]]
+  package = "@netlify/plugin-emails"
+
+# Webhook per form submissions
+[forms]
+  webhook = "/.netlify/functions/form-webhook"
+
+# Redirects per le pagine di successo - devono reindirizzare all'index.html per React Router
 [[redirects]]
-  from = "/success-preventivo"
-  to = "/success-preventivo.html"
+  from = "/success-preventivo*"
+  to = "/index.html"
   status = 200
-  force = true
 
 [[redirects]]
-  from = "/success-checkup"
-  to = "/success-checkup.html"
+  from = "/success-checkup*"
+  to = "/index.html"
   status = 200
-  force = true
-
-[[redirects]]
-  from = "/success"
-  to = "/success.html"
-  status = 200
-  force = true
 
 # Login page
 [[redirects]]
   from = "/login"
-  to = "/login"
+  to = "/index.html"
   status = 200
 
 # API routing
@@ -39,7 +40,7 @@
   to = "/.netlify/functions/:splat"
   status = 200
 
-# SPA routing
+# SPA routing (deve essere l'ultimo)
 [[redirects]]
   from = "/*"
   to = "/index.html"

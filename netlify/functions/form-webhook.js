@@ -39,163 +39,231 @@ exports.handler = async (event, context) => {
     const formName = data.form_name;
     const formData = data.data;
     
+    // Determina il tipo di richiesta
+    const isCheckup = formName === "richiesta-checkup";
+    const tipoRichiesta = isCheckup ? "CHECKUP COMPLETO" : "PREVENTIVO GRATUITO";
+    
     // Prepara oggetto email
-    let emailSubject = "Nuova richiesta dal sito AutoExpress";
-    if (formName === "richiesta-preventivo") {
-      emailSubject = "🚗 Nuova richiesta preventivo gratuito";
-    } else if (formName === "richiesta-checkup") {
-      emailSubject = "🔧 Nuova richiesta checkup veicolo";
+    const emailSubject = isCheckup ? 
+      `🔧 Nuova Richiesta Checkup - ${formData.nome || ""} ${formData.cognome || ""}` : 
+      `💰 Nuova Richiesta Preventivo - ${formData.nome || ""} ${formData.cognome || ""}`;
+
+    // Prepara i dati formattati
+    const formattedData = {
+      tipo_richiesta: tipoRichiesta,
+      nome_cognome: `${formData.nome || ""} ${formData.cognome || ""}`,
+      email: formData.email || "Non specificata",
+      telefono: formData.telefono || "Non specificato",
+      targa: formData.targa || "Non specificata",
+      data_nascita: formData["data-nascita"] || "Non specificata",
+      note: formData.note || "Nessuna nota aggiuntiva",
+      ip_address: clientIP,
+      captcha: `${formData["captcha-challenge"] || "N/A"} = ${formData["captcha-result"] || "N/A"}`,
+      privacy_policy: formData["privacy-policy"] === "accettata" ? "Accettata" : "Non accettata",
+      timestamp: new Date().toLocaleString('it-IT')
+    };
+    
+    // Aggiungi dettagli appuntamento se è un checkup
+    if (isCheckup) {
+      formattedData.data_appuntamento = formData["data-appuntamento"] || "Non specificata";
+      formattedData.preferenza_orario = formData["preferenza-orario"] === "mattina" ? "Mattina (9:00-13:00)" : 
+                                       formData["preferenza-orario"] === "pomeriggio" ? "Pomeriggio (14:00-18:00)" : 
+                                       "Non specificata";
     }
 
-    // Costruisci il messaggio HTML
-    const tipoRichiesta = formName === "richiesta-preventivo" ? "PREVENTIVO GRATUITO" : "CHECKUP VEICOLO";
-    const iconaTipo = formName === "richiesta-preventivo" ? "📋" : "🔧";
-    
-    const emailHtml = `
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .header { background: linear-gradient(135deg, #f97316, #ea580c); color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center; }
-        .content { background: #f8f9fa; padding: 20px; border: 1px solid #e9ecef; }
-        .section { background: white; margin: 15px 0; padding: 15px; border-radius: 6px; border-left: 4px solid #f97316; }
-        .section h3 { margin: 0 0 10px 0; color: #f97316; font-size: 16px; }
-        .field { margin: 8px 0; }
-        .label { font-weight: bold; color: #666; display: inline-block; width: 120px; }
-        .value { color: #333; }
-        .footer { background: #333; color: white; padding: 15px; border-radius: 0 0 8px 8px; text-align: center; font-size: 12px; }
-        .highlight { background: #fff3cd; padding: 10px; border-radius: 4px; border-left: 4px solid #ffc107; }
-        .security { background: #e3f2fd; padding: 10px; border-radius: 4px; border-left: 4px solid #2196f3; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>${iconaTipo} ${tipoRichiesta}</h1>
-            <p>Nuova richiesta dal sito AutoExpress</p>
+    // Template HTML migliorato
+    let emailBodyHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>${emailSubject}</title>
+    </head>
+    <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f5f5f5;">
+      <div style="max-width: 600px; margin: 20px auto; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        
+        <!-- Header -->
+        <div style="background: linear-gradient(135deg, #ea580c 0%, #dc2626 100%); color: white; padding: 30px 20px; text-align: center;">
+          <h1 style="margin: 0; font-size: 24px; font-weight: bold;">
+            ${isCheckup ? '🔧 NUOVA RICHIESTA CHECKUP' : '💰 NUOVA RICHIESTA PREVENTIVO'}
+          </h1>
+          <p style="margin: 10px 0 0 0; opacity: 0.9; font-size: 14px;">
+            Ricevuta il ${formattedData.timestamp}
+          </p>
         </div>
         
-        <div class="content">
-            <div class="section">
-                <h3>👤 Dati Cliente</h3>
-                <div class="field">
-                    <span class="label">Nome:</span>
-                    <span class="value">${formData.nome || "Non specificato"} ${formData.cognome || ""}</span>
-                </div>
-                <div class="field">
-                    <span class="label">Email:</span>
-                    <span class="value"><a href="mailto:${formData.email}">${formData.email || "Non specificata"}</a></span>
-                </div>
-                <div class="field">
-                    <span class="label">Telefono:</span>
-                    <span class="value"><a href="tel:${formData.telefono}">${formData.telefono || "Non specificato"}</a></span>
-                </div>
-                <div class="field">
-                    <span class="label">Data nascita:</span>
-                    <span class="value">${formData["data-nascita"] || "Non specificata"}</span>
-                </div>
+        <!-- Contenuto principale -->
+        <div style="padding: 30px 20px;">
+          
+          <!-- Dati Cliente -->
+          <div style="margin-bottom: 30px;">
+            <h2 style="color: #ea580c; font-size: 18px; margin: 0 0 15px 0; padding-bottom: 8px; border-bottom: 2px solid #ea580c;">
+              👤 DATI CLIENTE
+            </h2>
+            <div style="background: #f8fafc; border-radius: 8px; padding: 20px;">
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="padding: 8px 0; font-weight: 600; color: #374151; width: 35%;">Nome Completo:</td>
+                  <td style="padding: 8px 0; color: #111827; font-weight: 500;">${formattedData.nome_cognome}</td>
+                </tr>
+                <tr style="border-top: 1px solid #e5e7eb;">
+                  <td style="padding: 8px 0; font-weight: 600; color: #374151;">Email:</td>
+                  <td style="padding: 8px 0; color: #111827;">
+                    <a href="mailto:${formattedData.email}" style="color: #ea580c; text-decoration: none;">${formattedData.email}</a>
+                  </td>
+                </tr>
+                <tr style="border-top: 1px solid #e5e7eb;">
+                  <td style="padding: 8px 0; font-weight: 600; color: #374151;">Telefono:</td>
+                  <td style="padding: 8px 0; color: #111827;">
+                    <a href="tel:${formattedData.telefono}" style="color: #ea580c; text-decoration: none;">${formattedData.telefono}</a>
+                  </td>
+                </tr>
+                <tr style="border-top: 1px solid #e5e7eb;">
+                  <td style="padding: 8px 0; font-weight: 600; color: #374151;">Targa Veicolo:</td>
+                  <td style="padding: 8px 0; color: #111827; font-weight: 600; text-transform: uppercase;">${formattedData.targa}</td>
+                </tr>
+                <tr style="border-top: 1px solid #e5e7eb;">
+                  <td style="padding: 8px 0; font-weight: 600; color: #374151;">Data di Nascita:</td>
+                  <td style="padding: 8px 0; color: #111827;">${formattedData.data_nascita}</td>
+                </tr>
+              </table>
             </div>
+          </div>`;
 
-            <div class="section">
-                <h3>🚗 Dati Veicolo</h3>
-                <div class="field">
-                    <span class="label">Targa:</span>
-                    <span class="value"><strong>${formData.targa || "Non specificata"}</strong></span>
-                </div>
+    // Aggiungi sezione appuntamento per checkup
+    if (isCheckup) {
+      emailBodyHtml += `
+          <!-- Dettagli Appuntamento -->
+          <div style="margin-bottom: 30px;">
+            <h2 style="color: #ea580c; font-size: 18px; margin: 0 0 15px 0; padding-bottom: 8px; border-bottom: 2px solid #ea580c;">
+              📅 DETTAGLI APPUNTAMENTO
+            </h2>
+            <div style="background: #fef3c7; border-radius: 8px; padding: 20px; border-left: 4px solid #f59e0b;">
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="padding: 8px 0; font-weight: 600; color: #374151; width: 35%;">Data Preferita:</td>
+                  <td style="padding: 8px 0; color: #111827; font-weight: 600;">${formattedData.data_appuntamento}</td>
+                </tr>
+                <tr style="border-top: 1px solid #fbbf24;">
+                  <td style="padding: 8px 0; font-weight: 600; color: #374151;">Fascia Oraria:</td>
+                  <td style="padding: 8px 0; color: #111827; font-weight: 600;">${formattedData.preferenza_orario}</td>
+                </tr>
+              </table>
             </div>
+          </div>`;
+    }
 
-            ${formName === "richiesta-checkup" ? `
-            <div class="section">
-                <h3>📅 Dettagli Appuntamento</h3>
-                <div class="field">
-                    <span class="label">Data preferita:</span>
-                    <span class="value">${formData["data-appuntamento"] || "Non specificata"}</span>
-                </div>
-                <div class="field">
-                    <span class="label">Fascia oraria:</span>
-                    <span class="value">${formData["preferenza-orario"] === "mattina" ? "🌅 Mattina (9:00-13:00)" : "🌆 Pomeriggio (14:00-18:00)"}</span>
-                </div>
+    emailBodyHtml += `
+          <!-- Note -->
+          <div style="margin-bottom: 30px;">
+            <h2 style="color: #ea580c; font-size: 18px; margin: 0 0 15px 0; padding-bottom: 8px; border-bottom: 2px solid #ea580c;">
+              📝 NOTE AGGIUNTIVE
+            </h2>
+            <div style="background: #f0f9ff; border-radius: 8px; padding: 20px; border-left: 4px solid #0ea5e9; min-height: 60px;">
+              <p style="margin: 0; color: #111827; line-height: 1.6; font-style: ${formattedData.note === 'Nessuna nota aggiuntiva' ? 'italic' : 'normal'};">
+                ${formattedData.note}
+              </p>
             </div>
-            ` : ""}
-
-            ${formData.note ? `
-            <div class="section">
-                <h3>📝 Note del Cliente</h3>
-                <div class="highlight">
-                    ${formData.note}
-                </div>
-            </div>
-            ` : ""}
-
-            <div class="section">
-                <h3>🔒 Informazioni Sicurezza</h3>
-                <div class="security">
-                    <div class="field">
-                        <span class="label">Indirizzo IP:</span>
-                        <span class="value"><strong>${clientIP}</strong></span>
-                    </div>
-                    <div class="field">
-                        <span class="label">User Agent:</span>
-                        <span class="value">${event.headers['user-agent'] || 'Non disponibile'}</span>
-                    </div>
-                    <div class="field">
-                        <span class="label">Referrer:</span>
-                        <span class="value">${event.headers['referer'] || 'Accesso diretto'}</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="section">
-                <h3>✅ Verifica</h3>
-                <div class="field">
-                    <span class="label">CAPTCHA:</span>
-                    <span class="value">${formData["captcha-challenge"]} = ${formData["captcha-result"]}</span>
-                </div>
-                <div class="field">
-                    <span class="label">Privacy:</span>
-                    <span class="value">${formData["privacy-policy"] === "accettata" ? "✅ Accettata" : "❌ Non accettata"}</span>
-                </div>
-            </div>
+          </div>
+          
+          <!-- Informazioni Tecniche -->
+          <div style="background: #f9fafb; border-radius: 8px; padding: 20px; border: 1px solid #e5e7eb;">
+            <h3 style="color: #6b7280; font-size: 14px; margin: 0 0 10px 0; text-transform: uppercase; letter-spacing: 0.5px;">
+              🔧 Informazioni Tecniche
+            </h3>
+            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+              <tr>
+                <td style="padding: 4px 0; color: #6b7280; width: 35%;">Privacy Policy:</td>
+                <td style="padding: 4px 0; color: #111827;">${formattedData.privacy_policy}</td>
+              </tr>
+              <tr>
+                <td style="padding: 4px 0; color: #6b7280;">IP Address:</td>
+                <td style="padding: 4px 0; color: #111827; font-family: monospace;">${formattedData.ip_address}</td>
+              </tr>
+              <tr>
+                <td style="padding: 4px 0; color: #6b7280;">Captcha:</td>
+                <td style="padding: 4px 0; color: #111827; font-family: monospace;">${formattedData.captcha}</td>
+              </tr>
+              <tr>
+                <td style="padding: 4px 0; color: #6b7280;">User Agent:</td>
+                <td style="padding: 4px 0; color: #111827; font-family: monospace; font-size: 10px;">${event.headers['user-agent'] || 'Non disponibile'}</td>
+              </tr>
+              <tr>
+                <td style="padding: 4px 0; color: #6b7280;">Sito:</td>
+                <td style="padding: 4px 0; color: #111827;">${data.site_url || 'Non disponibile'}</td>
+              </tr>
+            </table>
+          </div>
+          
         </div>
         
-        <div class="footer">
-            <p>📧 Richiesta ricevuta il ${new Date().toLocaleString('it-IT')}</p>
-            <p>🌐 Inviata da: ${data.site_url}</p>
-            <p>🔍 IP: ${clientIP}</p>
+        <!-- Footer -->
+        <div style="background: #111827; color: white; padding: 20px; text-align: center;">
+          <p style="margin: 0; font-size: 14px; opacity: 0.8;">
+            AutoExpress Service - Sistema di Gestione Richieste
+          </p>
+          <p style="margin: 5px 0 0 0; font-size: 12px; opacity: 0.6;">
+            Questa email è stata generata automaticamente da Netlify Forms
+          </p>
         </div>
-    </div>
-</body>
-</html>`;
+        
+      </div>
+    </body>
+    </html>
+    `;
 
-    // Versione testo semplificata
-    const emailText = `
-NUOVA RICHIESTA: ${tipoRichiesta}
+    // Versione testo semplice come fallback
+    let emailBodyText = `
+═══════════════════════════════════════════════════════════════
+${isCheckup ? '🔧 NUOVA RICHIESTA CHECKUP' : '💰 NUOVA RICHIESTA PREVENTIVO'}
+═══════════════════════════════════════════════════════════════
 
-CLIENTE: ${formData.nome} ${formData.cognome}
-EMAIL: ${formData.email}
-TELEFONO: ${formData.telefono}
-TARGA: ${formData.targa}
+📅 RICEVUTA IL: ${formattedData.timestamp}
 
-${formName === "richiesta-checkup" ? `APPUNTAMENTO: ${formData["data-appuntamento"]} - ${formData["preferenza-orario"]}` : ""}
-
-${formData.note ? `NOTE: ${formData.note}` : ""}
-
-SICUREZZA:
-IP: ${clientIP}
-User Agent: ${event.headers['user-agent'] || 'Non disponibile'}
-
-Ricevuta il: ${new Date().toLocaleString('it-IT')}
+👤 DATI CLIENTE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Nome Completo: ${formattedData.nome_cognome}
+• Email: ${formattedData.email}
+• Telefono: ${formattedData.telefono}
+• Targa Veicolo: ${formattedData.targa}
+• Data di Nascita: ${formattedData.data_nascita}
 `;
+
+    if (isCheckup) {
+      emailBodyText += `
+📅 DETTAGLI APPUNTAMENTO:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Data Preferita: ${formattedData.data_appuntamento}
+• Fascia Oraria: ${formattedData.preferenza_orario}
+`;
+    }
+
+    emailBodyText += `
+📝 NOTE AGGIUNTIVE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${formattedData.note}
+
+🔧 INFORMAZIONI TECNICHE:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Privacy Policy: ${formattedData.privacy_policy}
+• IP Address: ${formattedData.ip_address}
+• Captcha: ${formattedData.captcha}
+• User Agent: ${event.headers['user-agent'] || 'Non disponibile'}
+• Sito: ${data.site_url || 'Non disponibile'}
+
+═══════════════════════════════════════════════════════════════
+AutoExpress Service - Sistema di Gestione Richieste
+Questa email è stata generata automaticamente da Netlify Forms
+═══════════════════════════════════════════════════════════════
+    `;
 
     const mailOptions = {
       from: `AutoExpress Sito <${process.env.SMTP_USER}>`,
-      to: "a.ferrante@autodiscida.com",
+      to: "autoexpressadservice@gmail.com",
       subject: emailSubject,
-      text: emailText,
-      html: emailHtml
+      html: emailBodyHtml,
+      text: emailBodyText // Fallback per client che non supportano HTML
     };
 
     console.log("Invio email...");

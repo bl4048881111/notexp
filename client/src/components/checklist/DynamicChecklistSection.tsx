@@ -1,39 +1,166 @@
-import { useState, useEffect, useRef } from 'react';
-import { Check, X, AlertTriangle, Edit, Settings } from 'lucide-react';
-
-interface Controllo {
-  stato: 'CONTROLLATO' | 'NON CONTROLLATO' | 'DA FARE';
-  note: string;
-}
+import React, { useState, useCallback, useRef, useEffect, memo } from 'react';
+import { Check, X, AlertTriangle, Edit, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface DynamicChecklistSectionProps {
   sectionName: string;
-  parameters: {
-    [key: string]: {
-      name: string;
-      section: string;
-      defaultState: 'CONTROLLATO' | 'NON CONTROLLATO' | 'DA FARE';
-    };
-  };
+  parameters: Record<string, { name: string; section: string; defaultState: 'CONTROLLATO' | 'NON CONTROLLATO' | 'DA FARE' }>;
   parameterIds: string[];
-  controls: {
-    [key: string]: Controllo;
-  };
   onControlChange: (parameterId: string, newState: 'CONTROLLATO' | 'NON CONTROLLATO' | 'DA FARE') => void;
   onNoteChange: (parameterId: string, note: string) => void;
+  onTabPress?: (parameterId: string, shiftKey: boolean) => void;
+}
+
+// Store globale per i controlli - NON causa re-render
+const globalControlsStore: Record<string, { stato: 'CONTROLLATO' | 'NON CONTROLLATO' | 'DA FARE'; note: string }> = {};
+
+// Componente separato per ogni input di nota per evitare re-render
+function NoteInput({ 
+  parameterId, 
+  initialValue, 
+  onNoteChange
+}: { 
+  parameterId: string; 
+  initialValue: string; 
+  onNoteChange: (parameterId: string, note: string) => void;
+}) {
+  const [localValue, setLocalValue] = useState(initialValue);
+  const timeoutRef = useRef<NodeJS.Timeout>();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const onNoteChangeRef = useRef(onNoteChange);
+  
+  // Aggiorna i ref senza causare re-render
+  useEffect(() => {
+    onNoteChangeRef.current = onNoteChange;
+  }, [onNoteChange]);
+  
+  // Aggiorna il valore locale solo se l'input non ha il focus
+  useEffect(() => {
+    if (document.activeElement !== inputRef.current) {
+      setLocalValue(initialValue);
+    }
+  }, [initialValue]);
+  
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setLocalValue(value);
+    
+    // Debounce la chiamata al parent
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
+    timeoutRef.current = setTimeout(() => {
+      onNoteChangeRef.current(parameterId, value);
+    }, 300);
+  }, [parameterId]);
+  
+  return (
+    <input 
+      ref={inputRef}
+      type="text" 
+      value={localValue}
+      onChange={handleChange}
+      data-parameter-id={parameterId}
+      className="w-full p-2 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+      placeholder="Aggiungi note..."
+      autoComplete="off"
+      autoCorrect="off"
+      spellCheck="false"
+    />
+  );
 }
 
 export default function DynamicChecklistSection({
   sectionName,
   parameters,
   parameterIds,
-  controls,
   onControlChange,
-  onNoteChange
+  onNoteChange,
+  onTabPress
 }: DynamicChecklistSectionProps) {
+  
   // Stato per gestire gli elementi selezionati
   const [selectedParameters, setSelectedParameters] = useState<string[]>([]);
   const [bulkEditMode, setBulkEditMode] = useState(false);
+  // Stato per la paginazione
+  const [currentPage, setCurrentPage] = useState(0);
+  const itemsPerPage = 9;
+  
+  // Forza re-render quando cambia la sezione
+  useEffect(() => {
+    setCurrentPage(0); // Reset alla prima pagina quando cambia sezione
+  }, [sectionName]);
+  
+  // Filtra i parametri validi per questa sezione
+  const validParameterIds = parameterIds?.filter(id => parameters[id] !== undefined) || [];
+  
+  // Calcola la paginazione
+  const totalPages = Math.ceil(validParameterIds.length / itemsPerPage);
+  const startIndex = currentPage * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentPageItems = validParameterIds.slice(startIndex, endIndex);
+  
+  // Debug paginazione
+  console.log(`Sezione ${sectionName}:`, {
+    validParameterIds: validParameterIds.length,
+    itemsPerPage,
+    totalPages,
+    currentPage,
+    startIndex,
+    endIndex,
+    currentPageItems: currentPageItems.length,
+    shouldShowPagination: validParameterIds.length > itemsPerPage,
+    currentPageItemsIds: currentPageItems
+  });
+  
+  // VERIFICA CRITICA: currentPageItems dovrebbe avere max 9 elementi
+  if (sectionName === "Sospensione Anteriore") {
+    console.log("🔍 VERIFICA PAGINAZIONE:", {
+      totalElements: validParameterIds.length,
+      currentPageElements: currentPageItems.length,
+      elementsToRender: currentPageItems
+    });
+  }
+  
+  // Callback per gestire il cambio delle note - NON aggiorna stato locale
+  const handleNoteChange = useCallback((parameterId: string, value: string) => {
+    // Aggiorna solo il store globale
+    globalControlsStore[parameterId] = {
+      ...globalControlsStore[parameterId],
+      note: value
+    };
+    
+    // Notifica il parent
+    onNoteChange(parameterId, value);
+  }, [onNoteChange]);
+
+  // Callback per gestire il cambio di stato - NON aggiorna stato locale
+  const handleControlChange = useCallback((parameterId: string, newState: 'CONTROLLATO' | 'NON CONTROLLATO' | 'DA FARE') => {
+    // Aggiorna solo il store globale
+    globalControlsStore[parameterId] = {
+      ...globalControlsStore[parameterId],
+      stato: newState
+    };
+    
+    // Notifica il parent
+    onControlChange(parameterId, newState);
+    
+    // Forza un re-render solo per aggiornare l'icona dello stato
+    setSelectedParameters(prev => [...prev]);
+  }, [onControlChange]);
+  
+  // Funzioni di navigazione pagina
+  const goToPreviousPage = () => {
+    if (currentPage > 0) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+  
+  const goToNextPage = () => {
+    if (currentPage < totalPages - 1) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
   
   // Se non ci sono parametri per questa sezione, non renderizzare nulla
   if (!parameterIds || parameterIds.length === 0) {
@@ -42,9 +169,6 @@ export default function DynamicChecklistSection({
   }
 
   console.log(`Rendering sezione ${sectionName} con parametri:`, parameterIds);
-  
-  // Filtra i parametri validi per questa sezione
-  const validParameterIds = parameterIds.filter(id => parameters[id] !== undefined);
   
   if (validParameterIds.length === 0) {
     console.log(`La sezione ${sectionName} non ha parametri validi da visualizzare`);
@@ -84,7 +208,7 @@ export default function DynamicChecklistSection({
   // Funzione per applicare un'azione di massa agli elementi selezionati
   const applyBulkAction = (action: 'CONTROLLATO' | 'NON CONTROLLATO' | 'DA FARE') => {
     selectedParameters.forEach(parameterId => {
-      onControlChange(parameterId, action);
+      handleControlChange(parameterId, action);
     });
     
     // Dopo l'azione, esci dalla modalità di modifica di massa
@@ -114,28 +238,26 @@ export default function DynamicChecklistSection({
                 >
                   {selectedParameters.length === validParameterIds.length ? 'Deseleziona tutti' : 'Seleziona tutti'}
                 </button>
+                
                 {selectedParameters.length > 0 && (
-                  <div className="flex items-center border border-gray-300 rounded overflow-hidden">
+                  <div className="flex gap-2">
                     <button 
                       onClick={() => applyBulkAction('CONTROLLATO')}
-                      className="px-2 py-1 bg-green-100 hover:bg-green-200 text-green-800 flex items-center"
-                      title="Imposta tutti a CONTROLLATO"
+                      className="text-sm px-3 py-1 rounded bg-green-100 text-green-800 hover:bg-green-200"
                     >
-                      <Check size={16} />
+                      Segna come Controllato ({selectedParameters.length})
                     </button>
                     <button 
                       onClick={() => applyBulkAction('NON CONTROLLATO')}
-                      className="px-2 py-1 bg-red-100 hover:bg-red-200 text-red-800 flex items-center border-l border-r border-gray-300"
-                      title="Imposta tutti a NON CONTROLLATO"
+                      className="text-sm px-3 py-1 rounded bg-red-100 text-red-800 hover:bg-red-200"
                     >
-                      <X size={16} />
+                      Segna come Non Controllato ({selectedParameters.length})
                     </button>
                     <button 
                       onClick={() => applyBulkAction('DA FARE')}
-                      className="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-800 flex items-center"
-                      title="Imposta tutti a DA FARE"
+                      className="text-sm px-3 py-1 rounded bg-yellow-100 text-yellow-800 hover:bg-yellow-200"
                     >
-                      <AlertTriangle size={16} />
+                      Segna come Da Fare ({selectedParameters.length})
                     </button>
                   </div>
                 )}
@@ -143,31 +265,67 @@ export default function DynamicChecklistSection({
             ) : (
               <button 
                 onClick={() => setBulkEditMode(true)}
-                className="flex items-center px-3 py-1 rounded bg-orange-100 text-orange-800 hover:bg-orange-200 text-sm"
+                className="text-sm px-3 py-1 rounded bg-orange-100 text-orange-800 hover:bg-orange-200 flex items-center"
               >
                 <Edit size={14} className="mr-1" />
-                Modifica di massa
+                Modifica multipla
               </button>
             )}
           </div>
         )}
       </div>
       
-      {validParameterIds.map((parameterId) => {
+      {/* Controlli di paginazione */}
+      {validParameterIds.length > itemsPerPage && (
+        <div className="flex justify-between items-center mb-4 px-4 py-2 bg-gray-50 rounded-lg">
+          <button
+            onClick={goToPreviousPage}
+            disabled={currentPage === 0}
+            className={`flex items-center gap-2 px-3 py-1 rounded transition-colors ${
+              currentPage === 0 
+                ? 'text-gray-400 cursor-not-allowed' 
+                : 'text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            <ChevronLeft size={16} />
+            Precedente
+          </button>
+          
+          <span className="text-sm text-gray-600">
+            Pagina {currentPage + 1} di {totalPages} ({validParameterIds.length} elementi totali) - Mostrando {currentPageItems.length} elementi
+          </span>
+          
+          <button
+            onClick={goToNextPage}
+            disabled={currentPage === totalPages - 1}
+            className={`flex items-center gap-2 px-3 py-1 rounded transition-colors ${
+              currentPage === totalPages - 1 
+                ? 'text-gray-400 cursor-not-allowed' 
+                : 'text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Successiva
+            <ChevronRight size={16} />
+          </button>
+        </div>
+      )}
+      
+      {currentPageItems.map((parameterId) => {
         const parameter = parameters[parameterId];
         if (!parameter) {
           console.warn(`Parametro ${parameterId} non trovato`);
           return null;
         }
         
-        const control = controls[parameterId] || { 
+        // Usa il store globale o il default
+        const control = globalControlsStore[parameterId] || { 
           stato: parameter.defaultState,
           note: ''
         };
         
         return (
           <div 
-            key={parameterId} 
+            key={`${parameterId}-page-${currentPage}`}
             className={`py-2 border-b border-border flex items-center ${
               bulkEditMode && selectedParameters.includes(parameterId) ? 'bg-blue-50' : ''
             }`}
@@ -196,23 +354,19 @@ export default function DynamicChecklistSection({
                   } else {
                     newState = 'CONTROLLATO';
                   }
-                  onControlChange(parameterId, newState);
+                  handleControlChange(parameterId, newState);
                 }} 
                 className="p-2 rounded-full hover:bg-accent transition-colors"
               >
                 <StatusIcon status={control.stato} />
               </button>
             </div>
+            
             <div className="flex-1">
-              <input 
-                type="text" 
-                value={control.note}
-                onChange={(e) => onNoteChange(parameterId, e.target.value)}
-                className="w-full p-2 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-                placeholder="Aggiungi note..."
-                autoComplete="off"
-                autoCorrect="off"
-                spellCheck="false"
+              <NoteInput 
+                parameterId={parameterId}
+                initialValue={control.note}
+                onNoteChange={handleNoteChange}
               />
             </div>
           </div>

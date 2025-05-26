@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,6 +7,7 @@ import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/comp
 import { Loader2 } from "lucide-react";
 import { QuoteItem } from "@shared/schema";
 import { UseFormReturn } from "react-hook-form";
+import React from "react";
 
 // Reimplementiamo la funzione per calcolare solo i ricambi, senza riferimenti a manodopera
 const calculateItemTotal = (item: QuoteItem): number => {
@@ -37,8 +38,40 @@ export default function SummaryStepForm({
   goToPreviousStep,
   onSubmit
 }: SummaryStepFormProps) {
-  // Calcoli dei totali eliminando la manodopera dei servizi
-  const laborCost = laborHours * (form.getValues().laborPrice || 0);
+  // Stato locale per la tariffa oraria per evitare la perdita del focus
+  const [localLaborPrice, setLocalLaborPrice] = useState<number>(45);
+
+  // Inizializza il valore della tariffa oraria se non è già impostato
+  useEffect(() => {
+    const currentLaborPrice = form.getValues().laborPrice;
+    if (currentLaborPrice !== undefined && currentLaborPrice !== null) {
+      setLocalLaborPrice(currentLaborPrice);
+    } else {
+      form.setValue("laborPrice", 45);
+      setLocalLaborPrice(45);
+    }
+  }, [form]);
+
+  // Sincronizza lo stato locale quando il valore del form cambia dall'esterno
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name === 'laborPrice' && value.laborPrice !== undefined) {
+        setLocalLaborPrice(value.laborPrice);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
+
+  // Forza l'aggiornamento immediato del valore dal form
+  useEffect(() => {
+    const currentValue = form.getValues().laborPrice;
+    if (currentValue !== undefined && currentValue !== localLaborPrice) {
+      setLocalLaborPrice(currentValue);
+    }
+  }, [form.getValues().laborPrice, localLaborPrice]);
+
+  // Calcoli dei totali utilizzando il valore locale
+  const laborCost = laborHours * localLaborPrice;
   
   // Calcola solo il subtotale dei ricambi (senza manodopera dei servizi)
   const partsTotal = items.reduce((sum, item) => {
@@ -158,8 +191,15 @@ export default function SummaryStepForm({
                   type="number"
                   min="0"
                   step="0.01"
-                  value={form.getValues().laborPrice || 45}
-                  onChange={(e) => form.setValue("laborPrice", parseFloat(e.target.value) || 0)}
+                  value={localLaborPrice}
+                  onChange={(e) => {
+                    const value = e.target.value === '' ? 0 : parseFloat(e.target.value);
+                    // Permetti qualsiasi valore numerico valido, incluso 0
+                    if (!isNaN(value) && value >= 0) {
+                      setLocalLaborPrice(value);
+                      form.setValue("laborPrice", value);
+                    }
+                  }}
                   className="h-8 text-xs mt-1 bg-gray-900 border-gray-700 text-white"
                 />
               </div>

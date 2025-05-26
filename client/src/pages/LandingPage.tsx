@@ -4,10 +4,10 @@ import { Globe, Icon, ShoppingCart, Car } from 'lucide-react';
 import { ChevronRight, LogIn, Wrench, Calendar, Users, FileText, BarChart, Shield, CheckCircle, AlertCircle, MessageSquare, InstagramIcon, FacebookIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import RequestQuoteForm from '@/components/RequestQuoteForm';
+import InstagramPowrFeed from '@/components/InstagramPowrFeed';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faFacebook, faInstagram, faWhatsapp, faTiktok } from '@fortawesome/free-brands-svg-icons';
 import { faMapMarkerAlt, faPhone, faEnvelope, faInfoCircle } from '@fortawesome/free-solid-svg-icons';
-import InstagramPowrFeed from '@/components/InstagramPowrFeed';
 
 export default function LandingPage() {
   const requestQuoteRef = useRef<HTMLDivElement>(null);
@@ -158,7 +158,7 @@ export default function LandingPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, delay: 0.7 }}
             >
-              Rivoluzioniamo il tuo concetto di <span className="text-orange-500 font-semibold">autofficina</span> <br className="hidden md:block" />Scorri e scopri il perchè!
+              Rivoluzioniamo il concetto di <span className="text-orange-500 font-semibold">autofficina</span> <br className="hidden md:block" />Scorri e scopri il perchè!
             </motion.p>
             <motion.div 
               className="flex flex-col sm:flex-row gap-4 w-full md:w-auto"
@@ -381,6 +381,21 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* SEGUICI SUI SOCIAL - Nuova sezione */}
+      <section className="py-20 bg-black border-b border-gray-800">
+        <div className="max-w-6xl mx-auto px-6">
+          <motion.div 
+            initial={{ opacity: 0, y: 30 }} 
+            whileInView={{ opacity: 1, y: 0 }} 
+            viewport={{ once: true, margin: "-100px" }} 
+            transition={{ duration: 0.5 }} 
+            className="text-center"
+          >
+            <InstagramPowrFeed />
+          </motion.div>
+        </div>
+      </section>
+
       {/* PREVENTIVO */}
       <section ref={requestQuoteRef} className="py-16 md:py-20 bg-black">
         <div className="max-w-4xl mx-auto px-6">
@@ -399,19 +414,6 @@ export default function LandingPage() {
             </p>
             <RequestQuoteForm />
           </motion.div>
-        </div>
-      </section>
-
-      {/* SOCIAL FEED */}
-      <section className="py-20 bg-black">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-orange-500 mb-4">Seguici sui Social</h2>
-            <p className="text-gray-300 max-w-2xl mx-auto">Scopri le ultime novità, i progetti in corso e gli aggiornamenti dal nostro team sui social media.</p>
-          </div>
-          
-          {/* Componente POWR Social Feed */}
-          <InstagramPowrFeed powrId="49e8a352_1747986870" />
         </div>
       </section>
 

@@ -3,8 +3,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { User, Mail, Phone, Car, StickyNote, ShieldCheck, ArrowRight, Radio, FileText, Calendar, Clock, Sun, Moon } from "lucide-react";
-import { motion } from "framer-motion";
+import { User, Mail, Phone, Car, StickyNote, ShieldCheck, ArrowRight, Radio, FileText, Calendar, Clock, Sun, Moon, CheckCircle, Loader2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -55,6 +55,7 @@ export default function RequestQuoteForm() {
     preferenzaOrario: "mattina" as "mattina" | "pomeriggio"
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const [captchaValue, setCaptchaValue] = useState("");
   const [captchaChallenge, setCaptchaChallenge] = useState({ num1: 0, num2: 0 });
   const [privacyChecked, setPrivacyChecked] = useState(false);
@@ -89,7 +90,6 @@ export default function RequestQuoteForm() {
           throw new Error(data.message || "Errore nel recupero delle disponibilità");
         }
         
-        console.log("Slot prenotati ricevuti:", data.bookedSlots);
         setBookedSlots(data.bookedSlots);
         
         // Filtra gli slot disponibili
@@ -106,12 +106,9 @@ export default function RequestQuoteForm() {
           setForm(prev => ({ ...prev, oraAppuntamento: "" }));
         }
       } catch (error) {
-        console.error("Errore nel caricamento delle disponibilità:", error);
-        toast({ 
-          title: "Errore", 
-          description: "Impossibile caricare le disponibilità. Riprova più tardi.", 
-          variant: "destructive" 
-        });
+        // Gestione silenziosa dell'errore - mantiene gli slot di default
+        setAvailableSlots(TIME_SLOTS);
+        setBookedSlots([]);
       } finally {
         setIsLoadingSlots(false);
       }
@@ -129,9 +126,9 @@ export default function RequestQuoteForm() {
   };
 
   // Genera la sfida al caricamento del componente
-  useState(() => {
+  useEffect(() => {
     generateCaptchaChallenge();
-  });
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -265,17 +262,79 @@ export default function RequestQuoteForm() {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
     if (!validateForm()) {
-      e.preventDefault();
       return;
     }
     
-    // Debug: mostra quale action viene usato
-    const formAction = form.tipoRichiesta === "checkup" ? "/success-checkup" : "/success-preventivo";
-    console.log("Form action:", formAction, "Tipo richiesta:", form.tipoRichiesta);
+    setIsSubmitting(true);
     
-    // Se la validazione passa, lascia che Netlify gestisca l'invio del form
-    // Il form verrà inviato automaticamente e l'utente verrà reindirizzato alla pagina di successo
+    try {
+      // Prepara i dati del form per Netlify
+      const formData = new FormData();
+      formData.append('form-name', form.tipoRichiesta === "checkup" ? "richiesta-checkup" : "richiesta-preventivo");
+      formData.append('nome', form.nome);
+      formData.append('cognome', form.cognome);
+      formData.append('email', form.email);
+      formData.append('telefono', form.telefono);
+      formData.append('targa', form.targa);
+      formData.append('data-nascita', form.dataNascita ? format(form.dataNascita, 'dd/MM/yyyy') : '');
+      formData.append('note', form.note);
+      formData.append('tipo-richiesta', form.tipoRichiesta);
+      formData.append('captcha-challenge', `${captchaChallenge.num1} + ${captchaChallenge.num2}`);
+      formData.append('captcha-result', captchaValue);
+      formData.append('privacy-policy', privacyChecked ? "accettata" : "non-accettata");
+      
+      if (form.tipoRichiesta === "checkup") {
+        formData.append('data-appuntamento', form.dataAppuntamento ? format(form.dataAppuntamento, 'dd/MM/yyyy') : '');
+        formData.append('ora-appuntamento', form.oraAppuntamento);
+        formData.append('preferenza-orario', form.preferenzaOrario);
+      }
+      
+      // Invia il form a Netlify Forms (questo attiverà automaticamente il webhook)
+      const response = await fetch('/', {
+        method: 'POST',
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams(formData as any).toString()
+      });
+      
+      if (response.ok) {
+        setIsSubmitted(true);
+        
+        // Reset del form dopo 3 secondi
+        setTimeout(() => {
+          setForm({
+            nome: "",
+            cognome: "",
+            email: "",
+            telefono: "",
+            targa: "",
+            dataNascita: null,
+            dataNascitaManuale: "",
+            note: "",
+            tipoRichiesta: "preventivo",
+            dataAppuntamento: null,
+            oraAppuntamento: "",
+            preferenzaOrario: "mattina"
+          });
+          setIsSubmitted(false);
+          setPrivacyChecked(false);
+          generateCaptchaChallenge();
+        }, 3000);
+        
+      } else {
+        throw new Error('Errore nell\'invio del form');
+      }
+    } catch (error) {
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore nell'invio del form. Riprova più tardi.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const fieldAnim = {
@@ -297,7 +356,6 @@ export default function RequestQuoteForm() {
       onSubmit={handleSubmit}
       name={form.tipoRichiesta === "checkup" ? "richiesta-checkup" : "richiesta-preventivo"}
       method="POST"
-      action={form.tipoRichiesta === "checkup" ? "/success-checkup" : "/success-preventivo"}
       data-netlify="true"
       data-netlify-honeypot="bot-field"
       className="w-full max-w-3xl mx-auto bg-black border border-zinc-800 rounded-lg p-4 md:p-6 shadow-md"
@@ -324,7 +382,6 @@ export default function RequestQuoteForm() {
 
       {/* Tipo Richiesta */}
       <div className="mb-6">
-        <h2 className="text-lg font-medium text-orange-500 mb-3 border-b border-zinc-800 pb-2">Cosa ti serve?</h2>
         <RadioGroup 
           value={form.tipoRichiesta} 
           onValueChange={handleTipoRichiestaChange}
@@ -566,14 +623,81 @@ export default function RequestQuoteForm() {
       <div className="flex justify-end">
         <motion.button
           type="submit"
-          className="bg-orange-600 hover:bg-orange-700 text-white text-base py-2 px-4 rounded-lg"
+          disabled={isSubmitting}
+          className="bg-orange-600 hover:bg-orange-700 disabled:bg-orange-800 disabled:cursor-not-allowed text-white text-base py-2 px-4 rounded-lg flex items-center gap-2"
           whileTap={{ scale: 0.9, backgroundColor: "#c2410c" }}
-          whileHover={{ scale: 1.05 }}
+          whileHover={{ scale: isSubmitting ? 1 : 1.05 }}
           transition={{ type: "spring", stiffness: 500, damping: 15 }}
         >
-          Invia richiesta
+          {isSubmitting ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Invio in corso...
+            </>
+          ) : (
+            "Invia richiesta"
+          )}
         </motion.button>
       </div>
+
+      {/* Overlay di successo */}
+      <AnimatePresence>
+        {isSubmitted && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50"
+          >
+            <motion.div
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.5, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              className="bg-zinc-900 border border-orange-500/50 rounded-lg p-8 max-w-md mx-4 text-center"
+            >
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ delay: 0.2, type: "spring", stiffness: 400, damping: 20 }}
+                className="mb-4"
+              >
+                <CheckCircle className="h-16 w-16 text-orange-500 mx-auto" />
+              </motion.div>
+              
+              <motion.h3
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="text-xl font-bold text-white mb-2"
+              >
+                {form.tipoRichiesta === "checkup" ? "Richiesta Checkup Inviata!" : "Richiesta Preventivo Inviata!"}
+              </motion.h3>
+              
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="text-zinc-400 mb-4"
+              >
+                {form.tipoRichiesta === "checkup" 
+                  ? "Ti ricontatteremo presto per confermare l'appuntamento per il checkup del tuo veicolo."
+                  : "Ti invieremo il preventivo dettagliato il prima possibile."
+                }
+              </motion.p>
+              
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                className="text-sm text-orange-500"
+              >
+                Grazie per averci scelto!
+              </motion.div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.form>
   );
 } 

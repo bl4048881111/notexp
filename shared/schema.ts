@@ -141,7 +141,7 @@ export const quoteSchema = z.object({
   plate: z.string(),
   kilometrage: z.number(),
   date: z.string(),
-  status: z.enum(["bozza", "inviato", "accettato", "scaduto", "completato"]),
+  status: z.enum(["bozza", "inviato", "accettato", "scaduto", "completato", "archiviato"]),
   laborPrice: z.number(),
   // Array di parti semplice (per retrocompatibilità)
   parts: z.array(z.object({
@@ -185,3 +185,27 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Password è obbligatoria")
 });
 export type LoginInput = z.infer<typeof loginSchema>;
+
+// Request schema (per le richieste dal form pubblico)
+export const requestSchema = z.object({
+  id: z.string(),
+  nome: z.string(),
+  cognome: z.string(),
+  email: z.string(),
+  telefono: z.string(),
+  targa: z.string(),
+  dataNascita: z.string().optional(),
+  note: z.string().optional(),
+  tipoRichiesta: z.enum(["preventivo", "checkup"]),
+  dataAppuntamento: z.string().optional(),
+  oraAppuntamento: z.string().optional(),
+  preferenzaOrario: z.enum(["mattina", "pomeriggio"]).optional(),
+  status: z.enum(["ricevuta", "in_lavorazione", "completata", "annullata"]).default("ricevuta"),
+  createdAt: z.number(),
+  ipAddress: z.string().optional(),
+  userAgent: z.string().optional()
+});
+
+export const createRequestSchema = requestSchema.omit({ id: true });
+export type Request = z.infer<typeof requestSchema>;
+export type CreateRequestInput = z.infer<typeof createRequestSchema>;

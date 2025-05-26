@@ -273,113 +273,123 @@ const DeliveryPhase: React.FC<DeliveryPhaseProps> = ({
         `Recupero ricambi per appuntamento ${appointmentId}, preventivo ${quoteId || "da cercare"}`,
       );
 
-      // Controlliamo direttamente il veicolo per ricambi in workSpareParts
+      // Prima cerchiamo l'ID del preventivo dall'appuntamento se non fornito
+      let preventivoDaUsare = quoteId;
+      
+      if (!preventivoDaUsare) {
+        const appRef = ref(rtdb, `appointments/${appointmentId}`);
+        const appSnapshot = await get(appRef);
+        
+        if (appSnapshot.exists()) {
+          const appData = appSnapshot.val();
+          preventivoDaUsare = appData.quoteId;
+          console.log(`ID preventivo trovato nell'appuntamento: ${preventivoDaUsare}`);
+        }
+      }
+
+      // Se abbiamo un ID preventivo, interroghiamo la tabella quotes
+      if (preventivoDaUsare) {
+        console.log(`Interrogo la tabella quotes con ID: ${preventivoDaUsare}`);
+        const quoteRef = ref(rtdb, `quotes/${preventivoDaUsare}`);
+        const quoteSnapshot = await get(quoteRef);
+
+        if (quoteSnapshot.exists()) {
+          const quoteData = quoteSnapshot.val();
+          console.log(`Dati preventivo trovati:`, quoteData);
+
+          // Cerchiamo i ricambi nella sottotabella parts
+          if (quoteData.parts && typeof quoteData.parts === 'object') {
+            console.log(`Sottotabella parts trovata:`, quoteData.parts);
+            
+            const partsFromQuote: SparePart[] = [];
+            
+            // Se parts è un array
+            if (Array.isArray(quoteData.parts)) {
+              quoteData.parts.forEach((part: any, index: number) => {
+                console.log(`Part ${index}:`, part);
+                
+                const ricambio: SparePart = {
+                  code: part.code || part.id || `PART-${index}`,
+                  name: part.name || part.description || 'Ricambio',
+                  description: part.description || part.name,
+                  price: part.price || part.unitPrice || part.finalPrice || 0,
+                  finalPrice: part.finalPrice || part.price || part.unitPrice || 0,
+                  quantity: part.quantity || 1,
+                  type: part.type || 'ricambio'
+                };
+                
+                console.log(`Ricambio estratto da parts:`, ricambio);
+                partsFromQuote.push(ricambio);
+              });
+            }
+            // Se parts è un oggetto con chiavi
+            else {
+              Object.entries(quoteData.parts).forEach(([key, part]: [string, any]) => {
+                console.log(`Part ${key}:`, part);
+                
+                const ricambio: SparePart = {
+                  code: part.code || part.id || key,
+                  name: part.name || part.description || 'Ricambio',
+                  description: part.description || part.name,
+                  price: part.price || part.unitPrice || part.finalPrice || 0,
+                  finalPrice: part.finalPrice || part.price || part.unitPrice || 0,
+                  quantity: part.quantity || 1,
+                  type: part.type || 'ricambio'
+                };
+                
+                console.log(`Ricambio estratto da parts (oggetto):`, ricambio);
+                partsFromQuote.push(ricambio);
+              });
+            }
+
+            if (partsFromQuote.length > 0) {
+              console.log(`Totale ricambi trovati nella tabella quotes: ${partsFromQuote.length}`, partsFromQuote);
+              setSpareParts(partsFromQuote);
+              return;
+            } else {
+              console.log("Nessun ricambio trovato nella sottotabella parts");
+            }
+          } else {
+            console.log("Sottotabella parts non trovata nel preventivo");
+          }
+        } else {
+          console.log(`Preventivo ${preventivoDaUsare} non trovato nella tabella quotes`);
+        }
+      }
+
+      // Fallback: controlla se ci sono ricambi salvati direttamente nel veicolo
       const vehicleRef = ref(rtdb, `vehicles/${vehicleId}`);
       const vehicleSnap = await get(vehicleRef);
 
       if (vehicleSnap.exists()) {
         const vehicleData = vehicleSnap.val();
-        console.log("Dati veicolo per ricambi:", vehicleData);
+        console.log("Controllo ricambi nel veicolo come fallback:", vehicleData);
 
-        // ESTRAZIONE DIRETTA - Verifichiamo se abbiamo workSpareParts[0] come visto nei log
-        if (vehicleData.workSpareParts && vehicleData.workSpareParts[0]) {
-          console.log(
-            "Ricambio trovato in workSpareParts[0]:",
-            vehicleData.workSpareParts[0],
-          );
-
-          // Creiamo l'oggetto ricambio dalla struttura esatta
-          const ricambioATE = {
-            brand: vehicleData.workSpareParts[0].brand || "",
-            category: vehicleData.workSpareParts[0].category || "",
-            code: vehicleData.workSpareParts[0].code || "",
-            finalPrice: vehicleData.workSpareParts[0].finalPrice || 0,
-            id: vehicleData.workSpareParts[0].id || "",
-            name: vehicleData.workSpareParts[0].name || "",
-            quantity: vehicleData.workSpareParts[0].quantity || 1,
-            unitPrice: vehicleData.workSpareParts[0].unitPrice || 0,
-          };
-
-          console.log("Ricambio ATE estratto:", ricambioATE);
-          setSpareParts([ricambioATE]);
+        // Verifica workSpareParts
+        if (vehicleData.workSpareParts && Array.isArray(vehicleData.workSpareParts)) {
+          console.log("Ricambi trovati in workSpareParts:", vehicleData.workSpareParts);
+          
+          const vehicleParts = vehicleData.workSpareParts.map((part: any, index: number) => ({
+            code: part.code || part.id || `PART-${index}`,
+            name: part.name || part.description || 'Ricambio',
+            description: part.description || part.name,
+            price: part.finalPrice || part.unitPrice || part.price || 0,
+            finalPrice: part.finalPrice || part.unitPrice || part.price || 0,
+            quantity: part.quantity || 1,
+            type: part.type || 'ricambio'
+          }));
+          
+          setSpareParts(vehicleParts);
           return;
-        }
-
-        console.log(
-          "Nessun ricambio trovato in workSpareParts[0], cerchiamo in altre posizioni...",
-        );
-
-        // Se non troviamo in workSpareParts[0], controlliamo altre posizioni
-        let preventivoDaUsare = quoteId;
-
-        // Priorità 1: Preventivo specificato esplicitamente dalla fase di lavorazione
-        if (
-          !preventivoDaUsare &&
-          vehicleData.workPhase &&
-          vehicleData.workPhase.quoteId
-        ) {
-          preventivoDaUsare = vehicleData.workPhase.quoteId;
-          console.log(
-            `Trovato ID preventivo nel workPhase del veicolo: ${preventivoDaUsare}`,
-          );
-        }
-
-        // Priorità 2: Preventivo salvato direttamente nel veicolo
-        if (!preventivoDaUsare && vehicleData.quoteId) {
-          preventivoDaUsare = vehicleData.quoteId;
-          console.log(
-            `Trovato ID preventivo nel nodo principale del veicolo: ${preventivoDaUsare}`,
-          );
-        }
-
-        // Se abbiamo un ID preventivo, proviamo a recuperare i ricambi da lì
-        if (preventivoDaUsare) {
-          console.log(
-            `Provando a recuperare ricambi dal preventivo: ${preventivoDaUsare}`,
-          );
-          const quoteRef = ref(rtdb, `quotes/${preventivoDaUsare}`);
-          const quoteSnapshot = await get(quoteRef);
-
-          if (quoteSnapshot.exists()) {
-            const quoteData = quoteSnapshot.val();
-            console.log(`Preventivo ${preventivoDaUsare} trovato:`, quoteData);
-
-            // Estrai i ricambi dal preventivo
-            const partsFromQuote: SparePart[] = [];
-
-            // Estrai i ricambi da varie posizioni possibili nel preventivo
-            if (quoteData.items && Array.isArray(quoteData.items)) {
-              quoteData.items.forEach((item: any) => {
-                if (
-                  "parts" in item &&
-                  item.parts &&
-                  Array.isArray(item.parts)
-                ) {
-                  partsFromQuote.push(...item.parts);
-                }
-              });
-            }
-
-            if (partsFromQuote.length > 0) {
-              console.log(
-                `Ricambi trovati nel preventivo: ${partsFromQuote.length}`,
-                partsFromQuote,
-              );
-              setSpareParts(partsFromQuote);
-              return;
-            }
-
-            console.log("Nessun ricambio trovato nel preventivo");
-          }
         }
       }
 
       console.log("Nessun ricambio trovato in nessuna posizione");
-      // Non impostiamo nessun ricambio di fallback, lasciamo l'array vuoto
       setSpareParts([]);
     } catch (error) {
       console.error("Errore nel recupero dei ricambi:", error);
       toast.error("Errore nel recupero dei ricambi");
+      setSpareParts([]);
     }
   };
 
@@ -1021,28 +1031,35 @@ const DeliveryPhase: React.FC<DeliveryPhaseProps> = ({
 
         yPos += 15;
 
-        // Area per le foto - ridotto per evitare debordamenti
+        // Area per le foto - limitata a 4 foto
+        const totalPhotos = vehicleData.acceptancePhotos.length;
+        const maxPhotosPerPage = 4; // Limitato a 4 foto
+        const photosToShow = Math.min(totalPhotos, maxPhotosPerPage);
+        
+        // Layout 2x2 per 4 foto
+        const photosPerRow = 2; // 2 foto per riga
+        const rows = Math.ceil(photosToShow / photosPerRow);
+        const photoHeight = 60; // Dimensione maggiore per 4 foto
+        const rowSpacing = 10;
+        const areaHeight = rows * photoHeight + (rows - 1) * rowSpacing + 20;
+        
         pdfDoc.setFillColor(252, 252, 252);
-        pdfDoc.rect(14, yPos, 180, 80, "F");
-
-        // Aggiungo fino a 4 foto in formato più compatto
-        const maxPhotos = Math.min(vehicleData.acceptancePhotos.length, 4);
+        pdfDoc.rect(14, yPos, 180, areaHeight, "F");
 
         try {
-          // Dimensioni ridotte e layout più compatto
-          const photoWidth = 75;
-          const photoHeight = 55;
-          const spacing = 8;
-          const startX = 24;
+          // Dimensioni ottimizzate per 2 foto per riga
+          const photoWidth = 80; // Dimensione maggiore per 4 foto
+          const spacing = 10;
+          const startX = 25; // Margine sinistro centrato
           const startY = yPos + 10;
 
-          for (let i = 0; i < maxPhotos; i++) {
+          for (let i = 0; i < photosToShow; i++) {
             try {
-              const row = Math.floor(i / 2); // 0 per prima riga, 1 per seconda
-              const col = i % 2; // 0 per prima colonna, 1 per seconda
+              const row = Math.floor(i / photosPerRow);
+              const col = i % photosPerRow;
 
               const x = startX + col * (photoWidth + spacing);
-              const y = startY + row * (photoHeight + spacing);
+              const y = startY + row * (photoHeight + rowSpacing);
 
               // @ts-ignore
               pdfDoc.addImage(
@@ -1059,6 +1076,17 @@ const DeliveryPhase: React.FC<DeliveryPhaseProps> = ({
                 error,
               );
             }
+          }
+          
+          // Se ci sono più di 4 foto, aggiungi una nota
+          if (totalPhotos > maxPhotosPerPage) {
+            pdfDoc.setFontSize(8);
+            pdfDoc.setTextColor(100, 100, 100);
+            pdfDoc.text(
+              `Mostrate ${maxPhotosPerPage} di ${totalPhotos} foto totali`,
+              20,
+              yPos + areaHeight - 5
+            );
           }
         } catch (error) {
           console.error(
@@ -1186,31 +1214,44 @@ const DeliveryPhase: React.FC<DeliveryPhaseProps> = ({
 
         yPos += 15;
 
-        // Area per le foto
+        // Area per le foto - ottimizzata per più foto
+        const totalSparePhotos = vehicleData.sparePartPhotos.length;
+        const maxSparePhotosPerPage = 10; // Aumentato a 10 foto
+        const sparePhotosToShow = Math.min(totalSparePhotos, maxSparePhotosPerPage);
+        
+        // Layout ottimizzato per foto ricambi
+        const sparePhotosPerRow = 4; // 4 foto per riga
+        const spareRows = Math.ceil(sparePhotosToShow / sparePhotosPerRow);
+        const sparePhotoHeight = 35; // Ridotto per far stare più foto
+        const spareRowSpacing = 5;
+        const spareAreaHeight = spareRows * sparePhotoHeight + (spareRows - 1) * spareRowSpacing + 20;
+        
         pdfDoc.setFillColor(252, 252, 252);
-        pdfDoc.rect(14, yPos, 180, 60, "F");
-
-        // Aggiungo fino a 4 foto in formato piccolo, in una riga
-        const maxPhotos = Math.min(vehicleData.sparePartPhotos.length, 4);
+        pdfDoc.rect(14, yPos, 180, spareAreaHeight, "F");
 
         try {
-          // Calcolo la larghezza e spazio tra le foto in base al numero di foto
-          const photoWidth = 80; // Larghezza ridotta per foto piccole
-          const photoHeight = 80; // Altezza ridotta
-          const spacing = 4; // Spazio tra le foto
-          const totalWidth = photoWidth * maxPhotos + spacing * (maxPhotos - 1);
-          const startX = (pdfDoc.internal.pageSize.width - totalWidth) / 2; // Centro le foto
+          // Dimensioni ottimizzate per 4 foto per riga
+          const photoWidth = 40; // Ridotto per far stare 4 foto per riga
+          const spacing = 5;
+          const startX = 20; // Margine sinistro
+          const startY = yPos + 10;
 
-          for (let i = 0; i < maxPhotos; i++) {
+          for (let i = 0; i < sparePhotosToShow; i++) {
             try {
+              const row = Math.floor(i / sparePhotosPerRow);
+              const col = i % sparePhotosPerRow;
+
+              const x = startX + col * (photoWidth + spacing);
+              const y = startY + row * (sparePhotoHeight + spareRowSpacing);
+
               // @ts-ignore
               pdfDoc.addImage(
                 vehicleData.sparePartPhotos[i],
                 "JPEG",
-                startX + i * (photoWidth + spacing), // Disponi le foto una accanto all'altra
-                yPos + 10, // Aggiungi margine dall'intestazione
+                x,
+                y,
                 photoWidth,
-                photoHeight,
+                sparePhotoHeight,
               );
             } catch (error) {
               console.error(
@@ -1218,6 +1259,17 @@ const DeliveryPhase: React.FC<DeliveryPhaseProps> = ({
                 error,
               );
             }
+          }
+          
+          // Se ci sono più di 10 foto, aggiungi una nota
+          if (totalSparePhotos > maxSparePhotosPerPage) {
+            pdfDoc.setFontSize(8);
+            pdfDoc.setTextColor(100, 100, 100);
+            pdfDoc.text(
+              `Mostrate ${maxSparePhotosPerPage} di ${totalSparePhotos} foto totali`,
+              20,
+              yPos + spareAreaHeight - 5
+            );
           }
         } catch (error) {
           console.error("Errore nel rendering delle foto di ricambi:", error);
@@ -2126,5 +2178,7 @@ const DeliveryPhase: React.FC<DeliveryPhaseProps> = ({
   );
 };
 
-export { DeliveryPhase };
 export default DeliveryPhase;
+
+// Aggiungo anche l'export named
+export { DeliveryPhase };

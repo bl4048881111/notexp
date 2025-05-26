@@ -118,10 +118,10 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
   const [preventAutoClose, setPreventAutoClose] = useState<boolean>(false);
   const [preventCloseUntilSave, setPreventCloseUntilSave] = useState<boolean>(false);
   
-  const allowedStatus = ["bozza", "inviato", "accettato", "scaduto"];
+  const allowedStatus = ["bozza", "inviato", "accettato", "scaduto", "completato", "archiviato"];
   const normalizeStatus = (status: any) =>
     typeof status === "string" && allowedStatus.includes(status)
-      ? status as "bozza" | "inviato" | "accettato" | "scaduto"
+      ? status as "bozza" | "inviato" | "accettato" | "scaduto" | "completato" | "archiviato"
       : "bozza";
 
   // Stato locale per i campi extra (non presenti nello schema Quote)
@@ -148,7 +148,7 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
       plate: quote?.plate || "",
       date: quote?.date || format(new Date(), "yyyy-MM-dd"),
       status: normalizeStatus(quote?.status),
-      laborPrice: quote?.laborPrice || 45,
+      laborPrice: quote?.laborPrice !== undefined ? quote.laborPrice : 45,
       notes: quote?.notes || "",
       kilometrage: quote?.kilometrage || 0,
       totalPrice: quote?.totalPrice || 0,
@@ -179,7 +179,7 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
     }, 0);
     
     // Calcola SOLO costo manodopera extra (NO manodopera servizi)
-    const extraLabor = (form.getValues().laborPrice || 45) * laborHours;
+    const extraLabor = (form.getValues().laborPrice || 0) * laborHours;
     
     // Subtotale (ricambi + SOLO manodopera extra)
     const subtotal = partsTotal + extraLabor;
@@ -297,7 +297,7 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
       }, 0);
       
       // Calcola SOLO costo manodopera extra
-      const extraLabor = (form.getValues().laborPrice || 45) * laborHours;
+      const extraLabor = (form.getValues().laborPrice || 0) * laborHours;
       
       // Subtotale (ricambi + SOLO manodopera extra, NO manodopera servizi)
       const subtotal = partsTotal + extraLabor;
@@ -490,6 +490,13 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
         // Invalida le query per forzare un refetch
         await queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
         await queryClient.invalidateQueries({ queryKey: ['/quotes/client'] });
+        // Invalida anche le query degli appuntamenti per aggiornare i dati del preventivo associato
+        await queryClient.invalidateQueries({ queryKey: ['/api/appointments'] });
+        
+        // Emetti un evento personalizzato per notificare l'aggiornamento
+        window.dispatchEvent(new CustomEvent('quoteUpdated', { 
+          detail: { quoteId: quote?.id || savedQuote?.id, action: quote?.id ? 'updated' : 'created' }
+        }));
         
         // Attendi un momento per assicurarsi che i dati siano persistiti
         await new Promise(resolve => setTimeout(resolve, 100));
@@ -837,6 +844,32 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                           placeholder="Numero di telaio del veicolo"
                         />
                       </div>
+                      
+                      <FormField
+                        control={form.control}
+                        name="status"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Stato Preventivo</FormLabel>
+                            <FormControl>
+                              <Select value={field.value} onValueChange={field.onChange}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Seleziona stato" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="bozza">Bozza</SelectItem>
+                                  <SelectItem value="inviato">Inviato</SelectItem>
+                                  <SelectItem value="accettato">Accettato</SelectItem>
+                                  <SelectItem value="completato">Completato</SelectItem>
+                                  <SelectItem value="scaduto">Scaduto</SelectItem>
+                                  <SelectItem value="archiviato">Archiviato</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     </div>
                   </div>
                 )}

@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getDatabase, ref, get, set, push, remove, update, query, orderByChild, limitToLast, equalTo } from 'firebase/database';
-import { Client, Appointment, Quote, ServiceType, QuoteItem } from './schema';
+import { Client, Appointment, Quote, ServiceType, QuoteItem, Request } from './schema';
 import { v4 as uuidv4 } from 'uuid';
 
 // Variabile inizializzate solo dopo che Firebase è inizializzato
@@ -98,7 +98,7 @@ export const ensureDbChangesNodeExists = async (): Promise<boolean> => {
         entityType: 'system',
         entityId: 'system',
         details: {
-          description: 'Inizializzazione nodo db_changes',
+          description: 'Caricamento dati iniziale',
           inizializzato: true,
           version: '1.0'
         },
@@ -510,6 +510,20 @@ export const deleteAppointment = async (id: string): Promise<void> => {
   // Elimina l'appuntamento
   await remove(ref(database, `appointments/${id}`));
   
+  // IMPORTANTE: Se l'appuntamento aveva un preventivo associato, 
+  // cambia lo stato del preventivo da "accettato" a "inviato"
+  if (appointment && appointment.quoteId) {
+    try {
+      const quote = await getQuoteById(appointment.quoteId);
+      if (quote && quote.status === "accettato") {
+        console.log(`Cambiando stato preventivo ${appointment.quoteId} da "accettato" a "inviato" dopo eliminazione appuntamento`);
+        await updateQuote(appointment.quoteId, { status: "inviato" });
+      }
+    } catch (error) {
+      console.error("Errore nell'aggiornamento dello stato del preventivo:", error);
+    }
+  }
+  
   // Registra l'eliminazione nel database
   if (appointment) {
     await registerDatabaseChange(
@@ -519,7 +533,8 @@ export const deleteAppointment = async (id: string): Promise<void> => {
       {
         clientName: appointment.clientName,
         date: appointment.date,
-        time: appointment.time
+        time: appointment.time,
+        quoteStatusChanged: appointment.quoteId ? "accettato → inviato" : "nessun preventivo associato"
       }
     );
   }
@@ -1154,5 +1169,88 @@ export const mergeQuotes = async (quoteIds: string[]): Promise<Quote | null> => 
   } catch (error) {
     console.error("Errore durante l'unione dei preventivi:", error);
     return null;
+  }
+};
+
+// Request functions
+export const getAllRequests = async (): Promise<Request[]> => {
+  const requestsRef = ref(database, 'requests');
+  const snapshot = await get(requestsRef);
+  if (!snapshot.exists()) return [];
+  return Object.values(snapshot.val() as Record<string, Request>);
+};
+
+export const getRequestById = async (id: string): Promise<Request | null> => {
+  const requestRef = ref(database, `requests/${id}`);
+  const snapshot = await get(requestRef);
+  return snapshot.exists() ? snapshot.val() as Request : null;
+};
+
+export const createRequest = async (request: Omit<Request, 'id'>): Promise<Request> => {
+  // Get next request ID
+  const counterSnapshot = await get(ref(database, 'counters/requestId'));
+  const nextId = (counterSnapshot.exists() ? counterSnapshot.val() : 0) + 1;
+  
+  // Format request ID with leading zeros
+  const requestId = `RQ${nextId.toString().padStart(3, '0')}`;
+  
+  const newRequest: Request = {
+    ...request,
+    id: requestId,
+    createdAt: Date.now()
+  };
+  
+  // Save request and update counter
+  await set(ref(database, `requests/${requestId}`), newRequest);
+  await set(ref(database, 'counters/requestId'), nextId);
+  
+  // Registra la creazione nel database
+  await registerDatabaseChange(
+    'create',
+    'request' as any,
+    requestId,
+    {
+      clientName: `${newRequest.nome} ${newRequest.cognome}`,
+      tipoRichiesta: newRequest.tipoRichiesta,
+      email: newRequest.email
+    }
+  );
+  
+  return newRequest;
+};
+
+export const updateRequest = async (id: string, updates: Partial<Request>): Promise<void> => {
+  const requestRef = ref(database, `requests/${id}`);
+  await update(requestRef, updates);
+  
+  // Registra la modifica nel database
+  await registerDatabaseChange(
+    'update',
+    'request' as any,
+    id,
+    {
+      changes: Object.keys(updates).join(', ')
+    }
+  );
+};
+
+export const deleteRequest = async (id: string): Promise<void> => {
+  // Ottieni i dati della richiesta prima di eliminarla
+  const request = await getRequestById(id);
+  
+  // Elimina la richiesta
+  await remove(ref(database, `requests/${id}`));
+  
+  // Registra l'eliminazione nel database
+  if (request) {
+    await registerDatabaseChange(
+      'delete',
+      'request' as any,
+      id,
+      {
+        clientName: `${request.nome} ${request.cognome}`,
+        tipoRichiesta: request.tipoRichiesta
+      }
+    );
   }
 };

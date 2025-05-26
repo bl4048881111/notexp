@@ -33,7 +33,8 @@ export default function QuotesPage() {
     bozza: [],
     inviato: [],
     accettato: [],
-    completati: []
+    completati: [],
+    archiviati: []
   });
   
   // Stato per paginazione
@@ -46,7 +47,8 @@ export default function QuotesPage() {
     bozza: 1,
     inviato: 1,
     accettato: 1,
-    completati: 1
+    completati: 1,
+    archiviati: 1
   });
 
   // Stato separato per ogni tab
@@ -55,6 +57,7 @@ export default function QuotesPage() {
   const [sentQuotes, setSentQuotes] = useState<Quote[]>([]);
   const [acceptedQuotes, setAcceptedQuotes] = useState<Quote[]>([]);
   const [completedQuotes, setCompletedQuotes] = useState<Quote[]>([]);
+  const [archivedQuotes, setArchivedQuotes] = useState<Quote[]>([]);
   
   // Stati per i risultati filtrati dalla ricerca
   const [searchedAllQuotes, setSearchedAllQuotes] = useState<Quote[]>([]);
@@ -62,6 +65,7 @@ export default function QuotesPage() {
   const [searchedSentQuotes, setSearchedSentQuotes] = useState<Quote[]>([]);
   const [searchedAcceptedQuotes, setSearchedAcceptedQuotes] = useState<Quote[]>([]);
   const [searchedCompletedQuotes, setSearchedCompletedQuotes] = useState<Quote[]>([]);
+  const [searchedArchivedQuotes, setSearchedArchivedQuotes] = useState<Quote[]>([]);
   
   const { user } = useAuth();
   const clientId = user?.clientId;
@@ -230,6 +234,7 @@ export default function QuotesPage() {
       setSearchedSentQuotes(sentQuotes);
       setSearchedAcceptedQuotes(acceptedQuotes);
       setSearchedCompletedQuotes(completedQuotes);
+      setSearchedArchivedQuotes(archivedQuotes);
     } else {
       // Filtriamo i preventivi in base alla query di ricerca
       const query = searchQuery.toLowerCase().trim();
@@ -268,6 +273,13 @@ export default function QuotesPage() {
         quote.plate?.toLowerCase().includes(query) || 
         quote.id.toLowerCase().includes(query)
       ));
+      
+      // Filtra i preventivi archiviati
+      setSearchedArchivedQuotes(archivedQuotes.filter(quote => 
+        quote.clientName?.toLowerCase().includes(query) || 
+        quote.plate?.toLowerCase().includes(query) || 
+        quote.id.toLowerCase().includes(query)
+      ));
     }
     
     // Non resettiamo più la pagina quando cambia la ricerca
@@ -281,7 +293,7 @@ export default function QuotesPage() {
         [activeTab]: totalPages
       }));
     }
-  }, [searchQuery, allQuotes, draftQuotes, sentQuotes, acceptedQuotes, completedQuotes]);
+  }, [searchQuery, allQuotes, draftQuotes, sentQuotes, acceptedQuotes, completedQuotes, archivedQuotes]);
   
   // Aggiungiamo questo effetto per inizializzare correttamente i dati quando quotes è disponibile
   useEffect(() => {
@@ -296,7 +308,8 @@ export default function QuotesPage() {
           'inviato': 2, 
           'accettato': 3,
           'completato': 4,
-          'scaduto': 5
+          'scaduto': 5,
+          'archiviato': 6
         };
         return (statusOrder[a.status] || 99) - (statusOrder[b.status] || 99);
       });
@@ -305,12 +318,14 @@ export default function QuotesPage() {
       setSentQuotes(sortedQuotes.filter(quote => quote.status === 'inviato'));
       setAcceptedQuotes(sortedQuotes.filter(quote => quote.status === 'accettato'));
       setCompletedQuotes(sortedQuotes.filter(quote => quote.status === 'completato'));
+      setArchivedQuotes(sortedQuotes.filter(quote => quote.status === 'scaduto'));
       // Inizializziamo anche gli stati per la ricerca
       setSearchedAllQuotes([...sortedQuotes]);
       setSearchedDraftQuotes(sortedQuotes.filter(quote => quote.status === 'bozza'));
       setSearchedSentQuotes(sortedQuotes.filter(quote => quote.status === 'inviato'));
       setSearchedAcceptedQuotes(sortedQuotes.filter(quote => quote.status === 'accettato'));
       setSearchedCompletedQuotes(sortedQuotes.filter(quote => quote.status === 'completato'));
+      setSearchedArchivedQuotes(sortedQuotes.filter(quote => quote.status === 'scaduto'));
       // Imposta anche i dati filtrati in base al tab attivo
       setFilteredQuotes(sortedQuotes);
     }
@@ -329,7 +344,8 @@ export default function QuotesPage() {
         'inviato': 2, 
         'accettato': 3,
         'completato': 4,
-        'scaduto': 5
+        'scaduto': 5,
+        'archiviato': 6
       };
       return (statusOrder[a.status] || 99) - (statusOrder[b.status] || 99);
     });
@@ -339,6 +355,7 @@ export default function QuotesPage() {
     setSentQuotes(sortedStatusQuotes.filter(quote => quote.status === 'inviato'));
     setAcceptedQuotes(sortedStatusQuotes.filter(quote => quote.status === 'accettato'));
     setCompletedQuotes(sortedStatusQuotes.filter(quote => quote.status === 'completato'));
+    setArchivedQuotes(sortedStatusQuotes.filter(quote => quote.status === 'archiviato'));
     // Aggiorniamo anche gli stati per la ricerca se non c'è una query attiva
     if (searchQuery.trim() === '') {
       setSearchedAllQuotes(sortedStatusQuotes);
@@ -346,6 +363,7 @@ export default function QuotesPage() {
       setSearchedSentQuotes(sortedStatusQuotes.filter(quote => quote.status === 'inviato'));
       setSearchedAcceptedQuotes(sortedStatusQuotes.filter(quote => quote.status === 'accettato'));
       setSearchedCompletedQuotes(sortedStatusQuotes.filter(quote => quote.status === 'completato'));
+      setSearchedArchivedQuotes(sortedStatusQuotes.filter(quote => quote.status === 'archiviato'));
     }
     // Aggiorniamo anche filteredQuotes per mantenere compatibilità
     filterQuotes(activeTab);
@@ -355,7 +373,8 @@ export default function QuotesPage() {
       bozza: sortedStatusQuotes.filter(quote => quote.status === 'bozza'),
       inviato: sortedStatusQuotes.filter(quote => quote.status === 'inviato'),
       accettato: sortedStatusQuotes.filter(quote => quote.status === 'accettato'),
-      completati: sortedStatusQuotes.filter(quote => quote.status === 'completato')
+      completati: sortedStatusQuotes.filter(quote => quote.status === 'completato'),
+      archiviati: sortedStatusQuotes.filter(quote => quote.status === 'archiviato')
     };
     // Ripristina la pagina corrente dopo l'aggiornamento
     setCurrentPage(currentTabPage);
@@ -385,6 +404,8 @@ export default function QuotesPage() {
         return searchedAcceptedQuotes;
       case 'completati':
         return searchedCompletedQuotes;
+      case 'archiviati':
+        return searchedArchivedQuotes;
       default:
         return searchedAllQuotes;
     }
@@ -431,7 +452,8 @@ export default function QuotesPage() {
           'inviato': 2, 
           'accettato': 3,
           'completato': 4,
-          'scaduto': 5
+          'scaduto': 5,
+          'archiviato': 6
         };
         return (statusOrder[a.status] || 99) - (statusOrder[b.status] || 99);
       });
@@ -443,13 +465,22 @@ export default function QuotesPage() {
       setSentQuotes(sortedQuotes.filter(quote => quote.status === 'inviato'));
       setAcceptedQuotes(sortedQuotes.filter(quote => quote.status === 'accettato'));
       setCompletedQuotes(sortedQuotes.filter(quote => quote.status === 'completato'));
+      setArchivedQuotes(sortedQuotes.filter(quote => quote.status === 'archiviato'));
+      // Inizializziamo anche gli stati per la ricerca
+      setSearchedAllQuotes([...sortedQuotes]);
+      setSearchedDraftQuotes(sortedQuotes.filter(quote => quote.status === 'bozza'));
+      setSearchedSentQuotes(sortedQuotes.filter(quote => quote.status === 'inviato'));
+      setSearchedAcceptedQuotes(sortedQuotes.filter(quote => quote.status === 'accettato'));
+      setSearchedCompletedQuotes(sortedQuotes.filter(quote => quote.status === 'completato'));
+      setSearchedArchivedQuotes(sortedQuotes.filter(quote => quote.status === 'archiviato'));
       // Aggiorna la cache
       quotesCache.current = {
         all: [...sortedQuotes],
         bozza: sortedQuotes.filter(quote => quote.status === 'bozza'),
         inviato: sortedQuotes.filter(quote => quote.status === 'inviato'),
         accettato: sortedQuotes.filter(quote => quote.status === 'accettato'),
-        completati: sortedQuotes.filter(quote => quote.status === 'completato')
+        completati: sortedQuotes.filter(quote => quote.status === 'completato'),
+        archiviati: sortedQuotes.filter(quote => quote.status === 'archiviato')
       };
       // Aggiorna i dati filtrati in base al tab attivo
       setFilteredQuotes(quotesCache.current[activeTab] || sortedQuotes);
@@ -607,7 +638,7 @@ export default function QuotesPage() {
       </div>
       
       <Tabs defaultValue={activeTab} onValueChange={handleTabChange} className="w-full overflow-hidden">
-        <TabsList className="grid grid-cols-5 mb-4">
+        <TabsList className="grid grid-cols-6 mb-4">
           <TabsTrigger value="all">
             Tutti <span className="ml-1.5 px-1.5 py-0.5 bg-primary/10 text-primary rounded-full text-xs">{searchedAllQuotes.length}</span>
           </TabsTrigger>
@@ -622,6 +653,9 @@ export default function QuotesPage() {
           </TabsTrigger>
           <TabsTrigger value="completati">
             Completati <span className="ml-1.5 px-1.5 py-0.5 bg-primary/10 text-primary rounded-full text-xs">{searchedCompletedQuotes.length}</span>
+          </TabsTrigger>
+          <TabsTrigger value="archiviati">
+            Archiviati <span className="ml-1.5 px-1.5 py-0.5 bg-primary/10 text-primary rounded-full text-xs">{searchedArchivedQuotes.length}</span>
           </TabsTrigger>
         </TabsList>
         
@@ -671,6 +705,17 @@ export default function QuotesPage() {
           </TabsContent>
           
           <TabsContent value="completati" className="overflow-hidden">
+            <QuoteTable
+              quotes={paginatedQuotes()}
+              isLoading={isLoading}
+              onEdit={handleEditQuote}
+              onDeleteSuccess={handleFormSubmit}
+              onStatusChange={fetchQuotes}
+              onRequestAppointment={handleOpenAppointmentModal}
+            />
+          </TabsContent>
+          
+          <TabsContent value="archiviati" className="overflow-hidden">
             <QuoteTable
               quotes={paginatedQuotes()}
               isLoading={isLoading}

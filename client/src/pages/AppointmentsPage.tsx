@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Download, Calendar, List, RefreshCw, CalendarPlus, FileDown, Search } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,7 @@ export default function AppointmentsPage() {
   const { toast } = useToast();
   const { user } = useAuth();
   const isClient = !!user?.clientId;
+  const queryClient = useQueryClient();
   
   // Fetch appointments
   const { 
@@ -87,9 +88,12 @@ export default function AppointmentsPage() {
         };
       });
     },
-    staleTime: 0,
-    refetchInterval: 60000, // Aggiornamento automatico ogni minuto
-    refetchOnWindowFocus: true
+    staleTime: 0, // I dati sono sempre considerati stale per forzare aggiornamenti
+    gcTime: 0, // Rimuove immediatamente i dati dalla cache quando non utilizzati
+    refetchInterval: 30000, // Aggiornamento automatico ogni 30 secondi
+    refetchOnWindowFocus: true, // Aggiorna quando la finestra torna in focus
+    refetchOnMount: true, // Aggiorna sempre al mount
+    refetchOnReconnect: true // Aggiorna quando si riconnette
   });
   
   // Log di debug per monitorare lo stato della query
@@ -208,7 +212,13 @@ export default function AppointmentsPage() {
   };
 
   const handleEditQuote = (quote: Quote) => {
-    // I clienti non possono modificare i preventivi
+    console.log("handleEditQuote chiamata con:", {
+      quoteId: quote.id,
+      isClient: isClient,
+      userClientId: user?.clientId,
+      user: user
+    });
+    
     if (isClient) {
       toast({
         title: "Operazione non consentita",
@@ -217,6 +227,8 @@ export default function AppointmentsPage() {
       });
       return;
     }
+    
+    console.log("Aprendo form di modifica preventivo per:", quote.id);
     setEditingQuote(quote);
     setIsQuoteFormOpen(true);
   };
@@ -237,16 +249,62 @@ export default function AppointmentsPage() {
   };
 
   const handleQuoteFormClose = () => {
+    console.log("handleQuoteFormClose chiamata");
     setIsQuoteFormOpen(false);
     setEditingQuote(null);
     setClientIdForQuote("");
   };
 
   const handleQuoteFormSubmit = async () => {
+    console.log("handleQuoteFormSubmit chiamata");
     setIsQuoteFormOpen(false);
     setEditingQuote(null);
     setClientIdForQuote("");
-    // Riapriamo il form appuntamento dopo aver creato il preventivo
+    
+    // Aggiornamento immediato e aggressivo dei dati
+    try {
+      console.log("Aggiornamento immediato dati dopo modifica preventivo...");
+      
+      // 1. Invalida immediatamente tutte le query correlate
+      await queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
+      await queryClient.invalidateQueries({ queryKey: ['/quotes/client'] });
+      await queryClient.invalidateQueries({ queryKey: ['/appointments'] });
+      
+      // 2. Forza un refetch immediato degli appuntamenti
+      const result = await refetch();
+      
+      if (result.isSuccess) {
+        console.log("Dati aggiornati con successo in tempo reale");
+        toast({
+          title: "Preventivo aggiornato",
+          description: "Il preventivo è stato aggiornato con successo",
+        });
+      } else {
+        throw new Error("Refetch fallito");
+      }
+    } catch (error) {
+      console.error("Errore nell'aggiornamento immediato:", error);
+      
+      // Fallback: prova un aggiornamento ritardato
+      setTimeout(async () => {
+        try {
+          await refetch();
+          toast({
+            title: "Preventivo aggiornato",
+            description: "Il preventivo è stato aggiornato con successo",
+          });
+        } catch (retryError) {
+          console.error("Errore anche nel retry:", retryError);
+          toast({
+            title: "Attenzione",
+            description: "Preventivo aggiornato, ma potrebbero essere necessari alcuni secondi per vedere le modifiche",
+            variant: "default",
+          });
+        }
+      }, 1000);
+    }
+    
+    // Riapriamo il form appuntamento dopo aver creato/modificato il preventivo
     setIsFormOpen(true);
   };
 
@@ -343,6 +401,33 @@ export default function AppointmentsPage() {
       setIsLoading(false);
     }
   }, [fetchedAppointments, queryLoading]);
+
+  // Sistema di aggiornamento automatico in tempo reale
+  useEffect(() => {
+    // Listener per i cambiamenti nelle query dei preventivi
+    const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
+      // Se viene aggiornata una query dei preventivi
+      if (event.type === 'observerResultsUpdated') {
+        const queryKey = event.query.queryKey;
+        
+        // Controlla se è una query relativa ai preventivi
+        if (Array.isArray(queryKey) && 
+            (queryKey.includes('/api/quotes') || queryKey.includes('/quotes/client'))) {
+          console.log("Rilevato aggiornamento preventivi, aggiorno appuntamenti automaticamente");
+          
+          // Aggiorna gli appuntamenti dopo un breve delay per permettere al database di sincronizzarsi
+          setTimeout(() => {
+            refetch();
+          }, 500);
+        }
+      }
+    });
+
+    // Cleanup
+    return () => {
+      unsubscribe();
+    };
+  }, [queryClient, refetch]);
 
   // Esponi la funzione di ricarica a livello globale
   useEffect(() => {
@@ -458,6 +543,43 @@ export default function AppointmentsPage() {
     // Ricarica i dati dopo il cambio di stato
     refetch();
   };
+
+  // Sistema di polling aggressivo quando il form preventivo è aperto
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+    
+    if (isQuoteFormOpen) {
+      console.log("Form preventivo aperto, attivo polling aggressivo");
+      // Polling ogni 2 secondi quando il form preventivo è aperto
+      intervalId = setInterval(() => {
+        refetch();
+      }, 2000);
+    }
+    
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+        console.log("Polling aggressivo disattivato");
+      }
+    };
+  }, [isQuoteFormOpen, refetch]);
+
+  // Listener per eventi personalizzati di aggiornamento preventivi
+  useEffect(() => {
+    const handleQuoteUpdate = (event: CustomEvent) => {
+      console.log("Ricevuto evento quoteUpdated:", event.detail);
+      // Aggiornamento immediato senza delay
+      refetch();
+    };
+
+    // Aggiungi il listener per l'evento personalizzato
+    window.addEventListener('quoteUpdated', handleQuoteUpdate as EventListener);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('quoteUpdated', handleQuoteUpdate as EventListener);
+    };
+  }, [refetch]);
 
   return (
     <div className="container py-4 w-full">
