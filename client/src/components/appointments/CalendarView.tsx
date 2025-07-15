@@ -11,7 +11,7 @@ import { Card } from "@/components/ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { CalendarIcon, Calendar } from "lucide-react";
 import { raggruppaPerTipoRicambio } from '@/utils/ricambi';
-import './calendar-styles.css';
+
 
 // Definizione tipo di vista per il calendario
 type CalendarViewType = "day" | "week" | "month";
@@ -500,99 +500,141 @@ export default function CalendarView({
 
   // Definizione del componente DailyView dopo la definizione di appointmentsByTimeSlot
   const DailyView = () => {
-    // Aggiorna la posizione dell'indicatore dell'ora corrente ogni minuto
-    useEffect(() => {
-      const interval = setInterval(updateCurrentTimeIndicator, 60000);
-      updateCurrentTimeIndicator(); // Chiamata iniziale
-      return () => clearInterval(interval);
-    }, []);
+    if (!selectedDate) return null;
+
+    const dayAppointments = appointmentsByDate[format(selectedDate, 'yyyy-MM-dd')] || [];
+    const sortedAppointments = [...dayAppointments].sort((a, b) => {
+      const timeA = normalizeTimeFormat(a.time);
+      const timeB = normalizeTimeFormat(b.time);
+      return timeA.localeCompare(timeB);
+    });
 
     return (
-      <div className="flex flex-col h-full overflow-hidden">
-        <div className="flex-1 overflow-auto">
-          <div className="relative">
-            {/* Intestazione con data selezionata */}
-            <div className={`sticky top-0 z-10 bg-background border-b border-border px-4 py-2 ${isMobile ? 'text-sm' : ''}`}>
-              <h3 className={`font-medium ${isMobile ? 'text-base' : 'text-lg'}`}>
-                {selectedDate && format(selectedDate, "EEEE d MMMM", { locale: it })}
-              </h3>
+      <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl shadow-2xl overflow-hidden border border-gray-700">
+        {/* Header migliorato */}
+        <div className="bg-gradient-to-r from-orange-600 to-orange-500 p-4 border-b border-orange-400/20">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="bg-white/20 p-2 rounded-lg">
+                <CalendarIcon className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">
+                  {format(selectedDate, 'EEEE d MMMM yyyy', { locale: it })}
+                </h3>
+                <p className="text-orange-100 text-sm">
+                  {sortedAppointments.length} appuntamenti programmati
+                </p>
+              </div>
             </div>
             
-            {/* Contenitore delle fasce orarie */}
-            <div className={`relative ${isMobile ? 'text-xs' : 'text-sm'}`}>
-              {/* Indicatore dell'ora corrente */}
-              <div
-                id="current-time-indicator"
-                className="absolute left-0 right-0 border-t-2 border-red-500 z-10 pointer-events-none"
-                style={{
-                  top: `${getCurrentTimePosition()}px`,
-                  display: isSameDay(selectedDate || new Date(), new Date()) ? "block" : "none"
-                }}
-              >
-                <div className="absolute -top-2 -left-1 w-2 h-2 rounded-full bg-red-500"></div>
-                <div className={`absolute -top-6 -left-1 text-red-500 text-xs font-medium ${isMobile ? 'text-[10px]' : ''}`}>
-                  {format(new Date(), 'HH:mm')}
-                </div>
-              </div>
-              
-              {/* Fasce orarie */}
-              {TIME_SLOTS.map((slot, index) => {
-                const { appointments: slotAppointments, isStartingSlot, slotSpans } = getAppointmentsForTimeSlot(filteredAppointments, slot);
+            {/* Indicatori di stato */}
+            <div className="flex gap-2">
+              {['programmato', 'confermato', 'completato'].map(status => {
+                const count = sortedAppointments.filter(app => app.status === status).length;
+                if (count === 0) return null;
+                
+                const colors = {
+                  programmato: 'bg-orange-400',
+                  confermato: 'bg-blue-400', 
+                  completato: 'bg-emerald-400'
+                };
                 
                 return (
-                  <div
-                    key={`${slot.hour}-${slot.minute}`}
-                    className={`flex border-b border-border ${
-                      isCurrentTimeSlot(slot) ? 'bg-accent/10' : ''
-                    }`}
-                    onClick={() => handleTimeSlotClick(slot)}
-                  >
-                    {/* Etichetta dell'ora */}
-                    <div className={`flex-shrink-0 w-16 ${isMobile ? 'w-12' : 'w-16'} py-2 px-2 text-muted-foreground border-r border-border flex items-center`}>
-                      {slot.label}
-                    </div>
-                    
-                    {/* Contenuto della fascia oraria */}
-                    <div className={`flex-1 min-h-[64px] ${isMobile ? 'min-h-[48px]' : 'min-h-[64px]'} relative`}>
-                      {/* Appuntamenti in questa fascia oraria */}
-                      {slotAppointments.length > 0 && (
-                        <div className="absolute inset-0 p-1">
-                          {slotAppointments.map((appointment, appIndex) => {
-                            // Mostra la card solo se questo è lo slot iniziale dell'appuntamento
-                            if (!isStartingSlot[appointment.id]) return null;
-                            
-                            const spanCount = slotSpans[appointment.id] || 1;
-                            const heightInPixels = spanCount * (isMobile ? 48 : 64);
-                            const isOverlapping = slotAppointments.length > 1;
-                            
-                            const colorStyles = getColorStylesForAppointment(appointment, appIndex, isOverlapping);
-                            
-                            return (
-                              <div
-                                key={appointment.id}
-                                className="absolute left-0 right-0 p-1"
-                                style={{
-                                  height: `${heightInPixels}px`,
-                                  zIndex: isOverlapping ? 10 + appIndex : 1
-                                }}
-                              >
-                                <AppointmentCardEnhanced
-                                  appointment={appointment}
-                                  onClick={() => onSelectAppointment(appointment)}
-                                  isOverlapping={isOverlapping}
-                                  index={appIndex}
-                                  isClient={isClient}
-                                />
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
+                  <div key={status} className={`${colors[status as keyof typeof colors]} text-white text-xs px-2 py-1 rounded-full font-medium`}>
+                    {count}
                   </div>
                 );
               })}
             </div>
+          </div>
+        </div>
+
+        {/* Contenuto calendario */}
+        <div className="flex h-[600px] overflow-hidden">
+          {/* Colonna orari migliorata */}
+          <div className="w-20 bg-gray-800/50 border-r border-gray-700 flex-shrink-0">
+            <div className="sticky top-0 bg-gray-800 p-2 border-b border-gray-700">
+              <span className="text-xs font-semibold text-gray-300">Orario</span>
+            </div>
+            {TIME_SLOTS.map((slot, index) => (
+              <div 
+                key={index}
+                className={`
+                  h-16 border-b border-gray-700/50 flex items-center justify-center text-xs font-medium
+                  ${new Date().getHours() === slot.hour ? 'bg-orange-500/20 text-orange-300' : 'text-gray-400'}
+                `}
+              >
+                {slot.label}
+              </div>
+            ))}
+          </div>
+
+          {/* Colonna appuntamenti migliorata */}
+          <div className="flex-1 relative overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
+            {TIME_SLOTS.map((slot, index) => {
+              const { appointments: slotAppointments, isStartingSlot, slotSpans } = getAppointmentsForTimeSlot(filteredAppointments, slot);
+              const isCurrentHour = new Date().getHours() === slot.hour;
+              
+              return (
+                <div 
+                  key={index}
+                  className={`
+                    relative h-16 border-b border-gray-700/30 transition-colors duration-200
+                    ${isCurrentHour ? 'bg-orange-500/10 border-orange-500/30' : 'hover:bg-gray-800/30'}
+                  `}
+                  onClick={() => handleTimeSlotClick(slot)}
+                >
+                  {/* Indicatore ora corrente */}
+                  {isCurrentHour && (
+                    <div className="absolute left-0 top-1/2 w-full h-0.5 bg-gradient-to-r from-orange-500 to-transparent" />
+                  )}
+                  
+                  {/* Appuntamenti */}
+                  <div className="absolute inset-0 p-2">
+                    {slotAppointments.length > 0 && (
+                      <div className="h-full relative">
+                        {slotAppointments.map((appointment, appIndex) => {
+                          if (!isStartingSlot[appointment.id]) return null;
+                          
+                          const spanCount = slotSpans[appointment.id] || 1;
+                          const heightInPixels = spanCount * 64;
+                          
+                          return (
+                            <div
+                              key={appointment.id}
+                              className="absolute inset-x-2"
+                              style={{
+                                height: `${heightInPixels - 8}px`,
+                                zIndex: 10 + appIndex
+                              }}
+                            >
+                              <AppointmentCardEnhanced
+                                appointment={appointment}
+                                onClick={() => onSelectAppointment(appointment)}
+                                isOverlapping={slotAppointments.length > 1}
+                                index={appIndex}
+                                isClient={isClient}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    
+                    {/* Area di click per nuovo appuntamento */}
+                    {slotAppointments.length === 0 && !isClient && (
+                      <div className="h-full flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-200">
+                        <div className="bg-gray-700/50 hover:bg-gray-600/50 border-2 border-dashed border-gray-500 rounded-lg p-2 text-center cursor-pointer transition-colors duration-200">
+                          <Plus className="h-4 w-4 text-gray-400 mx-auto mb-1" />
+                          <span className="text-xs text-gray-400">Nuovo appuntamento</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -654,81 +696,109 @@ export default function CalendarView({
     return 'bg-orange-100 text-black border-orange-300';
   };
 
-  // Versione migliorata dell'AppointmentCard per gestire meglio gli appuntamenti sovrapposti
+  // Componente migliorato per le card degli appuntamenti
   const AppointmentCardEnhanced = ({ 
     appointment, 
     onClick, 
-    isOverlapping = false,
+    isOverlapping = false, 
     index = 0,
-    isClient = false
-  }: { 
-    appointment: Appointment, 
-    onClick: () => void,
-    isOverlapping?: boolean,
-    index?: number,
-    isClient?: boolean
+    isClient = false 
+  }: {
+    appointment: Appointment;
+    onClick: () => void;
+    isOverlapping?: boolean;
+    index?: number;
+    isClient?: boolean;
   }) => {
-    const statusBadge = (appointment: Appointment) => {
-      const status = appointment.status?.toLowerCase() || "in attesa";
-      
-      switch(status) {
+    const getStatusConfig = (status: string) => {
+      switch (status) {
         case "completato":
-          return <span className={`text-xs px-1.5 py-0.5 rounded-full bg-green-500/20 text-green-500 ${isMobile ? 'text-[10px] px-1' : ''}`}>Completato</span>;
-        case "in corso":
-          return <span className={`text-xs px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-500 ${isMobile ? 'text-[10px] px-1' : ''}`}>In corso</span>;
+          return {
+            bg: "bg-gradient-to-r from-emerald-500 to-emerald-600",
+            border: "border-emerald-400",
+            text: "text-white",
+            icon: "✓",
+            shadow: "shadow-emerald-500/25"
+          };
         case "annullato":
-          return <span className={`text-xs px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-500 ${isMobile ? 'text-[10px] px-1' : ''}`}>Annullato</span>;
+          return {
+            bg: "bg-gradient-to-r from-red-500 to-red-600",
+            border: "border-red-400", 
+            text: "text-white",
+            icon: "✕",
+            shadow: "shadow-red-500/25"
+          };
+        case "confermato":
+          return {
+            bg: "bg-gradient-to-r from-blue-500 to-blue-600",
+            border: "border-blue-400",
+            text: "text-white", 
+            icon: "●",
+            shadow: "shadow-blue-500/25"
+          };
         default:
-          return <span className={`text-xs px-1.5 py-0.5 rounded-full bg-orange-500/20 text-orange-500 ${isMobile ? 'text-[10px] px-1' : ''}`}>In attesa</span>;
+          return {
+            bg: "bg-gradient-to-r from-orange-500 to-orange-600",
+            border: "border-orange-400",
+            text: "text-white",
+            icon: "◐",
+            shadow: "shadow-orange-500/25"
+          };
       }
     };
 
-    const colorStyles = getColorStylesForAppointment(appointment, index, isOverlapping);
-    
+    const config = getStatusConfig(appointment.status);
+    const duration = getLaborHours(appointment);
+
     return (
-      <Card
-        className={`h-full overflow-hidden flex flex-col shadow-md transition-all border-l-4 hover:shadow-lg cursor-pointer ${isMobile ? 'p-1.5' : 'p-2'}`}
-        style={{
-          borderLeftColor: colorStyles.borderLeftColor,
-          backgroundColor: colorStyles.backgroundColor,
-          borderColor: colorStyles.borderColor,
-        }}
+      <div 
+        className={`
+          ${config.bg} ${config.border} ${config.text} ${config.shadow}
+          rounded-lg border-l-4 p-3 cursor-pointer 
+          hover:scale-105 hover:shadow-lg transition-all duration-200 ease-in-out
+          backdrop-blur-sm relative overflow-hidden group
+          ${isOverlapping ? 'opacity-95' : ''}
+        `}
         onClick={onClick}
       >
-        <div className="flex justify-between items-start mb-1">
-          <div className={`font-medium ${isMobile ? 'text-xs' : 'text-sm'} truncate flex-1`}>
-            {appointment.clientName || "Cliente senza nome"}
+        {/* Effetto lucido sulla card */}
+        <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+        
+        {/* Header con status e orario */}
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-bold">{config.icon}</span>
+            <span className="text-sm font-semibold">
+              {appointment.time.slice(0, 5)}
+            </span>
           </div>
-          {statusBadge(appointment)}
+          <div className="text-xs opacity-75 bg-black/20 px-2 py-1 rounded-full">
+            {duration}h
+          </div>
         </div>
-        
-        <div className="flex items-center text-muted-foreground mb-1">
-          <Clock className={`${isMobile ? 'h-3 w-3 mr-1' : 'h-3.5 w-3.5 mr-1.5'}`} />
-          <span className={`${isMobile ? 'text-[10px]' : 'text-xs'}`}>
-            {appointment.time} ({getLaborHours(appointment)} {getLaborHours(appointment) === 1 ? 'ora' : 'ore'})
-          </span>
+
+        {/* Nome cliente */}
+        <div className="font-bold text-base mb-1 truncate">
+          {appointment.clientName}
         </div>
-        
-        {appointment.plate && (
-          <div className={`text-muted-foreground truncate ${isMobile ? 'text-[10px]' : 'text-xs'}`}>
-            {appointment.plate}
+
+        {/* Dettagli servizio */}
+        <div className="text-sm opacity-90 mb-2 line-clamp-2">
+          {appointment.notes || appointment.services?.join(', ') || 'Servizio generico'}
+        </div>
+
+        {/* Footer con veicolo se disponibile */}
+        {(appointment.plate || appointment.model) && (
+          <div className="text-xs opacity-75 bg-black/20 px-2 py-1 rounded-md mt-2">
+            🚗 {appointment.plate}{appointment.model ? ` - ${appointment.model}` : ''}
           </div>
         )}
-        
-        {appointment.quoteId && !isClient && (
-          <div className="mt-auto pt-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              className={`h-6 text-primary hover:text-primary-foreground hover:bg-primary ${isMobile ? 'text-[10px] h-5 px-1' : ''}`}
-              onClick={(e) => handleOpenQuotePage(appointment.quoteId!, e)}
-            >
-              <FileText className={`${isMobile ? 'h-3 w-3 mr-1' : 'h-3.5 w-3.5 mr-1.5'}`} />
-              Preventivo
-            </Button>
-          </div>
+
+        {/* Indicatore di sovrapposizione */}
+        {isOverlapping && (
+          <div className="absolute top-1 right-1 w-2 h-2 bg-yellow-400 rounded-full animate-pulse" />
         )}
-      </Card>
+      </div>
     );
   };
 
@@ -852,31 +922,32 @@ export default function CalendarView({
     return { appointments: result, isStartingSlot, slotSpans };
   };
 
-  // Funzione per ottenere gli stili colore dell'appuntamento
-  const getColorStylesForAppointment = (appointment: Appointment, index: number, isOverlapping: boolean) => {
-    // Preleva lo stato dell'appuntamento
-    const status = appointment.status || 'programmato';
-    
-    // Scelgo colori base in base allo stato
-    let backgroundColor = 'rgba(254, 215, 170, 0.9)'; // Default: orange-100
-    let borderColor = 'rgb(234, 88, 12)'; // Default: orange-600
-    let borderLeftColor = 'rgb(234, 88, 12)'; // Default: orange-600
-    
-    // Personalizza i colori in base allo stato
-    switch (status) {
-      case 'completato':
-        backgroundColor = 'rgba(251, 146, 60, 0.95)';
-        borderColor = 'rgb(154, 52, 18)';
-        borderLeftColor = 'rgb(154, 52, 18)';
-        break;
-      case 'annullato':
-        backgroundColor = 'rgba(38, 38, 38, 0.95)';
-        borderColor = 'rgb(23, 23, 23)';
-        borderLeftColor = 'rgb(23, 23, 23)';
-        break;
-    }
-    
-    return { backgroundColor, borderColor, borderLeftColor };
+  // Funzione migliorata per ottenere i colori degli appuntamenti
+  const getColorStylesForAppointment = (appointment: Appointment, index: number = 0, isOverlapping: boolean = false) => {
+    const baseColors = {
+      completato: {
+        bg: '#10b981', // emerald-500
+        border: '#34d399', // emerald-400
+        text: '#ffffff'
+      },
+      annullato: {
+        bg: '#ef4444', // red-500
+        border: '#f87171', // red-400
+        text: '#ffffff'
+      },
+      confermato: {
+        bg: '#3b82f6', // blue-500
+        border: '#60a5fa', // blue-400
+        text: '#ffffff'
+      },
+      default: {
+        bg: '#f97316', // orange-500
+        border: '#fb923c', // orange-400
+        text: '#ffffff'
+      }
+    };
+
+    return baseColors[appointment.status as keyof typeof baseColors] || baseColors.default;
   };
 
   // Funzione per aprire la pagina 4 del preventivo
@@ -1257,191 +1328,185 @@ export default function CalendarView({
     });
 
     return (
-      <div className="bg-black rounded-lg shadow-md overflow-hidden border border-gray-800">
-        <div className="p-4 border-b border-gray-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0">
-          <div className="flex items-center space-x-3 w-full sm:w-auto">
-            <button
-              onClick={() => setSelectedDate(prev => {
-                if (!prev) return new Date();
-                const newDate = new Date(prev);
-                newDate.setDate(newDate.getDate() - 7);
-                return newDate;
-              })}
-              className="p-2 rounded-md hover:bg-orange-600/20 text-orange-500 border border-orange-500/30"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <h3 className="text-base font-medium text-orange-400 truncate flex items-center">
-              <CalendarIcon className="h-4 w-4 mr-2 text-orange-500" />
-              {format(weekDays[0], 'd MMM', { locale: it })} - {format(weekDays[6], 'd MMM yyyy', { locale: it })}
-            </h3>
-            <button
-              onClick={() => setSelectedDate(prev => {
-                if (!prev) return new Date();
-                const newDate = new Date(prev);
-                newDate.setDate(newDate.getDate() + 7);
-                return newDate;
-              })}
-              className="p-2 rounded-md hover:bg-orange-600/20 text-orange-500 border border-orange-500/30"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
+      <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl shadow-2xl overflow-hidden border border-gray-700">
+        {/* Header migliorato */}
+        <div className="bg-gradient-to-r from-orange-600 to-orange-500 p-4 border-b border-orange-400/20">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setSelectedDate(prev => {
+                  if (!prev) return new Date();
+                  const newDate = new Date(prev);
+                  newDate.setDate(newDate.getDate() - 7);
+                  return newDate;
+                })}
+                className="p-2 rounded-lg hover:bg-white/20 text-white transition-colors duration-200"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </button>
+              
+              <div className="bg-white/20 p-2 rounded-lg">
+                <CalendarIcon className="h-5 w-5 text-white" />
+              </div>
+              
+              <div>
+                <h3 className="text-lg font-bold text-white">
+                  {format(weekDays[0], 'd MMM', { locale: it })} - {format(weekDays[6], 'd MMM yyyy', { locale: it })}
+                </h3>
+                <p className="text-orange-100 text-sm">Vista settimanale</p>
+              </div>
+              
+              <button
+                onClick={() => setSelectedDate(prev => {
+                  if (!prev) return new Date();
+                  const newDate = new Date(prev);
+                  newDate.setDate(newDate.getDate() + 7);
+                  return newDate;
+                })}
+                className="p-2 rounded-lg hover:bg-white/20 text-white transition-colors duration-200"
+              >
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            </div>
 
-          <div className="flex items-center space-x-1">
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={handleToday}
-              className="text-xs h-8 px-3 bg-orange-600 hover:bg-orange-700 text-white border-none mr-2"
+              className="bg-white/20 hover:bg-white/30 text-white border-none"
             >
               Oggi
             </Button>
-            
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="h-8 border-orange-500/50 text-orange-500 hover:bg-orange-500/10 hover:text-orange-400"
-                >
-                  <CalendarIcon className="h-4 w-4 mr-2" />
-                  {view === "month" 
-                    ? "Mese" 
-                    : view === "week" 
-                    ? "Settimana" 
-                    : "Giorno"}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem onClick={() => setView("day")}>
-                  Giorno
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setView("week")}>
-                  Settimana
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setView("month")}>
-                  Mese
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
         </div>
         
-        <div className="border-b border-gray-700 grid grid-cols-8">
+        {/* Header giorni migliorato */}
+        <div className="border-b border-gray-700 grid grid-cols-8 bg-gray-800/50">
           {/* Intestazione vuota per la colonna delle ore */}
-          <div className="py-2 border-r border-gray-700"></div>
+          <div className="py-3 border-r border-gray-700 bg-gray-800">
+            <span className="text-xs font-semibold text-gray-300 block text-center">Orario</span>
+          </div>
           
           {/* Intestazioni dei giorni */}
           {weekDays.map((day, dayIndex) => (
             <div 
               key={dayIndex} 
-              className={`text-center py-2 border-r border-gray-700 cursor-pointer ${isToday(day) ? 'bg-orange-900/30' : 'hover:bg-gray-800'}`}
+              className={`text-center py-3 border-r border-gray-700 cursor-pointer transition-colors duration-200 ${
+                isToday(day) ? 'bg-orange-500/20 border-orange-500/30' : 'hover:bg-gray-700/50'
+              }`}
               onClick={() => {
                 setSelectedDate(day);
                 setView("day");
               }}
             >
-              <div className="text-sm font-medium text-orange-400">
+              <div className={`text-xs font-medium ${isToday(day) ? 'text-orange-300' : 'text-gray-400'}`}>
                 {format(day, 'EEE', { locale: it })}
               </div>
-              <div className={`text-base font-semibold ${isToday(day) ? 'text-orange-500' : 'text-white'}`}>
+              <div className={`text-lg font-bold ${isToday(day) ? 'text-orange-400' : 'text-white'}`}>
                 {format(day, 'd')}
               </div>
             </div>
           ))}
         </div>
 
-        <div className="h-[600px] overflow-y-auto bg-black scrollbar-hide">
+        {/* Griglia oraria migliorata */}
+        <div className="h-[600px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
           <div className="min-h-[600px]">
-            {/* Fasce orarie con appuntamenti per ogni giorno */}
-            {TIME_SLOTS.map((slot, slotIndex) => (
-              <div 
-                key={slotIndex}
-                className={`grid grid-cols-8 border-b border-gray-700 ${
-                  new Date().getHours() === slot.hour && 
-                  Math.abs(new Date().getMinutes() - slot.minute) < 30 
-                    ? 'bg-orange-900/20' 
-                    : slotIndex % 2 === 0 ? 'bg-gray-900/50' : ''
-                }`}
-                id={new Date().getHours() === slot.hour && 
-                   Math.abs(new Date().getMinutes() - slot.minute) < 30 ? "current-time-slot" : ""}
-              >
-                {/* Colonna dell'ora */}
-                <div className="py-1 px-2 text-right text-xs font-medium text-gray-400 border-r border-gray-700 bg-black/40">
-                  {slot.label}
+            {TIME_SLOTS.map((slot, slotIndex) => {
+              const isCurrentHour = new Date().getHours() === slot.hour;
+              
+              return (
+                <div 
+                  key={slotIndex}
+                  className={`grid grid-cols-8 border-b border-gray-700/30 transition-colors duration-200 ${
+                    isCurrentHour ? 'bg-orange-500/10 border-orange-500/30' : 
+                    slotIndex % 2 === 0 ? 'bg-gray-900/30' : ''
+                  }`}
+                >
+                  {/* Colonna dell'ora */}
+                  <div className={`py-3 px-2 text-center text-xs font-medium border-r border-gray-700 bg-gray-800/40 ${
+                    isCurrentHour ? 'text-orange-300 bg-orange-500/20' : 'text-gray-400'
+                  }`}>
+                    {slot.label}
+                  </div>
+                  
+                  {/* Colonne dei giorni */}
+                  {weekDays.map((day, dayIndex) => {
+                    const formattedDate = format(day, 'yyyy-MM-dd');
+                    const dayAppointments = appointmentsByDate[formattedDate] || [];
+                    
+                    // Ottieni appuntamenti per questo slot e giorno
+                    const { appointments: slotAppointments, isStartingSlot, slotSpans } = getAppointmentsForTimeSlot(dayAppointments, slot);
+                    
+                    return (
+                      <div 
+                        key={dayIndex} 
+                        className={`relative min-h-[60px] border-r border-gray-700/50 p-2 transition-colors duration-200 ${
+                          isToday(day) ? 'bg-orange-900/5' : ''
+                        } hover:bg-gray-800/30`}
+                        onClick={() => {
+                          // Quando si clicca su uno slot vuoto, crea un nuovo appuntamento
+                          if (slotAppointments.length === 0 && !isClient) {
+                            const date = format(day, 'yyyy-MM-dd');
+                            onSelectDate(`${date}T${slot.label}`);
+                          }
+                        }}
+                      >
+                        {/* Indicatore ora corrente */}
+                        {isCurrentHour && isToday(day) && (
+                          <div className="absolute left-0 top-1/2 w-full h-0.5 bg-gradient-to-r from-orange-500 to-transparent pointer-events-none" />
+                        )}
+                        
+                        {/* Appuntamenti */}
+                        {slotAppointments.length > 0 ? (
+                          <div className="h-full w-full relative">
+                            {slotAppointments
+                              .slice(0, 2) // Limita a massimo 2 appuntamenti visibili per slot
+                              .map((appointment, idx) => isStartingSlot[appointment.id] && (
+                              <div 
+                                key={appointment.id}
+                                className="absolute inset-0"
+                                style={{
+                                  height: `${Math.max(60, Math.ceil(getLaborHours(appointment) * 2) * 60)}px`,
+                                  width: slotAppointments.length > 1 ? `${94 / Math.min(slotAppointments.length, 2)}%` : '94%',
+                                  left: slotAppointments.length > 1 ? `${(idx * (94 / Math.min(slotAppointments.length, 2))) + 3}%` : '3%',
+                                  zIndex: 10 + idx
+                                }}
+                              >
+                                <AppointmentCardEnhanced
+                                  appointment={appointment}
+                                  onClick={() => onSelectAppointment(appointment)}
+                                  isOverlapping={slotAppointments.length > 1}
+                                  index={idx}
+                                  isClient={isClient}
+                                />
+                              </div>
+                            ))}
+                            
+                            {/* Indicatore appuntamenti extra */}
+                            {slotAppointments.length > 2 && (
+                              <div className="absolute bottom-1 right-1 bg-orange-500 text-white text-xs px-1.5 py-0.5 rounded-full font-medium shadow-lg">
+                                +{slotAppointments.length - 2}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          /* Area di click per nuovo appuntamento */
+                          !isClient && (
+                            <div className="h-full flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-200">
+                              <div className="bg-gray-700/30 hover:bg-gray-600/40 border border-dashed border-gray-500 rounded-md p-2 text-center cursor-pointer transition-colors duration-200">
+                                <Plus className="h-3 w-3 text-gray-400 mx-auto mb-1" />
+                                <span className="text-xs text-gray-400">Nuovo</span>
+                              </div>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-                
-                {/* Colonne dei giorni */}
-                {weekDays.map((day, dayIndex) => {
-                  const formattedDate = format(day, 'yyyy-MM-dd');
-                  const dayAppointments = appointmentsByDate[formattedDate] || [];
-                  
-                  // Ottieni appuntamenti per questo slot e giorno
-                  const { appointments: slotAppointments, isStartingSlot, slotSpans } = getAppointmentsForTimeSlot(dayAppointments, slot);
-                  
-                  return (
-                    <div 
-                      key={dayIndex} 
-                      className={`relative min-h-[50px] border-r border-gray-700 p-1 ${
-                        isToday(day) ? 'bg-orange-900/10' : ''
-                      } hover:bg-gray-800/50 transition-colors`}
-                      onClick={() => {
-                        // Quando si clicca su uno slot vuoto, crea un nuovo appuntamento
-                        if (slotAppointments.length === 0 && !isClient) {
-                          const date = format(day, 'yyyy-MM-dd');
-                          onSelectDate(`${date}T${slot.label}`);
-                        }
-                      }}
-                    >
-                      {/* Logica per mostrare gli appuntamenti */}
-                      {slotAppointments.length > 0 ? (
-                        <div className="h-full w-full relative flex flex-row gap-1">
-                          {slotAppointments
-                            .slice(0, 2) // Limita a massimo 2 appuntamenti visibili per slot
-                            .map((appointment, idx) => isStartingSlot[appointment.id] && (
-                            <div 
-                              key={appointment.id}
-                              className="absolute shadow-sm cursor-pointer hover:shadow-md transition-all"
-                              style={{
-                                backgroundColor: getBackgroundColor(appointment),
-                                borderLeft: `3px solid ${getBorderLeftColor(appointment)}`,
-                                // Altezza fissa per Kevin Paride Miranda 
-                                height: `${Math.max(50, Math.ceil(getLaborHours(appointment) * 2) * 50)}px`,
-                                width: slotAppointments.length > 1 ? `${94 / Math.min(slotAppointments.length, 2)}%` : '94%',
-                                left: slotAppointments.length > 1 ? `${(idx * (94 / Math.min(slotAppointments.length, 2))) + 3}%` : '3%',
-                                fontSize: '0.65rem',
-                                overflow: 'hidden',
-                                borderRadius: '2px',
-                                padding: '2px 4px',
-                                zIndex: 10
-                              }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onSelectAppointment(appointment);
-                              }}
-                            >
-                              <div className="font-bold text-slate-900 truncate text-xs">{appointment.clientName}</div>
-                              <div className="font-medium text-[10px] text-slate-900 truncate">
-                                {normalizeTimeFormat(appointment.time)}-{format(endOfAppointment(appointment), 'HH:mm')}
-                              </div>
-                              <div className="font-medium text-[9px] bg-orange-600 text-white rounded px-1 w-fit mt-0.5">
-                                {getLaborHours(appointment)}h
-                              </div>
-                            </div>
-                          ))}
-                          {slotAppointments.length > 2 && (
-                            <div className="absolute right-0 top-0 px-1 py-0.5 bg-orange-700 text-white text-[8px] rounded-sm font-bold z-20">
-                              +{slotAppointments.length - 2}
-                            </div>
-                          )}
-                        </div>
-                      ) : null}
-                    </div>
-                  );
-                })}
-             </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
@@ -1640,83 +1705,115 @@ export default function CalendarView({
   }
 
   return (
-    <div className={`flex flex-col h-full ${isMobile ? 'space-y-2' : 'space-y-4'}`}>
-      {/* Controlli del calendario ottimizzati per mobile */}
-      <div className={`flex ${isMobile ? 'flex-col space-y-2' : 'flex-row items-center justify-between'} mb-2`}>
-        <div className="flex items-center">
-          <Button
-            variant="outline"
-            size={isMobile ? "sm" : "default"}
-            onClick={handlePreviousMonth}
-            className={`${isMobile ? 'px-2' : ''}`}
-          >
-            <ChevronLeft className={`${isMobile ? 'h-4 w-4' : 'h-5 w-5'}`} />
-          </Button>
-          <Button
-            variant="outline"
-            size={isMobile ? "sm" : "default"}
-            onClick={handleToday}
-            className={`mx-1 ${isMobile ? 'px-2 text-xs' : ''}`}
-          >
-            Oggi
-          </Button>
-          <Button
-            variant="outline"
-            size={isMobile ? "sm" : "default"}
-            onClick={handleNextMonth}
-            className={`${isMobile ? 'px-2' : ''}`}
-          >
-            <ChevronRight className={`${isMobile ? 'h-4 w-4' : 'h-5 w-5'}`} />
-          </Button>
-          <h2 className={`ml-4 font-semibold ${isMobile ? 'text-base' : 'text-xl'}`}>
-            {format(currentMonth, 'MMMM yyyy', { locale: it })}
-          </h2>
-        </div>
-        
-        <div className={`flex space-x-1 ${isMobile ? 'justify-center' : ''}`}>
-          <Button
-            variant={isView("day") ? "default" : "outline"}
-            size={isMobile ? "sm" : "default"}
-            onClick={() => setView("day")}
-            className={isMobile ? 'px-2 text-xs' : ''}
-          >
-            Giorno
-          </Button>
-          {!isMobile && (
-            <>
-              <Button
-                variant={isView("week") ? "default" : "outline"}
-                size={isMobile ? "sm" : "default"}
-                onClick={() => setView("week")}
-                className={isMobile ? 'px-2 text-xs' : ''}
-              >
-                Settimana
-              </Button>
-              <Button
-                variant={isView("month") ? "default" : "outline"}
-                size={isMobile ? "sm" : "default"}
-                onClick={() => setView("month")}
-                className={isMobile ? 'px-2 text-xs' : ''}
-              >
-                Mese
-              </Button>
-            </>
-          )}
+    <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 rounded-xl shadow-2xl overflow-hidden border border-gray-700">
+      {/* Header unificato per tutte le viste */}
+      <div className="bg-gradient-to-r from-orange-600 to-orange-500 p-4 border-b border-orange-400/20">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handlePreviousMonth}
+              className="p-2 rounded-lg hover:bg-white/20 text-white transition-colors duration-200"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
+            
+            <div className="bg-white/20 p-2 rounded-lg">
+              <CalendarIcon className="h-5 w-5 text-white" />
+            </div>
+            
+            <div>
+              <h2 className="text-lg font-bold text-white">
+                {format(currentMonth, 'MMMM yyyy', { locale: it })}
+              </h2>
+              <p className="text-orange-100 text-sm">
+                {filteredAppointments.length} appuntamenti
+              </p>
+            </div>
+            
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleToday}
+              className="mx-2 bg-white/20 hover:bg-white/30 text-white px-3 py-2 rounded-lg transition-colors duration-200"
+            >
+              Oggi
+            </Button>
+            
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleNextMonth}
+              className="p-2 rounded-lg hover:bg-white/20 text-white transition-colors duration-200"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </Button>
+          </div>
+          
+          {/* Controlli di vista migliorati */}
+          <div className="flex bg-black/20 rounded-lg p-1 gap-1">
+            <Button
+              variant={isView("day") ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setView("day")}
+              className={`${
+                isView("day") 
+                  ? 'bg-white text-gray-900 hover:bg-white/90' 
+                  : 'text-white hover:bg-white/10'
+              } transition-all duration-200`}
+            >
+              <Calendar className="h-4 w-4 mr-1" />
+              Giorno
+            </Button>
+            
+            {!isMobile && (
+              <>
+                <Button
+                  variant={isView("week") ? "secondary" : "ghost"}
+                  size="sm"
+                  onClick={() => setView("week")}
+                  className={`${
+                    isView("week") 
+                      ? 'bg-white text-gray-900 hover:bg-white/90' 
+                      : 'text-white hover:bg-white/10'
+                  } transition-all duration-200`}
+                >
+                  <ViewIcon className="h-4 w-4 mr-1" />
+                  Settimana
+                </Button>
+                
+                <Button
+                  variant={isView("month") ? "secondary" : "ghost"}
+                  size="sm"
+                  onClick={() => setView("month")}
+                  className={`${
+                    isView("month") 
+                      ? 'bg-white text-gray-900 hover:bg-white/90' 
+                      : 'text-white hover:bg-white/10'
+                  } transition-all duration-200`}
+                >
+                  <CalendarIcon className="h-4 w-4 mr-1" />
+                  Mese
+                </Button>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Contenuto del calendario in base alla vista selezionata */}
+      {/* Contenuto del calendario */}
       <div className="flex-1 overflow-hidden">
         {isLoading ? (
-          <div className="flex flex-col space-y-4 p-4">
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-64 w-full" />
+          <div className="flex flex-col space-y-4 p-6">
+            <Skeleton className="h-8 w-full bg-gray-800" />
+            <Skeleton className="h-64 w-full bg-gray-800" />
+            <Skeleton className="h-32 w-full bg-gray-800" />
           </div>
         ) : (
           <>
             {view === "day" && <DailyView />}
-            {view === "week" && !isMobile && <div className="p-4">Vista settimanale non disponibile su dispositivi mobili</div>}
-            {view === "month" && !isMobile && <div className="p-4">Vista mensile non disponibile su dispositivi mobili</div>}
+            {/* Le viste week e month hanno già il loro rendering implementato sopra */}
           </>
         )}
       </div>

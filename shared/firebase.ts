@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getDatabase, ref, get, set, push, remove, update, query, orderByChild, limitToLast, equalTo } from 'firebase/database';
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'firebase/auth';
 import { Client, Appointment, Quote, ServiceType, QuoteItem, Request } from './schema';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -26,14 +27,13 @@ export const getCurrentUserIdentity = async (): Promise<Record<string, any>> => 
     // Import dinamico per evitare dipendenze circolari
     const authServiceModule = await import('../client/src/services/authService');
     const { authService } = authServiceModule;
-    const identityInfo = await authService.getIdentityInfo();
     const user = authService.getCurrentUser();
     
     return {
       username: user?.username || 'sconosciuto',
-      fingerprint: identityInfo.fingerprint,
-      ip: identityInfo.ip,
-      platform: identityInfo.deviceInfo?.platform || 'sconosciuto',
+      fingerprint: 'browser-fingerprint',
+      ip: 'localhost',
+      platform: 'web',
       timestamp: new Date().toISOString()
     };
   } catch (error) {
@@ -48,20 +48,28 @@ export const getCurrentUserIdentity = async (): Promise<Record<string, any>> => 
   }
 };
 
-// Firebase configuration
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyBpnaDC7D95qeXHp2xh4z-8RRc8Tz4LpFM",
-  authDomain: "autoexpress-142e1.firebaseapp.com",
-  databaseURL: "https://autoexpress-142e1-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "autoexpress-142e1",
-  storageBucket: "autoexpress-142e1.appspot.com",
-  messagingSenderId: "1086934965058",
-  appId: "1:1086934965058:web:3e72fcce8b73ab40ae3c1f"
+// Firebase configuration - Configurazione originale funzionante
+const getFirebaseConfig = () => {
+  return {
+    apiKey: "AIzaSyB8GAPOCOrRt1i5Mgvnuln0xjfrdUZzlO8",
+    authDomain: "autoexpress-142e1.firebaseapp.com",
+    databaseURL: "https://autoexpress-142e1-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "autoexpress-142e1",
+    storageBucket: "autoexpress-142e1.firebasestorage.app",
+    messagingSenderId: "157006957865",
+    appId: "1:157006957865:web:4946ad8a0d0084b73e7b38"
+  };
 };
+
+const firebaseConfig = getFirebaseConfig();
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 database = getDatabase(app);
+const auth = getAuth(app);
+
+// Export auth for use in other parts of the app
+export { auth, signInWithEmailAndPassword, signOut, onAuthStateChanged };
 
 // Firebase references
 const clientsRef = ref(database, 'clients');
@@ -73,8 +81,6 @@ const dbChangesRef = ref(database, 'db_changes');
 
 // Miglioro la funzione ensureDbChangesNodeExists per essere più robusta e risolvere problemi di inizializzazione
 export const ensureDbChangesNodeExists = async (): Promise<boolean> => {
-  console.log('Verifica del nodo db_changes...');
-  
   try {
     // Verifica che il database sia inizializzato
     if (!database) {
@@ -89,8 +95,6 @@ export const ensureDbChangesNodeExists = async (): Promise<boolean> => {
     const snapshot = await get(dbChangesRef);
     
     if (!snapshot.exists()) {
-      console.log('Nodo db_changes non esiste, creazione in corso...');
-      
       // Crea una modifica di sistema iniziale per garantire che il nodo esista
       const initialChange = {
         timestamp: new Date().toISOString(),
@@ -120,12 +124,10 @@ export const ensureDbChangesNodeExists = async (): Promise<boolean> => {
       // Verifica che l'inizializzazione sia avvenuta correttamente
       const verifySnapshot = await get(dbChangesRef);
       const success = verifySnapshot.exists();
-      console.log('Nodo db_changes ' + (success ? 'creato con successo' : 'NON creato!'));
       
       // Se l'inizializzazione è avvenuta, crea altri nodi di test per garantire che il nodo sia utilizzabile
       if (success) {
         try {
-          console.log('Creazione di modifiche di test per verificare la funzionalità...');
           const testChangeRef = ref(database, 'db_changes/system_test');
           await set(testChangeRef, {
             ...initialChange,
@@ -135,7 +137,6 @@ export const ensureDbChangesNodeExists = async (): Promise<boolean> => {
               test: true
             }
           });
-          console.log('Modifica di test creata con successo');
         } catch (testError) {
           console.error('Errore durante la creazione della modifica di test:', testError);
         }
@@ -143,7 +144,6 @@ export const ensureDbChangesNodeExists = async (): Promise<boolean> => {
       
       return success;
     } else {
-      console.log('Nodo db_changes esiste già');
       return true;
     }
   } catch (error) {
@@ -235,7 +235,6 @@ export const registerDatabaseChange = async (
     const changeRef = ref(database, `db_changes/${changeId}`);
     await set(changeRef, change);
     
-    console.log(`[DB] Registrato cambiamento ${actionType} per ${entityType} ${entityId}`);
     return true;
   } catch (error) {
     console.error(`[DB] Errore registrazione cambiamento: ${error}`);
@@ -247,7 +246,8 @@ export const registerDatabaseChange = async (
 export const getAllClients = async (): Promise<Client[]> => {
   const snapshot = await get(clientsRef);
   if (!snapshot.exists()) return [];
-  return Object.values(snapshot.val() as Record<string, Client>);
+  const clients = Object.values(snapshot.val() as Record<string, Client>);
+  return clients.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 };
 
 export const getClientById = async (id: string): Promise<Client | null> => {
@@ -262,7 +262,7 @@ export const getRecentClients = async (limit: number = 5): Promise<Client[]> => 
   if (!snapshot.exists()) return [];
   
   const clients = Object.values(snapshot.val() as Record<string, Client>);
-  return clients.sort((a, b) => b.createdAt - a.createdAt);
+  return clients.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 };
 
 export const createClient = async (client: Omit<Client, 'id'>): Promise<Client> => {
@@ -401,12 +401,6 @@ export const createAppointment = async (appointment: Omit<Appointment, 'id'>): P
 };
 
 export const updateAppointment = async (id: string, updates: Partial<Appointment>): Promise<void> => {
-  // Log per debug
-  console.log(`FIREBASE - Debug updateAppointment ID ${id}:`, {
-    durataInviata: updates.duration,
-    tipoDurata: typeof updates.duration
-  });
-  
   // Crea un riferimento esplicito all'appuntamento nel database
   const appointmentRef = ref(database, `appointments/${id}`);
   
@@ -425,12 +419,6 @@ export const updateAppointment = async (id: string, updates: Partial<Appointment
       // Ottieni l'oggetto completo
       const currentAppointment = snapshot.val() as Appointment;
       
-      console.log(`FIREBASE - Valori attuali per appuntamento ${id}:`, {
-        durata: currentAppointment.duration,
-        tipo: typeof currentAppointment.duration,
-        qta: currentAppointment.quoteLaborHours
-      });
-      
       // Se stiamo aggiornando la durata, forziamo la conversione in numero
       if (updates.duration !== undefined) {
         // Converti esplicitamente in numero
@@ -440,8 +428,6 @@ export const updateAppointment = async (id: string, updates: Partial<Appointment
         
         // Assicuriamoci che sia un numero valido
         if (isNaN(numericDuration)) numericDuration = 1;
-          
-        console.log(`FIREBASE - Impostazione diretta duration = ${numericDuration}`);
         
         // Imposta direttamente la durata
         currentAppointment.duration = numericDuration;
@@ -486,12 +472,8 @@ export const updateAppointment = async (id: string, updates: Partial<Appointment
       
       // Verifica immediata che l'aggiornamento sia avvenuto
       const verifySnapshot = await get(appointmentRef);
-      if (verifySnapshot.exists()) {
-        const verifiedData = verifySnapshot.val();
-        console.log(`FIREBASE - Post-aggiornamento verificato:`, {
-          nuovaDurata: verifiedData.duration,
-          tipoDurata: typeof verifiedData.duration
-        });
+      if (!verifySnapshot.exists()) {
+        throw new Error(`Appointment with ID ${id} not found after update`);
       }
     } else {
       console.error(`FIREBASE - Appuntamento ${id} non trovato!`);
@@ -516,7 +498,6 @@ export const deleteAppointment = async (id: string): Promise<void> => {
     try {
       const quote = await getQuoteById(appointment.quoteId);
       if (quote && quote.status === "accettato") {
-        console.log(`Cambiando stato preventivo ${appointment.quoteId} da "accettato" a "inviato" dopo eliminazione appuntamento`);
         await updateQuote(appointment.quoteId, { status: "inviato" });
       }
     } catch (error) {
@@ -653,10 +634,7 @@ export const createQuote = async (quote: Omit<Quote, 'id'>): Promise<Quote> => {
 
 export const updateQuote = async (id: string, updates: Partial<Quote>): Promise<Quote> => {
   // Log per debug
-  console.log(`FIREBASE - Debug updateQuote ID ${id}:`, {
-    aggiornamenti: updates
-  });
-  
+
   const quoteRef = ref(database, `quotes/${id}`);
   
   try {
@@ -669,12 +647,7 @@ export const updateQuote = async (id: string, updates: Partial<Quote>): Promise<
     
     // Ottieni l'oggetto completo
     const currentQuote = snapshot.val() as Quote;
-    
-    console.log(`FIREBASE - Valori attuali per preventivo ${id}:`, {
-      clientName: currentQuote.clientName,
-      phone: currentQuote.phone
-    });
-    
+
     // Aggiorna tutte le proprietà
     Object.keys(updates).forEach(key => {
       if (key in currentQuote) {
@@ -706,10 +679,7 @@ export const updateQuote = async (id: string, updates: Partial<Quote>): Promise<
     const verifySnapshot = await get(quoteRef);
     if (verifySnapshot.exists()) {
       const verifiedData = verifySnapshot.val();
-      console.log(`FIREBASE - Post-aggiornamento preventivo verificato:`, {
-        clientName: verifiedData.clientName,
-        phone: verifiedData.phone
-      });
+
     }
     
     return calculatedQuote;
@@ -753,15 +723,7 @@ export const updateQuoteClientInfo = async (quoteId: string, clientInfo: { clien
     }
     
     const currentQuote = snapshot.val();
-    console.log(`FIREBASE - Prima dell'aggiornamento: preventivo ${quoteId}`, {
-      clientNameAttuale: currentQuote.clientName,
-      clientNameNuovo: clientInfo.clientName,
-      phoneAttuale: currentQuote.phone,
-      phoneNuovo: clientInfo.phone,
-      targaAttuale: currentQuote.plate,
-      targaNuova: clientInfo.plate
-    });
-    
+
     // Aggiorna direttamente SOLO i campi del cliente
     await update(quoteRef, {
       clientName: clientInfo.clientName,
@@ -773,22 +735,13 @@ export const updateQuoteClientInfo = async (quoteId: string, clientInfo: { clien
     const verifySnapshot = await get(quoteRef);
     if (verifySnapshot.exists()) {
       const updatedQuote = verifySnapshot.val();
-      console.log(`FIREBASE - VERIFICA post-aggiornamento: preventivo ${quoteId}`, {
-        clientNameAggiornato: updatedQuote.clientName,
-        phoneAggiornato: updatedQuote.phone,
-        plateAggiornata: updatedQuote.plate,
-        aggiornamentoCorretto: 
-          updatedQuote.clientName === clientInfo.clientName && 
-          updatedQuote.phone === clientInfo.phone &&
-          updatedQuote.plate === clientInfo.plate
-      });
-      
+
       if (updatedQuote.clientName !== clientInfo.clientName || 
           updatedQuote.phone !== clientInfo.phone ||
           updatedQuote.plate !== clientInfo.plate) {
         console.error(`ERRORE: L'aggiornamento non è stato applicato correttamente al preventivo ${quoteId}`);
       } else {
-        console.log(`SUCCESSO: Dati cliente aggiornati nel preventivo ${quoteId}`);
+
       }
     }
   } catch (error) {
@@ -810,8 +763,7 @@ function calculateItemTotal(item: QuoteItem): number {
 
 // Helper function to calculate quote totals
 export const calculateQuoteTotals = (quote: Quote): Quote => {
-  console.log("calculateQuoteTotals chiamato per il preventivo", quote.id || "nuovo");
-  
+
   // Assicuriamoci che quotes.items esista
   if (!quote.items || !Array.isArray(quote.items)) {
     console.warn("Il preventivo non ha un array 'items' valido, utilizzerò i dati disponibili");
@@ -842,10 +794,6 @@ export const calculateQuoteTotals = (quote: Quote): Quote => {
     // La manodopera verrà calcolata separatamente e mostrata alla fine
     
     // Log per debug
-    console.log(`Servizio: ${item.serviceType.name}`, {
-      ricambi: partsTotal.toFixed(2) + '€'
-    });
-    
     return {
       ...item,
       totalPrice: partsTotal // Solo i ricambi, senza manodopera
@@ -873,14 +821,6 @@ export const calculateQuoteTotals = (quote: Quote): Quote => {
   // Manodopera totale (servizi + aggiuntiva)
   const totalLabor = servicesLabor + additionalLabor;
   
-  // Log per debug
-  console.log("Calcolo manodopera:", {
-    tariffaOraria: quote.laborPrice + '€/h',
-    manodoperaServizi: servicesLabor.toFixed(2) + '€',
-    manodoperaAggiuntiva: additionalLabor.toFixed(2) + '€',
-    manodoperaTotale: totalLabor.toFixed(2) + '€'
-  });
-  
   // Calcola il subtotale complessivo (ricambi + manodopera totale)
   const subtotal = partsSubtotal + totalLabor;
   
@@ -889,16 +829,7 @@ export const calculateQuoteTotals = (quote: Quote): Quote => {
   const taxAmount = (subtotal * taxRate) / 100;
   
   // Calcola il totale
-  const total = subtotal + taxAmount;
-  
-  // Log finale dei totali
-  console.log("TOTALI FINALI:", {
-    subtotaleRicambi: partsSubtotal.toFixed(2) + '€',
-    manodoperaTotale: totalLabor.toFixed(2) + '€',
-    subtotale: subtotal.toFixed(2) + '€',
-    iva: taxAmount.toFixed(2) + '€',
-    totale: total.toFixed(2) + '€'
-  });
+  const total = parseFloat((subtotal + taxAmount).toFixed(2));
   
   // Utilizziamo un cast per aggirare l'errore del linter poiché i campi custom 
   // partsSubtotal e laborTotal non sono definiti nell'interfaccia Quote standard
@@ -960,17 +891,16 @@ const initDefaultServiceTypes = async (): Promise<void> => {
 
 // Funzione di utilità per riparare tutti i preventivi esistenti
 export const repairAllQuotesClientNames = async (): Promise<{ fixed: number, total: number }> => {
-  console.log("Avvio riparazione preventivi...");
+
   const snapshot = await get(quotesRef);
   
   if (!snapshot.exists()) {
-    console.log("Nessun preventivo trovato.");
+
     return { fixed: 0, total: 0 };
   }
   
   const quotes = Object.values(snapshot.val() as Record<string, Quote>);
-  console.log(`Trovati ${quotes.length} preventivi da controllare.`);
-  
+
   let fixedCount = 0;
   
   // Per ogni preventivo, controlla se il clientId esiste e aggiorna i dati del cliente
@@ -978,7 +908,7 @@ export const repairAllQuotesClientNames = async (): Promise<{ fixed: number, tot
     try {
       // Controlla se esiste un cliente associato
       if (!quote.clientId) {
-        console.log(`Preventivo ${quote.id}: Nessun clientId associato.`);
+
         continue;
       }
       
@@ -986,7 +916,7 @@ export const repairAllQuotesClientNames = async (): Promise<{ fixed: number, tot
       const client = await getClientById(quote.clientId);
       
       if (!client) {
-        console.log(`Preventivo ${quote.id}: Cliente con ID ${quote.clientId} non trovato.`);
+
         continue;
       }
       
@@ -995,12 +925,7 @@ export const repairAllQuotesClientNames = async (): Promise<{ fixed: number, tot
       
       // Controlla se il nome è diverso
       if (quote.clientName !== formattedClientName || quote.phone !== client.phone) {
-        console.log(
-          `Preventivo ${quote.id}: Riparazione necessaria.`,
-          `Nome attuale: "${quote.clientName}"`,
-          `Nome corretto: "${formattedClientName}"`
-        );
-        
+
         // Aggiorna il preventivo
         await updateQuoteClientInfo(quote.id, {
           clientName: formattedClientName,
@@ -1009,14 +934,13 @@ export const repairAllQuotesClientNames = async (): Promise<{ fixed: number, tot
         });
         
         fixedCount++;
-        console.log(`Preventivo ${quote.id}: Riparazione completata.`);
+
       }
     } catch (error) {
       console.error(`Errore durante la riparazione del preventivo ${quote.id}:`, error);
     }
   }
-  
-  console.log(`Riparazione completata. ${fixedCount}/${quotes.length} preventivi aggiornati.`);
+
   return { fixed: fixedCount, total: quotes.length };
 };
 
@@ -1111,14 +1035,6 @@ export const mergeQuotes = async (quoteIds: string[]): Promise<Quote | null> => 
     // 5. Totale finale
     const total = parseFloat((subtotal + taxAmount).toFixed(2));
     
-    console.log(`Calcolo totali per il preventivo unificato:`, {
-      ricambi: partsSubtotal.toFixed(2) + '€',
-      manodopera: laborTotal.toFixed(2) + '€',
-      subtotale: subtotal.toFixed(2) + '€',
-      iva: taxAmount.toFixed(2) + '€',
-      totale: total.toFixed(2) + '€'
-    });
-    
     // Imposta i totali calcolati nel preventivo
     newQuote.partsSubtotal = parseFloat(partsSubtotal.toFixed(2));
     newQuote.laborTotal = parseFloat(laborTotal.toFixed(2));
@@ -1133,14 +1049,11 @@ export const mergeQuotes = async (quoteIds: string[]): Promise<Quote | null> => 
     newQuote.totalPrice = parseFloat(newQuote.totalPrice.toFixed(2));
     
     // Stampa finale per conferma
-    console.log(`TOTALE FINALE calcolato e pronto per salvataggio: ${newQuote.total}€ (${newQuote.totalPrice}€)`);
-    
     // Salva il nuovo preventivo
     const createdQuote = await createQuote(newQuote);
     
     // Stampa di verifica dopo il salvataggio
-    console.log(`Preventivo unificato ${createdQuote.id} salvato con successo. TOTALE: ${createdQuote.total}€`);
-    
+
     // Elimina i preventivi originali
     for (const id of quoteIds) {
       try {
@@ -1154,12 +1067,12 @@ export const mergeQuotes = async (quoteIds: string[]): Promise<Quote | null> => 
             quoteId: createdQuote.id,
             quoteLaborHours: totalLaborHours
           });
-          console.log(`Appuntamento ${app.id} aggiornato per usare il nuovo preventivo ${createdQuote.id}`);
+
         }
         
         // Elimina il preventivo originale
         await deleteQuote(id);
-        console.log(`Preventivo originale ${id} eliminato dopo unione`);
+
       } catch (error) {
         console.error(`Errore nell'eliminazione del preventivo originale ${id}:`, error);
       }

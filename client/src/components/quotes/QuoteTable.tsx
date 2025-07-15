@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { Quote } from "@shared/schema";
-import { deleteQuote, updateQuote, mergeQuotes } from "@shared/firebase";
+import { deleteQuote, updateQuote, mergeQuotes, getAllAppointments } from "@shared/supabase";
 import { exportQuoteToPDF } from "@/services/exportService";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -51,6 +51,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface QuoteTableProps {
   quotes: Quote[];
@@ -82,6 +83,8 @@ export default function QuoteTable({
   const [isMerging, setIsMerging] = useState(false);
   // Stato per la modalità selezione
   const [selectionMode, setSelectionMode] = useState(false);
+  const [quotesToDelete, setQuotesToDelete] = useState<Quote[]>([]);
+  const queryClient = useQueryClient();
   
   // Ordina i preventivi: bozze, inviati, accettati, completati
   const sortedQuotes = useMemo(() => {
@@ -241,19 +244,19 @@ export default function QuoteTable({
     
     setIsDeleting(true);
     try {
-      // Prima di eliminare il preventivo, troviamo tutti gli appuntamenti collegati
-      // e aggiorniamo i loro riferimenti
-      const appointments = await appointmentService.getAll();
-      const linkedAppointments = appointments.filter(app => app.quoteId === quoteToDelete.id);
+      // Ottieni tutti gli appuntamenti per verificare se ci sono appuntamenti collegati
+      const appointments = await getAllAppointments();
+      const relatedAppointments = appointments.filter(app => app.quoteId === quoteToDelete.id);
       
-      if (linkedAppointments.length > 0) {
-        // Aggiorniamo ogni appuntamento collegato
-        for (const app of linkedAppointments) {
-          const updates: Partial<Appointment> = {
-            quoteId: "", // Rimuovi il riferimento al preventivo
-            partsOrdered: false, // Reset dello stato dei pezzi
-          };
-          
+      // Se ci sono appuntamenti collegati, rimuovi il riferimento al preventivo
+      for (const app of relatedAppointments) {
+        const updates: Partial<Appointment> = {
+          quoteId: "", // Rimuove il riferimento al preventivo
+          quoteLaborHours: 0 // Resetta le ore di manodopera del preventivo
+        };
+        
+        // Se l'appuntamento è completato, mantienilo così
+        if (app.status !== "completato") {
           // Aggiorna l'appuntamento rimuovendo il riferimento al preventivo
           await appointmentService.update(app.id, updates);
         }
@@ -261,6 +264,20 @@ export default function QuoteTable({
       
       // Elimina il preventivo
       await deleteQuote(quoteToDelete.id);
+      
+      // Aggiornamento cache completo per garantire coerenza
+      try {
+        await Promise.all([
+          // Query principali
+          queryClient.invalidateQueries({ queryKey: ['/api/quotes'] }),
+          // Query specifiche per cliente - importante per aggiornare i preventivi negli appuntamenti
+          queryClient.invalidateQueries({ queryKey: ['/quotes/client'] }),
+          // Query per appuntamenti che potrebbero dipendere dai preventivi
+          queryClient.invalidateQueries({ queryKey: ['/appointments'] })
+        ]);
+      } catch (cacheError) {
+        console.warn("Errore nell'aggiornamento cache:", cacheError);
+      }
       
       toast({
         title: "Preventivo eliminato",
@@ -282,11 +299,7 @@ export default function QuoteTable({
   
   // Gestisce il cambio di stato
   const handleStatusChange = async (quote: Quote, newStatus: Quote['status']) => {
-    // Salva lo stato precedente per poter ripristinare in caso di errore
-    const previousStatus = quote.status;
-    
     try {
-      // Approccio "optimistic update":
       // Notifica subito l'utente che lo stato è cambiato per dare un feedback immediato
       toast({
         title: "Aggiornamento in corso...",
@@ -296,7 +309,21 @@ export default function QuoteTable({
       // Esegui l'aggiornamento sul server
       await updateQuote(quote.id, { status: newStatus });
       
-      // Forza un refresh dei dati
+      // Aggiornamento cache completo per garantire coerenza
+      try {
+        await Promise.all([
+          // Query principali
+          queryClient.invalidateQueries({ queryKey: ['/api/quotes'] }),
+          // Query specifiche per cliente - importante per aggiornare i preventivi negli appuntamenti
+          queryClient.invalidateQueries({ queryKey: ['/quotes/client'] }),
+          // Query per appuntamenti che potrebbero dipendere dai preventivi
+          queryClient.invalidateQueries({ queryKey: ['/appointments'] })
+        ]);
+      } catch (cacheError) {
+        console.warn("Errore nell'aggiornamento cache:", cacheError);
+      }
+      
+      // Forza un refresh dei dati usando la callback fornita
       onStatusChange();
       
       // Notifica l'utente che l'aggiornamento è stato completato
@@ -384,6 +411,39 @@ export default function QuoteTable({
     return iconMap[status];
   };
   
+  // REGOLA: Verifica se il preventivo deve essere aperto in sola lettura
+  const shouldOpenReadOnly = async (quote: Quote): Promise<boolean> => {
+    if (quote.status === "accettato") {
+      try {
+        const appointments = await getAllAppointments();
+        const associatedAppointment = appointments.find(app => app.quoteId === quote.id);
+        
+        if (associatedAppointment && associatedAppointment.status === "in_lavorazione") {
+          return true;
+        }
+        return false;
+      } catch (error) {
+        console.error("Errore nel controllo dell'editabilità del preventivo:", error);
+        return false;
+      }
+    }
+    return false;
+  };
+
+  // Gestisce l'edit del preventivo con controllo
+  const handleEditQuote = async (quote: Quote) => {
+    // Sempre permette l'apertura, ma controlla se deve essere in sola lettura
+    const isReadOnly = await shouldOpenReadOnly(quote);
+    
+    if (isReadOnly) {
+      // Passa il preventivo con una proprietà speciale per indicare che è read-only
+      const quoteWithReadOnly = { ...quote, _readOnly: true };
+      onEdit(quoteWithReadOnly);
+    } else {
+      onEdit(quote);
+    }
+  };
+  
   if (isLoading) {
     return (
       <div className="p-4">
@@ -447,6 +507,21 @@ export default function QuoteTable({
                       for (const id of selectedQuotes) {
                         await deleteQuote(id);
                       }
+                      
+                      // Aggiornamento cache completo per garantire coerenza
+                      try {
+                        await Promise.all([
+                          // Query principali
+                          queryClient.invalidateQueries({ queryKey: ['/api/quotes'] }),
+                          // Query specifiche per cliente - importante per aggiornare i preventivi negli appuntamenti
+                          queryClient.invalidateQueries({ queryKey: ['/quotes/client'] }),
+                          // Query per appuntamenti che potrebbero dipendere dai preventivi
+                          queryClient.invalidateQueries({ queryKey: ['/appointments'] })
+                        ]);
+                      } catch (cacheError) {
+                        console.warn("Errore nell'aggiornamento cache:", cacheError);
+                      }
+                      
                       toast({
                         title: "Preventivi eliminati",
                         description: `${selectedQuotes.length} preventivi sono stati eliminati con successo.`,
@@ -501,6 +576,7 @@ export default function QuoteTable({
               <TableHead className="w-[15%]">Totale</TableHead>
               <TableHead className="w-[10%]">Data</TableHead>
               <TableHead className="w-[5%]">Ore</TableHead>
+              <TableHead className="w-[5%]">PDF</TableHead>
               <TableHead className="w-[10%]">Stato</TableHead>
               {!readOnly && <TableHead className="w-[10%] text-right">Azioni</TableHead>}
             </TableRow>
@@ -521,7 +597,7 @@ export default function QuoteTable({
                   // Altrimenti, se il click non è su un pulsante o un elemento dropdown, apri il preventivo
                   const target = e.target as HTMLElement;
                   if (!target.closest('button') && !target.closest('[role="menuitem"]') && !target.closest('input[type="checkbox"]')) {
-                    onEdit(quote);
+                    handleEditQuote(quote);
                   }
                 }}
               >
@@ -560,6 +636,11 @@ export default function QuoteTable({
                   {formatLaborHours(quote.laborHours)}
                 </TableCell>
                 <TableCell>
+                  <Button variant="ghost" size="icon" onClick={() => handleExportToPDF(quote)}>
+                    <FileDown className="h-4 w-4 text-orange-500" />
+                  </Button>
+                </TableCell>
+                <TableCell>
                   <Badge variant={getStatusBadgeVariant(quote.status)} className="flex items-center gap-1 w-fit">
                     {getStatusIcon(quote.status)}
                     {getStatusLabel(quote.status)}
@@ -576,7 +657,7 @@ export default function QuoteTable({
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                          <DropdownMenuItem onClick={() => onEdit(quote)}>
+                          <DropdownMenuItem onClick={() => handleEditQuote(quote)}>
                             <Edit className="mr-2 h-4 w-4" />
                             Modifica
                           </DropdownMenuItem>
@@ -586,9 +667,10 @@ export default function QuoteTable({
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => handleStatusChange(quote, "bozza")}> <Clock className="mr-2 h-4 w-4" /> Stato: Bozza </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleStatusChange(quote, "inviato")}> <Send className="mr-2 h-4 w-4" /> Stato: Inviato </DropdownMenuItem>
+                         {/*
                           <DropdownMenuItem onClick={() => handleStatusChange(quote, "accettato")}> <CheckCircle className="mr-2 h-4 w-4" /> Stato: Accettato </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleStatusChange(quote, "completato")}> <CheckCircle2 className="mr-2 h-4 w-4" /> Stato: Completato </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleStatusChange(quote, "completato")}> <CheckCircle2 className="mr-2 h-4 w-4" /> Stato: Completato </DropdownMenuItem>*/}
+                           <DropdownMenuItem onClick={() => handleStatusChange(quote, "inviato")}> <Send className="mr-2 h-4 w-4" /> Stato: Inviato </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleStatusChange(quote, "archiviato")}> <Archive className="mr-2 h-4 w-4" /> Stato: Archiviato </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           {(quote.status === "inviato" || quote.status === "accettato") && (

@@ -5,8 +5,9 @@ import {
   createAppointment, 
   updateAppointment, 
   deleteAppointment, 
-  getAppointmentsByDate 
-} from "@shared/firebase";
+  getAppointmentsByDate,
+  getAppointmentsByClientId
+} from "@shared/supabase";
 import { doc, updateDoc, getDoc } from "firebase/firestore";
 
 // Appointment service
@@ -102,5 +103,10 @@ export const appointmentService = {
     const appointments = await getAllAppointments();
     if (status === "all") return appointments;
     return appointments.filter(appointment => appointment.status === status);
+  },
+  
+  // Get appointments by client ID
+  getByClientId: async (clientId: string): Promise<Appointment[]> => {
+    return await getAppointmentsByClientId(clientId);
   }
 };

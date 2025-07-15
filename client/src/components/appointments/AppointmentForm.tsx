@@ -3,9 +3,9 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { format } from "date-fns";
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, isToday, isBefore, startOfDay } from "date-fns";
 import { it } from "date-fns/locale";
-import { XCircle, FileText, Check, ArrowRight, Plus, Trash2, CalendarIcon, Calendar as CalendarIcon2, SearchIcon, Clock, Edit } from "lucide-react";
+import { XCircle, FileText, Check, ArrowRight, Plus, Trash2, CalendarIcon, Calendar as CalendarIcon2, SearchIcon, Clock, Edit, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 import {
@@ -26,7 +26,6 @@ import {
   FormMessage,
   FormDescription,
 } from "@/components/ui/form";
-import { SimplePopover } from "@/components/ui/CustomUIComponents";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -41,7 +40,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Calendar } from "@/components/ui/calendar";
 import { useToast } from "@/hooks/use-toast";
 
 import {
@@ -53,14 +51,16 @@ import {
   getQuotesByClientId,
   getQuoteById,
   getAllAppointments,
-  updateQuote
-} from "@shared/firebase";
+  updateQuote,
+  updateClient
+} from "@shared/supabase";
 import { 
   Appointment, 
   Client, 
   Quote, 
   CreateAppointmentInput, 
-  createAppointmentSchema
+  createAppointmentSchema,
+  SparePart
 } from "@shared/schema";
 import { lookupVehicleByPlate, formatVehicleDetails } from "@/services/vehicleLookupService";
 import { extractVehicleBrand } from '@/utils/vehicleUtils';
@@ -74,7 +74,22 @@ interface AppointmentFormProps {
   onEditQuote?: (quote: Quote) => void;
   onCreateQuote?: (clientId: string) => void;
   defaultQuote?: Quote;
+  defaultClientId?: string;
 }
+
+// Tipo personalizzato per il form che risolve il conflitto di tipizzazione
+type AppointmentFormData = Omit<CreateAppointmentInput, 'spareParts'> & {
+  spareParts?: Array<Omit<SparePart, 'category'> & { category: string }>;
+};
+
+// Funzione per aggiungere ore a un orario
+const addHoursToTime = (time: string, hours: number): string => {
+  const [h, m] = time.split(':').map(Number);
+  const date = new Date();
+  date.setHours(h, m);
+  date.setHours(date.getHours() + hours);
+  return format(date, 'HH:mm');
+};
 
 export default function AppointmentForm({ 
   isOpen, 
@@ -84,7 +99,8 @@ export default function AppointmentForm({
   selectedDate,
   onEditQuote,
   onCreateQuote,
-  defaultQuote
+  defaultQuote,
+  defaultClientId
 }: AppointmentFormProps) {
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
@@ -107,10 +123,10 @@ export default function AppointmentForm({
       : "programmato";
 
   const statusValue = normalizeStatus(appointment?.status);
-  console.log("DEBUG STATUS:", appointment?.status, "->", statusValue, "form.watch:", appointment?.status);
+  // console.log("DEBUG STATUS:", appointment?.status, "->", statusValue, "form.watch:", appointment?.status);
 
-  const form = useForm<CreateAppointmentInput>({
-    resolver: zodResolver(createAppointmentSchema),
+  const form = useForm<AppointmentFormData>({
+    resolver: zodResolver(createAppointmentSchema) as any,
     defaultValues: {
       clientId: appointment?.clientId || defaultQuote?.clientId || "",
       quoteId: appointment?.quoteId || defaultQuote?.id || "",
@@ -124,6 +140,7 @@ export default function AppointmentForm({
       clientName: appointment?.clientName || "",
       phone: appointment?.phone || "",
       plate: appointment?.plate || "",
+      model: appointment?.model || "",
     },
   });
   
@@ -175,6 +192,7 @@ export default function AppointmentForm({
   // Quando viene aperto il form per modificare un appuntamento esistente, carica i dati del cliente
   useEffect(() => {
     const loadClientData = async () => {
+      // Gestione per appuntamento esistente
       if (appointment?.clientId) {
         try {
           const client = await getClientById(appointment.clientId);
@@ -198,7 +216,6 @@ export default function AppointmentForm({
                 // MODIFICATO: Aggiorna SEMPRE la durata dal preventivo
                 const laborHours = (quote as any).laborHours || 0;
                 if (laborHours > 0) {
-                  console.log(`IMPORTANTE: Impostando durata a ${laborHours} ore dal preventivo (durata precedente: ${appointment.duration})`);
                   form.setValue("duration", laborHours);
                 } else {
                   console.log(`Preventivo senza ore di manodopera (${laborHours}h), mantengo durata attuale: ${appointment.duration}h`);
@@ -210,12 +227,68 @@ export default function AppointmentForm({
           console.error("Errore nel caricamento del cliente:", error);
         }
       }
+      // Gestione per defaultQuote (nuovo appuntamento con cliente preselezionato)
+      else if (defaultQuote?.clientId && !selectedClient) {
+        try {
+          const client = await getClientById(defaultQuote.clientId);
+          if (client) {
+            setSelectedClient(client);
+            form.setValue("clientId", client.id);
+            form.setValue("clientName", `${client.name} ${client.surname}`);
+            form.setValue("phone", client.phone || "");
+            form.setValue("plate", client.plate || "");
+            
+            // Imposta la targa del veicolo
+            if (client.plate) {
+              setVehiclePlate(client.plate);
+            }
+            
+            // Se c'è un modello associato, impostalo nel form
+            if (client.model) {
+              form.setValue("model", client.model);
+            }
+            
+            // Passa automaticamente allo step 2 (preventivi) se il cliente è preselezionato
+            setCurrentStep(2);
+          }
+        } catch (error) {
+          console.error("Errore nel caricamento del cliente dal defaultQuote:", error);
+        }
+      }
+      // Gestione per defaultClientId (cliente preselezionato dopo creazione preventivo)
+      else if (defaultClientId && !selectedClient) {
+        try {
+          const client = await getClientById(defaultClientId);
+          if (client) {
+            setSelectedClient(client);
+            form.setValue("clientId", client.id);
+            form.setValue("clientName", `${client.name} ${client.surname}`);
+            form.setValue("phone", client.phone || "");
+            form.setValue("plate", client.plate || "");
+            
+            // Imposta la targa del veicolo
+            if (client.plate) {
+              setVehiclePlate(client.plate);
+            }
+            
+            // Se c'è un modello associato, impostalo nel form
+            if (client.model) {
+              form.setValue("model", client.model);
+            }
+            
+            // Passa automaticamente allo step 2 (preventivi) se il cliente è preselezionato
+            setCurrentStep(2);
+          }
+        } catch (error) {
+          console.error("Errore nel caricamento del cliente dal defaultClientId:", error);
+        }
+      }
     };
     
-    if (isOpen && appointment) {
+    if (isOpen) {
       loadClientData();
     }
-  }, [isOpen, appointment, form]);
+  }, [isOpen, appointment, defaultQuote, form, selectedClient, defaultClientId]);
   
   // Reset dello stato quando si chiude il dialog
   useEffect(() => {
@@ -257,10 +330,10 @@ export default function AppointmentForm({
     
     const query = searchQuery.toLowerCase();
     return clients.filter(client => 
-      client.name.toLowerCase().includes(query) || 
-      client.surname.toLowerCase().includes(query) || 
-      client.phone.toLowerCase().includes(query) || 
-      client.plate.toLowerCase().includes(query)
+      (client.name || "").toLowerCase().includes(query) || 
+      (client.surname || "").toLowerCase().includes(query) || 
+      (client.phone || "").toLowerCase().includes(query) || 
+      (client.plate || "").toLowerCase().includes(query)
     );
   }, [searchQuery, clients]);
   
@@ -268,10 +341,8 @@ export default function AppointmentForm({
     setSelectedClient(client);
     form.setValue("clientId", client.id);
     
-    // Imposta la targa del cliente se disponibile
-    if (client.plate) {
-      setVehiclePlate(client.plate);
-    }
+    // Non impostiamo più automaticamente la targa
+    // Lasciamo che l'utente scelga dal menu a tendina
     
     // Se c'è un modello associato, impostalo nel form
     if (client.model) {
@@ -299,20 +370,9 @@ export default function AppointmentForm({
   };
   
   const handleSelectQuote = async (quote: Quote) => {
-    // Verifichiamo che il preventivo abbia un totale corretto
-    // Aggiungiamo debug per verificare lo stato del preventivo
-    console.log(`Preventivo selezionato ${quote.id}:`, {
-      totalPrice: quote.totalPrice,
-      total: quote.total,
-      laborTotal: (quote as any).laborTotal,
-      partsSubtotal: (quote as any).partsSubtotal,
-      taxAmount: (quote as any).taxAmount
-    });
-    
     // Se il preventivo ha il totale a 0 ma ha subtotali validi, ricalcola il totale
     if ((!quote.totalPrice || quote.totalPrice === 0) && (!quote.total || quote.total === 0) && 
         (((quote as any).laborTotal > 0 || (quote as any).partsSubtotal > 0))) {
-      console.log(`Preventivo ${quote.id} ha totale a 0, ricalcolando...`);
       
       // Ricalcola il totale dai subtotali
       const recalculatedTotal = ((quote as any).laborTotal || 0) + ((quote as any).partsSubtotal || 0);
@@ -325,8 +385,6 @@ export default function AppointmentForm({
         totalPrice: finalTotal,
         total: finalTotal
       };
-      
-      console.log(`Preventivo ${quote.id} recalcolato con totale: ${finalTotal}€`);
     }
     
     setSelectedQuote(quote);
@@ -334,7 +392,6 @@ export default function AppointmentForm({
     
     // Se il preventivo ha ore di manodopera, imposta la durata dell'appuntamento
     if (quote.laborHours && quote.laborHours > 0) {
-      console.log(`Impostando durata appuntamento a ${quote.laborHours} ore dal preventivo`);
       form.setValue("duration", quote.laborHours);
     }
     
@@ -350,9 +407,6 @@ export default function AppointmentForm({
   };
   
   const handleEditQuote = (quote: Quote) => {
-    console.log("handleEditQuote chiamata con preventivo:", quote.id);
-    console.log("onEditQuote disponibile:", !!onEditQuote);
-    
     if (!onEditQuote) {
       console.error("onEditQuote non è definita!");
       toast({
@@ -363,17 +417,24 @@ export default function AppointmentForm({
       return;
     }
     
+    // REGOLA: Se il preventivo è accettato e l'appuntamento è in lavorazione, non permettere la modifica
+    if (quote.status === "accettato" && appointment?.status === "in_lavorazione") {
+      toast({
+        title: "Modifica non consentita",
+        description: "Non è possibile modificare un preventivo quando l'appuntamento è in lavorazione.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     try {
-      console.log("Chiusura form appuntamento prima di modificare il preventivo");
+      // Chiudi il modal dell'appuntamento per evitare conflitti di z-index
+      onClose();
       
-      // Chiama direttamente onEditQuote senza chiudere il form
-      // per evitare problemi di timing
-      onEditQuote(quote);
-      
-      // Chiudi il form dopo aver chiamato onEditQuote
+      // Apri il form di modifica preventivo dopo un breve delay
       setTimeout(() => {
-        onClose();
-      }, 100);
+        onEditQuote(quote);
+      }, 200);
       
     } catch (error) {
       console.error("Errore nella modifica del preventivo:", error);
@@ -387,7 +448,13 @@ export default function AppointmentForm({
   
   const handleCreateNewQuote = () => {
     if (onCreateQuote && selectedClient) {
-      onCreateQuote(selectedClient.id);
+      // Chiudi temporaneamente il modal dell'appuntamento per evitare conflitti di z-index
+      onClose();
+      
+      // Apri il form del preventivo dopo un breve delay
+      setTimeout(() => {
+        onCreateQuote(selectedClient.id);
+      }, 200);
     }
   };
   
@@ -464,34 +531,6 @@ export default function AppointmentForm({
     }
   };
   
-  // Dopo il salvataggio dell'appuntamento, esegui un'operazione molto importante
-  // che ricarica forzatamente i dati e aggiorna tutte le viste
-  const forceRefreshAfterSave = async () => {
-    console.log(`DEBUG - Forzo aggiornamento dopo salvataggio di appuntamento`);
-    
-    try {
-      // 1. Invia evento di aggiornamento calendario
-      const event = new Event('calendar:update');
-      window.dispatchEvent(event);
-      
-      // 2. Ricarica forzata della pagina
-      if (window && window.parent && (window.parent as any).reloadAppointments) {
-        console.log("DEBUG - Richiamo reloadAppointments");
-        await (window.parent as any).reloadAppointments();
-      }
-      
-      // 3. Forza aggiornamento della vista calendario
-      if (window && (window as any).forceCalendarRefresh) {
-        console.log("DEBUG - Forzo refresh vista calendario");
-        (window as any).forceCalendarRefresh();
-      }
-      
-      console.log("DEBUG - Aggiornamento forzato completato");
-    } catch (error) {
-      console.error("Errore nell'aggiornamento forzato:", error);
-    }
-  };
-  
   // Funzioni helper per formattare data e ora
   const formatAppointmentDate = (dateStr: string): string => {
     return dateStr || format(new Date(), "yyyy-MM-dd");
@@ -508,7 +547,7 @@ export default function AppointmentForm({
   };
   
   // Gestisce l'evento di submit del form
-  const onSubmit = async (data: CreateAppointmentInput) => {
+  const onSubmit = async (data: AppointmentFormData) => {
     setIsSubmitting(true);
     
     try {
@@ -526,18 +565,67 @@ export default function AppointmentForm({
       // Imposta lo stato del preventivo a "accettato" quando si salva l'appuntamento
       if (selectedQuote.status !== "accettato") {
         try {
-          await updateQuote(selectedQuote.id, { status: "accettato" });
+          // FIX FIREFOX: Gestione specifica per Firefox con retry
+          if (navigator.userAgent.includes('Firefox')) {
+            // Primo tentativo
+            let updateSuccess = false;
+            let retryCount = 0;
+            const maxRetries = 3;
+            
+            while (!updateSuccess && retryCount < maxRetries) {
+              try {
+                await updateQuote(selectedQuote.id, { status: "accettato" });
+                
+                // Aspetta un momento e verifica che l'aggiornamento sia andato a buon fine
+                await new Promise(resolve => setTimeout(resolve, 200));
+                
+                // Verifica lo stato del preventivo
+                const updatedQuote = await getQuoteById(selectedQuote.id);
+                if (updatedQuote && updatedQuote.status === "accettato") {
+                  updateSuccess = true;
+                } else {
+                  retryCount++;
+                  await new Promise(resolve => setTimeout(resolve, 300));
+                }
+              } catch (retryError) {
+                retryCount++;
+                await new Promise(resolve => setTimeout(resolve, 300));
+              }
+            }
+            
+            if (!updateSuccess) {
+              throw new Error("Fallito aggiornamento preventivo dopo " + maxRetries + " tentativi");
+            }
+            
+          } else {
+            // Per tutti gli altri browser, comportamento normale
+            await updateQuote(selectedQuote.id, { status: "accettato" });
+          }
+          
           toast({
             title: "Preventivo accettato",
             description: "Lo stato del preventivo è stato aggiornato in 'Accettato'.",
           });
         } catch (error) {
-          console.error("Errore nell'aggiornamento dello stato del preventivo:", error);
-          toast({
-            title: "Errore",
-            description: "Non è stato possibile aggiornare lo stato del preventivo.",
-            variant: "destructive",
-          });
+          console.error("❌ Errore nell'aggiornamento dello stato del preventivo:", error);
+          
+          // FIX FIREFOX: Messaggio di errore più specifico
+          if (navigator.userAgent.includes('Firefox')) {
+            toast({
+              title: "Errore Firefox",
+              description: "Problema nell'aggiornamento del preventivo. L'appuntamento sarà creato ma controlla manualmente lo stato del preventivo.",
+              variant: "destructive",
+            });
+          } else {
+            toast({
+              title: "Errore",
+              description: "Non è stato possibile aggiornare lo stato del preventivo.",
+              variant: "destructive",
+            });
+          }
+          
+          // Non bloccare la creazione dell'appuntamento, ma segnala il problema
+          console.warn("⚠️ Continuando con la creazione dell'appuntamento nonostante l'errore del preventivo");
         }
       }
       
@@ -565,20 +653,13 @@ export default function AppointmentForm({
       // dato che ora abbiamo sempre un preventivo associato
       const quoteLaborHoursValue = durationValue;
       
-      console.log("DEBUG FORM - Valori sincronizzati prima dell'invio:", {
-        durata: durationValue,
-        tipoDurata: typeof durationValue,
-        quoteLaborHours: quoteLaborHoursValue,
-        tipoQuoteLaborHours: typeof quoteLaborHoursValue,
-        preventivoId: selectedQuote.id,
-        nota: "quoteLaborHours impostato uguale a duration con preventivo obbligatorio"
-      });
-      
       // Rimappa i dati per adattarli al formato dell'appuntamento
       const appointmentData: Partial<Appointment> = {
-        clientId: data.clientId,
-        clientName: data.clientName,
-        plate: data.plate,
+        clientId: selectedClient?.id || data.clientId,
+        clientName: selectedClient ? `${selectedClient.name} ${selectedClient.surname}` : data.clientName,
+        phone: selectedClient?.phone || data.phone || "",
+        plate: selectedClient?.plate || data.plate || "",
+        model: selectedClient?.model || data.model || "",
         date: formatAppointmentDate(data.date),
         time: formatAppointmentTime(data.time),
         duration: durationValue,
@@ -590,13 +671,6 @@ export default function AppointmentForm({
         status: data.status || "programmato",
       };
       
-      console.log("DEBUG AppointmentForm - Sto salvando l'appuntamento:", {
-        durata: appointmentData.duration,
-        quoteLaborHours: appointmentData.quoteLaborHours,
-        quoteId: appointmentData.quoteId,
-        preventivoObbligatorio: true
-      });
-      
       let savedId;
       
       // Aggiorna o crea un nuovo appuntamento
@@ -605,66 +679,25 @@ export default function AppointmentForm({
         await updateAppointment(appointment.id, appointmentData);
         savedId = appointment.id;
         
-        // Log diagnostico
-        console.log(`DEBUG - Appuntamento aggiornato, ID: ${savedId}, durata: ${appointmentData.duration}h`);
-        
-        // Notifica il calendario che ci sono stati cambiamenti
-        try {
-          const event = new Event('calendar:update');
-          window.dispatchEvent(event);
-          
-          // Aggiunta chiamata alla funzione di refresh forzato
-          await forceRefreshAfterSave();
-          
-          // Tenta anche di richiamare la funzione globale direttamente se esiste
-          if (window && (window as any).forceCalendarRefresh) {
-            console.log("DEBUG - Forzo il refresh del calendario tramite forceCalendarRefresh");
-            (window as any).forceCalendarRefresh();
-          } else if (window && window.parent && (window.parent as any).reloadAppointments) {
-            console.log("DEBUG - Forzo la ricarica degli appuntamenti tramite reloadAppointments");
-            (window.parent as any).reloadAppointments();
-          }
-          
-          console.log("DEBUG - Inviato evento di aggiornamento calendario dopo modifica appuntamento");
-        } catch (eventError) {
-          console.error("Errore nell'invio dell'evento di aggiornamento:", eventError);
-        }
         toast({
           title: "Appuntamento aggiornato",
           description: "L'appuntamento è stato aggiornato con successo.",
         });
+        
+        // Chiama onSuccess per gestire l'aggiornamento della lista
         if (onSuccess) onSuccess();
-        onClose();
       } else {
         // Creazione nuovo appuntamento
         const newAppointment = await createAppointment(appointmentData as Appointment);
         savedId = newAppointment.id;
         
-        // Notifica il calendario che ci sono stati cambiamenti
-        try {
-          const event = new Event('calendar:update');
-          window.dispatchEvent(event);
-          
-          // Aggiunta chiamata alla funzione di refresh forzato
-          await forceRefreshAfterSave();
-          
-          // Tenta anche di richiamare la funzione globale direttamente se esiste
-          if (window && (window as any).forceCalendarRefresh) {
-            console.log("DEBUG - Forzo il refresh del calendario tramite forceCalendarRefresh");
-            (window as any).forceCalendarRefresh();
-          } else if (window && window.parent && (window.parent as any).reloadAppointments) {
-            console.log("DEBUG - Forzo la ricarica degli appuntamenti tramite reloadAppointments");
-            (window.parent as any).reloadAppointments();
-          }
-          
-          console.log("DEBUG - Inviato evento di aggiornamento calendario dopo salvataggio appuntamento");
-        } catch (eventError) {
-          console.error("Errore nell'invio dell'evento di aggiornamento:", eventError);
-        }
         toast({
           title: "Appuntamento creato",
           description: "L'appuntamento è stato creato con successo.",
         });
+        
+        // Chiama onSuccess per gestire l'aggiornamento della lista
+        if (onSuccess) onSuccess();
       }
     } catch (error) {
       console.error("Errore nel salvataggio dell'appuntamento:", error);
@@ -734,6 +767,7 @@ export default function AppointmentForm({
         clientName: appointment?.clientName || "",
         phone: appointment?.phone || "",
         plate: appointment?.plate || "",
+        model: appointment?.model || "",
       });
     }
   }, [isOpen, appointment, defaultQuote, selectedDate, form]);
@@ -746,14 +780,14 @@ export default function AppointmentForm({
           onClose();
         }
       }}>
-        <DialogContent className="max-w-[600px] w-[95%] h-auto max-h-[85vh] md:max-h-[85vh] sm:max-h-[90vh] overflow-hidden p-0 flex flex-col z-[1050]">
-          <DialogHeader className="px-6 py-4 border-b">
-            <div className="flex flex-col items-center">
-              <DialogTitle className="text-2xl font-bold mb-1 flex items-center gap-2">
-                <CalendarIcon2 className="h-5 w-5 text-primary" />
+        <DialogContent className="w-full max-w-4xl max-h-[95vh] flex flex-col p-0 gap-0 overflow-hidden border border-gray-700 bg-gray-900 text-white">
+          <DialogHeader className="px-4 md:px-6 py-3 md:py-4 border-b border-gray-700 bg-gray-900/95 backdrop-blur-sm sticky top-0 z-10">
+            <div className="flex flex-col items-center text-center">
+              <DialogTitle className="text-lg md:text-xl font-bold mb-2 flex items-center gap-2 text-orange-500">
+                <CalendarIcon2 className="h-5 w-5 md:h-6 md:w-6" />
                 {appointment ? "Modifica Appuntamento" : "Nuovo Appuntamento"}
               </DialogTitle>
-              <DialogDescription className="text-center">
+              <DialogDescription className="text-sm md:text-base text-gray-400">
                 {currentStep === 1 ? "Inserisci i dati del cliente" :
                  currentStep === 2 ? "Seleziona un preventivo" :
                  "Dettagli dell'appuntamento"}
@@ -762,11 +796,11 @@ export default function AppointmentForm({
           </DialogHeader>
           
           {/* Form con pulsanti di navigazione separati */}
-          <div className="flex flex-col h-full">
-            <div className="flex-grow overflow-auto">
+          <div className="flex flex-col flex-1 min-h-0">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 md:px-6 py-4 md:py-6">
               <Form {...form}>
                 <form 
-                  className="space-y-6 px-6 pt-5 pb-20" 
+                  className="space-y-4 md:space-y-6" 
                   onSubmit={(e) => {
                     // Evita il refresh della pagina su submit del form
                     e.preventDefault();
@@ -782,10 +816,10 @@ export default function AppointmentForm({
                 >
                   {/* Step 1: Cliente */}
                   {currentStep === 1 && (
-                    <div className="space-y-8">
-                      <div className="flex justify-between items-center pt-4">
-                        <h2 className="text-lg font-semibold flex items-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1.5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <div className="space-y-3 md:space-y-4">
+                      <div className="flex justify-between items-center">
+                        <h2 className="text-sm md:text-base font-semibold flex items-center text-white">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 md:h-5 md:w-5 mr-1.5 md:mr-2 text-orange-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                             <circle cx="12" cy="7" r="4"></circle>
                           </svg>
@@ -794,27 +828,29 @@ export default function AppointmentForm({
                       </div>
                       
                       {selectedClient ? (
-                        <div className="flex justify-between items-center p-4 rounded-lg bg-primary/5 border-2 border-primary/30 shadow-sm">
-                          <div className="flex items-center gap-3">
-                            <div className="bg-primary/15 rounded-full p-2.5 text-primary">
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <div className="flex items-center justify-between p-4 md:p-5 rounded-lg bg-gradient-to-r from-orange-500/10 to-orange-600/5 border-2 border-orange-400/30 shadow-lg backdrop-blur-sm">
+                          <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
+                            <div className="bg-orange-500/20 rounded-full p-3 text-orange-400 border border-orange-500/30 flex-shrink-0">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>
                             </div>
-                            <div>
-                              <h3 className="font-bold text-base text-foreground">{selectedClient.name} {selectedClient.surname}</h3>
-                              <div className="flex items-center gap-4 mt-1.5">
-                                <span className="text-sm flex items-center text-muted-foreground">
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1.5 text-primary/80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-bold text-base md:text-lg text-white mb-2 truncate">{selectedClient.name} {selectedClient.surname}</h3>
+                              <div className="flex flex-col gap-2">
+                                <span className="text-sm flex items-center text-gray-300">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-orange-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                                   </svg>
-                                  {selectedClient.phone}
+                                  <span className="truncate">{selectedClient.phone}</span>
                                 </span>
-                                <span className="text-sm flex items-center text-muted-foreground">
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 mr-1.5 text-primary/80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <span className="text-sm flex items-center text-gray-300">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 text-orange-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                                   </svg>
-                                  {selectedClient.plate}
+                                  <span className="font-semibold bg-orange-500/20 text-orange-300 px-3 py-1 rounded-full border border-orange-500/30 text-sm">
+                                    {selectedClient.plate}
+                                  </span>
                                 </span>
                               </div>
                             </div>
@@ -822,14 +858,14 @@ export default function AppointmentForm({
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="text-muted-foreground hover:text-destructive"
+                            className="text-gray-400 hover:text-red-400 hover:bg-red-500/10 h-8 w-8 rounded-full flex-shrink-0 ml-2"
                             onClick={handleClearSelectedClient}
                           >
-                            <XCircle className="h-4 w-4" />
+                            <XCircle className="h-5 w-5" />
                           </Button>
                         </div>
                       ) : (
-                        <div className="space-y-4">
+                        <div className="space-y-3 flex-1">
                           <div className="relative">
                             <Input
                               placeholder="Cerca cliente per nome, telefono o targa..."
@@ -861,68 +897,80 @@ export default function AppointmentForm({
                                   setIsSearching(false);
                                 }
                               }}
-                              className="w-full border-primary/20 focus-visible:ring-primary/30"
+                              className="w-full border-orange-400/30 focus-visible:ring-orange-400/50 h-11 text-base px-4 bg-gray-900/50 text-white placeholder-gray-400"
                               autoComplete="off"
                             />
                             
                             {isSearching && filteredClients.length > 0 && (
-                              <div className="absolute z-10 w-full mt-1 bg-popover shadow-lg rounded-md border overflow-hidden">
-                                <ScrollArea className="max-h-[300px]">
-                                  <div className="p-1">
+                              <div className="absolute z-10 w-full mt-2 bg-gray-900/95 shadow-2xl rounded-lg border border-orange-500/30 overflow-hidden backdrop-blur-sm">
+                                <div 
+                                  className="max-h-[60vh] overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-gray-600"
+                                >
+                                  <div className="p-2">
                                     {filteredClients.map((client, index) => (
                                       <div
                                         key={client.id}
                                         className={cn(
-                                          "flex items-center p-2 rounded-md cursor-pointer",
-                                          selectedIndex === index ? "bg-primary/10" : "hover:bg-primary/5"
+                                          "relative p-4 rounded-lg cursor-pointer mb-2 transition-colors duration-150 border",
+                                          selectedIndex === index 
+                                            ? "bg-orange-500/15 border-orange-400/50 shadow-md" 
+                                            : "bg-gray-800/50 border-gray-700/50 hover:bg-gray-700/60 hover:border-orange-500/30"
                                         )}
                                         onClick={() => handleSelectClient(client, true)}
                                         onMouseEnter={() => setSelectedIndex(index)}
                                       >
-                                        <div className="flex-1 min-w-0">
-                                          <div className="flex items-center justify-between">
-                                            <div className="font-medium truncate">
-                                              {client.name} {client.surname}
+                                        {/* Header con nome e badge stato */}
+                                        <div className="flex items-center justify-between mb-3">
+                                          <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center text-black font-bold text-base">
+                                              {(client.name || "").charAt(0)}{(client.surname || "").charAt(0)}
                                             </div>
-                                            <div className="text-xs text-muted-foreground ml-2">
-                                              {client.phone}
+                                            <div>
+                                              <h3 className="font-bold text-base text-white leading-tight">
+                                                {client.name || ""} {client.surname || ""}
+                                              </h3>
+                                              <div className="text-sm text-gray-400">Cliente</div>
                                             </div>
                                           </div>
-                                          <div className="flex items-center text-xs text-muted-foreground mt-1">
-                                            <span className="truncate">
-                                              {client.plate && (
-                                                <span className="inline-flex items-center mr-2">
-                                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1 text-primary/80" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                                  </svg>
-                                                  {client.plate}
-                                                </span>
-                                              )}
-                                            </span>
+                                          
+                                          {selectedIndex === index && (
+                                            <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center">
+                                              <svg className="w-4 h-4 text-black" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                              </svg>
+                                            </div>
+                                          )}
+                                        </div>
+                                        
+                                        {/* Info grid */}
+                                        <div className="grid grid-cols-2 gap-2 mt-2">
+                                          <div className="flex items-center gap-2 bg-gray-800/70 rounded-lg px-2 py-1.5">
+                                            <svg className="w-3 h-3 text-orange-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                            </svg>
+                                            <span className="text-xs text-orange-300 font-medium truncate">{client.phone}</span>
                                           </div>
+                                          
+                                          {client.plate && (
+                                            <div className="flex items-center gap-2 bg-gray-800/70 rounded-lg px-2 py-1.5">
+                                              <svg className="w-3 h-3 text-orange-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                                              </svg>
+                                              <span className="text-xs text-orange-300 font-bold">{client.plate}</span>
+                                            </div>
+                                          )}
                                         </div>
                                       </div>
                                     ))}
                                   </div>
-                                </ScrollArea>
+                                </div>
                               </div>
                             )}
                             
                             {isSearching && searchQuery && filteredClients.length === 0 && (
-                              <div className="absolute z-10 w-full mt-1 bg-popover shadow-lg rounded-md border p-4 text-center">
-                                <p className="text-muted-foreground mb-2">Nessun cliente trovato</p>
-                                <Button 
-                                  size="sm" 
-                                  variant="outline"
-                                  className="gap-1"
-                                  onClick={() => {
-                                    // Funzionalità per creare un nuovo cliente (da implementare)
-                                    setIsSearching(false);
-                                  }}
-                                >
-                                  <Plus className="h-4 w-4" />
-                                  Crea nuovo cliente
-                                </Button>
+                              <div className="absolute z-10 w-full mt-2 bg-gray-900/95 shadow-2xl rounded-lg border border-orange-500/30 p-6 text-center backdrop-blur-sm">
+                                <p className="text-gray-300 text-base mb-2">Nessun cliente trovato</p>
+                                <p className="text-gray-500 text-sm">Prova con un termine di ricerca diverso</p>
                               </div>
                             )}
                           </div>
@@ -950,45 +998,54 @@ export default function AppointmentForm({
                   
                   {/* Step 2: Preventivo */}
                   {currentStep === 2 && (
-                    <div className="space-y-6">
-                      <div className="flex justify-between items-center pt-4">
-                        <h2 className="text-lg font-semibold flex items-center">
-                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1.5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <div className="space-y-3 md:space-y-4">
+                      <div className="flex justify-between items-center">
+                        <h2 className="text-sm md:text-base font-semibold flex items-center text-white">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 md:h-5 md:w-5 mr-1.5 md:mr-2 text-orange-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                           </svg>
                           Preventivo
                         </h2>
                       </div>
                       
-                      <div className="space-y-4">
+                      <div className="space-y-3 md:space-y-4 flex-1">
                         {/* Preventivi disponibili */}
                         {selectedClient && (
-                          <div className="space-y-3">
-                            <div className="text-sm font-medium text-muted-foreground">
-                              Preventivi disponibili per {selectedClient.name} {selectedClient.surname}:
+                          <div className="space-y-2 md:space-y-3">
+                            <div className="text-xs md:text-sm font-medium text-gray-300">
+                              Preventivi disponibili per <span className="text-orange-400 font-bold">{selectedClient.name} {selectedClient.surname}</span>:
                             </div>
                             
                             {isLoadingQuotes ? (
                               <div className="space-y-2">
-                                <Skeleton className="h-20 w-full" />
-                                <Skeleton className="h-20 w-full" />
+                                <Skeleton className="h-16 md:h-20 w-full bg-gray-800/50" />
+                                <Skeleton className="h-16 md:h-20 w-full bg-gray-800/50" />
                               </div>
                             ) : clientQuotes.length > 0 ? (
-                              <div className="space-y-3">
+                              <div className="space-y-2 md:space-y-3">
                                 {clientQuotes.map((quote) => (
                                   <div 
                                     key={quote.id}
                                     className={cn(
-                                      "flex items-start justify-between p-3 rounded-lg border-2 cursor-pointer",
+                                      "flex items-center justify-between p-3 md:p-4 rounded-lg border cursor-pointer transition-colors duration-150",
                                       selectedQuote?.id === quote.id 
-                                        ? "bg-primary/5 border-primary/30" 
-                                        : "bg-background border-border hover:bg-muted/5"
+                                        ? "bg-orange-500/15 border-orange-400/50 shadow-md" 
+                                        : "bg-gray-800/50 border-gray-700/50 hover:bg-gray-700/60 hover:border-orange-500/30"
                                     )}
                                     onClick={() => handleSelectQuote(quote)}
                                   >
-                                    <div className="flex-1">
-                                      <div className="flex items-center gap-2">
-                                        <div className="text-sm font-medium">{quote.id}</div>
+                                    <div className="flex items-center gap-3 md:gap-4 flex-1 min-w-0">
+                                      {/* Avatar con ID */}
+                                      <div className="w-8 h-8 md:w-10 md:h-10 bg-orange-500 rounded-full flex items-center justify-center text-black font-bold text-xs md:text-sm">
+                                        {quote.id.slice(-2)}
+                                      </div>
+                                      
+                                      {/* Info principali */}
+                                      <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
+                                        <div className="font-bold text-xs md:text-sm text-white">
+                                          ID: {quote.id}
+                                        </div>
+                                        
                                         <Badge 
                                           variant={
                                             quote.status === "accettato" ? "default" :
@@ -996,48 +1053,54 @@ export default function AppointmentForm({
                                             quote.status === "bozza" ? "outline" :
                                             "destructive"
                                           }
-                                          className="text-xs"
+                                          className="text-xs px-2 py-0.5 flex-shrink-0"
                                         >
                                           {quote.status}
                                         </Badge>
-                                      </div>
-                                      <div className="text-xs text-muted-foreground mt-1">
-                                        {quote.date} • {quote.totalPrice || quote.total || 0}€
+                                        
+                                        <span className="text-xs text-orange-300 font-medium flex-shrink-0">
+                                          {quote.date}
+                                        </span>
+                                        
+                                        <span className="text-green-400 font-bold text-sm md:text-base flex-shrink-0">
+                                          €{quote.totalPrice || quote.total || 0}
+                                        </span>
+                                        
                                         {quote.laborHours && quote.laborHours > 0 && (
-                                          <span className="ml-2">• {quote.laborHours}h manodopera</span>
+                                          <span className="text-orange-300 font-medium text-xs flex-shrink-0">
+                                            {quote.laborHours}h
+                                          </span>
                                         )}
                                       </div>
                                     </div>
-                                    <div className="flex items-center gap-2">
+                                    
+                                    {/* Azioni */}
+                                    <div className="flex items-center gap-2 flex-shrink-0">
                                       <Button
                                         type="button"
                                         variant="ghost"
                                         size="sm"
-                                        className="h-8 w-8 p-0 rounded-full text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                                        className="h-7 w-7 md:h-8 md:w-8 p-0 rounded-full text-orange-400 hover:text-orange-300 hover:bg-orange-500/10"
                                         title="Modifica preventivo"
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           handleEditQuote(quote);
                                         }}
                                       >
-                                        <Edit className="h-4 w-4" />
+                                        <Edit className="h-3 w-3 md:h-4 md:w-4" />
                                       </Button>
                                       
                                       <Button
                                         type="button"
                                         variant="ghost"
                                         size="sm"
-                                        className="h-8 w-8 p-0 rounded-full text-red-500 hover:text-red-700 hover:bg-red-50"
+                                        className="h-7 w-7 md:h-8 md:w-8 p-0 rounded-full text-red-400 hover:text-red-300 hover:bg-red-500/10"
                                         title="Elimina preventivo"
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           if (confirm("Sei sicuro di voler eliminare questo preventivo?")) {
-                                            // Implementa l'eliminazione del preventivo
                                             if (onEditQuote) {
-                                              // Chiudi il form di appuntamento prima di aprire il form di modifica preventivo
                                               onClose();
-                                              
-                                              // Passiamo al form di modifica con un flag per indicare l'eliminazione
                                               setTimeout(() => {
                                                 const quoteToDelete = {...quote, _delete: true};
                                                 onEditQuote(quoteToDelete);
@@ -1046,38 +1109,42 @@ export default function AppointmentForm({
                                           }
                                         }}
                                       >
-                                        <Trash2 className="h-4 w-4" />
+                                        <Trash2 className="h-3 w-3 md:h-4 md:w-4" />
                                       </Button>
                                       
                                       {selectedQuote?.id === quote.id && (
-                                        <Check className="h-5 w-5 text-primary" />
+                                        <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center">
+                                          <svg className="w-4 h-4 text-black" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                          </svg>
+                                        </div>
                                       )}
                                     </div>
                                   </div>
                                 ))}
                                 
-                                <div className="mt-4 flex justify-center">
+                                <div className="mt-3 md:mt-4 flex justify-center">
                                   <Button 
                                     size="sm" 
                                     variant="outline" 
-                                    className="gap-1"
+                                    className="gap-2 border-orange-500/30 text-orange-400 hover:bg-orange-500/10 hover:border-orange-400 px-3 md:px-4 py-2 text-xs md:text-sm"
                                     onClick={handleCreateNewQuote}
                                   >
-                                    <Plus className="h-4 w-4" />
+                                    <Plus className="h-3 w-3 md:h-4 md:w-4" />
                                     Crea nuovo preventivo
                                   </Button>
                                 </div>
                               </div>
                             ) : (
-                              <div className="border border-border rounded-lg bg-background p-4 text-center text-muted-foreground">
-                                <p className="mb-3">Nessun preventivo disponibile per questo cliente.</p>
+                              <div className="border border-gray-700/50 rounded-lg md:rounded-xl bg-gray-900/30 p-4 md:p-6 text-center text-gray-300 backdrop-blur-sm">
+                                <p className="mb-3 text-sm md:text-base">Nessun preventivo disponibile per questo cliente.</p>
                                 {onCreateQuote && (
                                   <Button 
                                     variant="default" 
-                                    className="gap-1"
+                                    className="gap-2 bg-orange-500 hover:bg-orange-600 text-white px-3 md:px-4 py-2 text-xs md:text-sm"
                                     onClick={handleCreateNewQuote}
                                   >
-                                    <Plus className="h-4 w-4" />
+                                    <Plus className="h-3 w-3 md:h-4 md:w-4" />
                                     Crea il primo preventivo
                                   </Button>
                                 )}
@@ -1135,53 +1202,160 @@ export default function AppointmentForm({
                           <FormField
                             control={form.control as any}
                             name="date"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel className="text-sm font-medium">
-                                  Data
-                                </FormLabel>
-                                <FormControl>
-                                  <SimplePopover
-                                    trigger={
-                                      <div className="flex items-center w-full border border-primary/20 rounded-md h-9 px-3 focus-within:ring-1 focus-within:ring-primary/30 hover:bg-accent">
-                                        <Button
-                                          variant={"ghost"}
-                                          type="button"
-                                          className={cn(
-                                            "w-full h-full p-0 text-left text-sm font-normal flex justify-between items-center",
-                                            !field.value && "text-muted-foreground"
-                                          )}
-                                        >
-                                          {field.value ? (
-                                            <span>
-                                              {format(new Date(field.value), "d MMMM yyyy", { locale: it })}
-                                            </span>
-                                          ) : (
-                                            <span>Seleziona una data</span>
-                                          )}
-                                          <CalendarIcon className="h-4 w-4 opacity-50" />
-                                        </Button>
-                                      </div>
-                                    }
-                                    align="start"
-                                    className="p-0"
-                                  >
-                                    <Calendar
-                                      mode="single"
-                                      selected={field.value ? new Date(field.value) : undefined}
-                                      onSelect={(date: Date | undefined) => {
-                                        if (date) {
-                                          field.onChange(format(date, "yyyy-MM-dd"));
-                                        }
-                                      }}
-                                      locale={it}
-                                      initialFocus
-                                    />
-                                  </SimplePopover>
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
+                            render={({ field }) => {
+                              const [calendarDate, setCalendarDate] = useState(field.value ? new Date(field.value) : new Date());
+                              const [showCalendar, setShowCalendar] = useState(false);
+                              const calendarRef = useRef<HTMLDivElement>(null);
+                              
+                              const monthStart = startOfMonth(calendarDate);
+                              const monthEnd = endOfMonth(calendarDate);
+                              const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
+                              
+                              const today = startOfDay(new Date());
+                              
+                              // Chiudi calendario quando si clicca fuori
+                              useEffect(() => {
+                                const handleClickOutside = (event: MouseEvent) => {
+                                  if (calendarRef.current && !calendarRef.current.contains(event.target as Node)) {
+                                    setShowCalendar(false);
+                                  }
+                                };
+                                
+                                if (showCalendar) {
+                                  document.addEventListener('mousedown', handleClickOutside);
+                                  return () => document.removeEventListener('mousedown', handleClickOutside);
+                                }
+                              }, [showCalendar]);
+                              
+                              return (
+                                <FormItem>
+                                  <FormLabel className="text-sm font-medium">
+                                    Data
+                                  </FormLabel>
+                                  <FormControl>
+                                    <div className="relative" ref={calendarRef}>
+                                      <Input
+                                        type="text"
+                                        readOnly
+                                        className="border-orange-300 focus-visible:ring-orange-400 focus-visible:border-orange-500 h-9 text-sm font-medium cursor-pointer hover:border-orange-400 transition-colors duration-200"
+                                        value={field.value ? format(new Date(field.value), "dd/MM/yyyy", { locale: it }) : ""}
+                                        placeholder="Seleziona una data"
+                                        onClick={() => setShowCalendar(!showCalendar)}
+                                      />
+                                      <CalendarIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-orange-600 pointer-events-none" />
+                                      
+                                      {showCalendar && (
+                                        <div className="absolute top-full left-0 mt-1 bg-gray-900 border border-gray-700 rounded-lg shadow-xl p-4 z-50 min-w-[280px]">
+                                          {/* Header calendario */}
+                                          <div className="flex items-center justify-between mb-4 bg-gray-900 rounded-md py-2 px-3">
+                                            <Button
+                                              type="button"
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => setCalendarDate(subMonths(calendarDate, 1))}
+                                              className="h-8 w-8 p-0 text-orange-500 hover:text-orange-400 hover:bg-gray-800"
+                                            >
+                                              <ChevronLeft className="h-4 w-4" />
+                                            </Button>
+                                            
+                                            <h3 className="text-sm font-bold text-orange-500">
+                                              {format(calendarDate, "MMMM yyyy", { locale: it })}
+                                            </h3>
+                                            
+                                            <Button
+                                              type="button"
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => setCalendarDate(addMonths(calendarDate, 1))}
+                                              className="h-8 w-8 p-0 text-orange-500 hover:text-orange-400 hover:bg-gray-800"
+                                            >
+                                              <ChevronRight className="h-4 w-4" />
+                                            </Button>
+                                          </div>
+                                          
+                                          {/* Giorni della settimana */}
+                                          <div className="grid grid-cols-7 gap-1 mb-2">
+                                            {['Lu', 'Ma', 'Me', 'Gi', 'Ve', 'Sa', 'Do'].map((day) => (
+                                              <div key={day} className="text-center text-xs font-bold text-orange-400 p-2">
+                                                {day}
+                                              </div>
+                                            ))}
+                                          </div>
+                                          
+                                          {/* Griglia giorni */}
+                                          <div className="grid grid-cols-7 gap-1">
+                                            {/* Placeholder per i giorni vuoti prima del primo giorno del mese */}
+                                            {Array.from({ length: (monthStart.getDay() === 0 ? 6 : monthStart.getDay() - 1) }).map((_, i) => (
+                                              <div key={`empty-${i}`} />
+                                            ))}
+                                            {daysInMonth.map((day) => {
+                                              const isSelected = field.value && isSameDay(day, new Date(field.value));
+                                              const isTodayDate = isToday(day);
+                                              const isPast = isBefore(day, today);
+                                              
+                                              return (
+                                                <Button
+                                                  key={day.toISOString()}
+                                                  type="button"
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  disabled={isPast}
+                                                  onClick={() => {
+                                                    if (!isPast) {
+                                                      field.onChange(format(day, "yyyy-MM-dd"));
+                                                      setShowCalendar(false);
+                                                    }
+                                                  }}
+                                                  className={cn(
+                                                    "h-8 w-8 p-0 text-sm font-medium transition-all duration-200",
+                                                    isSelected && "bg-orange-500 text-black hover:bg-orange-600 border-2 border-orange-600 font-bold",
+                                                    isTodayDate && !isSelected && "bg-orange-200 text-black border border-orange-400 font-bold",
+                                                    isPast && "text-gray-600 cursor-not-allowed hover:bg-transparent",
+                                                    !isSelected && !isTodayDate && !isPast && "text-orange-300 hover:bg-gray-800 hover:text-orange-400",
+                                                    !isSameMonth(day, calendarDate) && "text-gray-700"
+                                                  )}
+                                                >
+                                                  {format(day, "d")}
+                                                </Button>
+                                              );
+                                            })}
+                                          </div>
+                                          
+                                          {/* Footer con pulsanti */}
+                                          <div className="flex justify-between items-center mt-4 pt-3 border-t border-gray-700">
+                                            <Button
+                                              type="button"
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => {
+                                                field.onChange("");
+                                                setShowCalendar(false);
+                                              }}
+                                              className="text-xs text-orange-300 hover:bg-gray-800 hover:text-orange-400 font-medium px-3"
+                                            >
+                                              Cancella
+                                            </Button>
+                                            <Button
+                                              type="button"
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => {
+                                                field.onChange(format(new Date(), "yyyy-MM-dd"));
+                                                setShowCalendar(false);
+                                              }}
+                                              className="text-xs text-orange-500 hover:bg-gray-800 hover:text-orange-400 font-bold px-3"
+                                            >
+                                              Oggi
+                                            </Button>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              );
+                            }}
                           />
                           
                           <FormField
@@ -1193,90 +1367,12 @@ export default function AppointmentForm({
                                   Ora
                                 </FormLabel>
                                 <FormControl>
-                                  <div className="relative">
-                                    <Input 
-                                      type="text" 
-                                      className="border-primary/20 focus-visible:ring-primary/30 h-9 text-sm text-center font-medium tracking-widest" 
-                                      value={field.value || ""}
-                                      onChange={(e) => {
-                                        // Ottieni solo numeri dall'input
-                                        const val = e.target.value.replace(/[^0-9]/g, '');
-                                        
-                                        // Formatta automaticamente con i due punti dopo le prime due cifre
-                                        let formattedVal = val;
-                                        if (val.length > 2) {
-                                          // Inserisci i due punti dopo le prime due cifre
-                                          formattedVal = val.substring(0, 2) + ':' + val.substring(2);
-                                        }
-                                        
-                                        // Limita a 5 caratteri (formato HH:MM)
-                                        if (formattedVal.length <= 5) {
-                                          field.onChange(formattedVal);
-                                        }
-                                      }}
-                                      onBlur={(e) => {
-                                        // Quando si esce dal campo, formatta correttamente l'ora
-                                        let val = e.target.value;
-                                        
-                                        // Se c'è un valore, assicurati che sia nel formato HH:MM
-                                        if (val) {
-                                          const parts = val.split(':');
-                                          let hours = parts[0] ? parseInt(parts[0], 10) : 0;
-                                          let minutes = parts.length > 1 ? parseInt(parts[1], 10) : 0;
-                                          
-                                          // Validazione ore (0-23)
-                                          hours = Math.max(0, Math.min(23, hours));
-                                          
-                                          // Validazione minuti (0-59)
-                                          minutes = Math.max(0, Math.min(59, minutes));
-                                          
-                                          // Formatta come HH:MM
-                                          const formattedTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-                                          field.onChange(formattedTime);
-                                        }
-                                      }}
-                                      placeholder=""
-                                      maxLength={5}
-                                      name={field.name}
-                                      ref={field.ref}
-                                    />
-                                    
-                                    {!field.value && (
-                                      <span className="absolute inset-0 flex items-center justify-center pointer-events-none text-muted-foreground text-sm">
-                                        HH:MM
-                                      </span>
-                                    )}
-                                  </div>
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-
-                        {/* Sezione ore manodopera e stato ricambi */}
-                        <div className="grid grid-cols-2 gap-3">
-                          <FormField
-                            control={form.control as any}
-                            name="duration"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel className="text-sm font-medium flex items-center gap-1">
-                                  <Clock className="h-3.5 w-3.5 text-primary" />
-                                  Ore manodopera
-                                </FormLabel>
-                                <FormControl>
                                   <Input
-                                    type="number"
-                                    className="border-primary/20 focus-visible:ring-primary/30 h-9 text-sm text-center font-medium"
-                                    min="0.5"
-                                    max="24"
-                                    step="0.5"
-                                    value={field.value?.toString() || "1"}
+                                    type="time"
+                                    className="border-primary/20 focus-visible:ring-primary/30 h-9 text-sm font-medium"
+                                    value={field.value || ""}
                                     onChange={(e) => {
-                                      // Converti in numero e limita a numeri positivi
-                                      const value = Math.max(0.5, Math.min(24, parseFloat(e.target.value || "1")));
-                                      field.onChange(value);
+                                      field.onChange(e.target.value);
                                     }}
                                   />
                                 </FormControl>
@@ -1285,7 +1381,67 @@ export default function AppointmentForm({
                             )}
                           />
                         </div>
-                        
+
+                        <FormField
+                          control={form.control as any}
+                          
+                          name="Appuntamenti Occupati"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-sm font-medium">
+                                Appuntamenti Occupati
+                              </FormLabel>
+                              <FormControl>
+                                <div className="space-y-2">
+                                  {allAppointments
+                                    .filter(app => 
+                                      app.date === form.watch('date') && 
+                                      app.id !== appointment?.id
+                                    )
+                                    .map(app => (
+                                      <div 
+                                        key={app.id}
+                                        className="flex items-center justify-between p-2 rounded-md bg-primary/5 border border-primary/20"
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <div className="bg-primary/10 p-1.5 rounded-full">
+                                            <CalendarIcon className="h-4 w-4 text-primary" />
+                                          </div>
+                                          <div>
+                                            <div className="font-medium text-sm">{app.clientName}</div>
+                                            <div className="text-xs text-muted-foreground">
+                                              {app.time} - {addHoursToTime(app.time, app.duration)} • {app.duration}h 
+                                            </div>
+                                          </div>
+                                        </div>
+                                        <Badge variant="outline" className={cn(
+                                          "text-xs",
+                                          app.status === "programmato" && "bg-blue-100 text-blue-800 border-blue-300",
+                                          app.status === "in_lavorazione" && "bg-yellow-100 text-yellow-800 border-yellow-300",
+                                          app.status === "completato" && "bg-green-100 text-green-800 border-green-300",
+                                          app.status === "annullato" && "bg-red-100 text-red-800 border-red-300"
+                                        )}>
+                                          {app.status === "programmato" && "Confermato"}
+                                          {app.status === "in_lavorazione" && "In Lavorazione"}
+                                          {app.status === "completato" && "Completato"}
+                                          {app.status === "annullato" && "Annullato"}
+                                        </Badge>
+                                      </div>
+                                    ))}
+                                  {allAppointments.filter(app => 
+                                    app.date === form.watch('date') && 
+                                    app.id !== appointment?.id
+                                  ).length === 0 && (
+                                    <div className="text-sm text-muted-foreground text-center py-2">
+                                      Nessun appuntamento programmato per questa data
+                                    </div>
+                                  )}
+                                </div>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
                         <FormField
                           control={form.control as any}
                           name="notes"
@@ -1313,18 +1469,19 @@ export default function AppointmentForm({
             </div>
             
             {/* Pulsanti di navigazione fissi - spostati fuori dal form */}
-            <DialogFooter className="py-4 border-t mt-6 sticky bottom-0 bg-background z-10 px-6">
-              <div className="flex w-full justify-between">
-                <div className="flex gap-2">
+            <DialogFooter className="px-4 md:px-6 py-4 md:py-5 border-t border-gray-700 bg-gray-900/95 backdrop-blur-sm sticky bottom-0 z-10">
+              <div className="flex w-full justify-between items-center gap-3">
+                <div className="flex gap-2 flex-1 sm:flex-none">
                   <Button 
                     type="button" 
                     variant="outline" 
                     onClick={onClose}
                     size="sm"
-                    className="gap-1"
+                    className="gap-2 text-sm px-4 py-2 h-9 border-gray-600 hover:bg-gray-800"
                   >
                     <XCircle className="h-4 w-4" />
-                    Annulla
+                    <span className="hidden sm:inline">Annulla</span>
+                    <span className="sm:hidden">✕</span>
                   </Button>
                   
                   {/* Pulsante Elimina (visibile solo quando si modifica un appuntamento esistente) */}
@@ -1334,11 +1491,12 @@ export default function AppointmentForm({
                       variant="destructive"
                       size="sm"
                       onClick={handleDeleteAppointment}
-                      className="gap-1"
+                      className="gap-2 text-sm px-4 py-2 h-9"
                       disabled={isSubmitting}
                     >
                       <Trash2 className="h-4 w-4" />
-                      Elimina
+                      <span className="hidden sm:inline">Elimina</span>
+                      <span className="sm:hidden">🗑</span>
                     </Button>
                   )}
                 </div>
@@ -1351,12 +1509,13 @@ export default function AppointmentForm({
                       variant="outline"
                       size="sm"
                       onClick={() => setCurrentStep(prev => prev - 1)}
-                      className="gap-1 border-primary/20 text-primary hover:bg-primary/5"
+                      className="gap-2 border-primary/20 text-primary hover:bg-primary/5 text-sm px-4 py-2 h-9"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                       </svg>
-                      Indietro
+                      <span className="hidden sm:inline">Indietro</span>
+                      <span className="sm:hidden">←</span>
                     </Button>
                   )}
                   
@@ -1385,10 +1544,16 @@ export default function AppointmentForm({
                         }
                         setCurrentStep(prev => prev + 1);
                       }}
-                      className="gap-2 bg-primary"
+                      className="gap-2 bg-primary hover:bg-primary/90 text-sm px-4 py-2 h-9"
                     >
-                      {currentStep === 1 ? "Avanti" : 
-                       currentStep === 2 ? "Aggiungi dettagli" : "Avanti"}
+                      <span className="hidden sm:inline">
+                        {currentStep === 1 ? "Avanti" : 
+                         currentStep === 2 ? "Aggiungi dettagli" : "Avanti"}
+                      </span>
+                      <span className="sm:hidden">
+                        {currentStep === 1 ? "→" : 
+                         currentStep === 2 ? "📝" : "→"}
+                      </span>
                       <ArrowRight className="h-4 w-4" />
                     </Button>
                   ) : (
@@ -1405,8 +1570,6 @@ export default function AppointmentForm({
                         const durationValue = form.getValues("duration") || 1;
                         const quoteLaborHours = (selectedQuote as any)?.laborHours;
                         const partsOrderedValue = form.getValues("partsOrdered");
-                        
-                        console.log(`DEBUG - Valore partsOrdered al momento del submit: ${partsOrderedValue === true ? 'true' : 'false'} (${typeof partsOrderedValue})`);
                         
                         // Controlla che l'ora sia nel formato corretto (24 ore)
                         let timeToSave = timeValue;
@@ -1434,11 +1597,8 @@ export default function AppointmentForm({
                         // stampa un avviso nella console
                         let finalDuration = Number(durationValue);
                         if (quoteLaborHours && quoteLaborHours > 0 && quoteLaborHours !== finalDuration) {
-                          console.log(`ATTENZIONE: La durata dal form (${finalDuration}h) è diversa da quella del preventivo (${quoteLaborHours}h)`);
-                          
                           // Usa la durata dal preventivo se è disponibile
                           finalDuration = quoteLaborHours;
-                          console.log(`Usando la durata dal preventivo: ${finalDuration}h`);
                         }
                         
                         // Ottieni i dati completi
@@ -1460,57 +1620,25 @@ export default function AppointmentForm({
                           partsOrdered: partsOrderedValue
                         };
                         
-                        // AGGIUNTO: Controllo esplicito per il valore di partsOrdered nei dati che saranno inviati
-                        const formDataPartsOrdered = formData.partsOrdered;
-                        console.log(`CONTROLLO FINALE - partsOrdered nei dati da inviare:`, {
-                          valore: formDataPartsOrdered,
-                          tipo: typeof formDataPartsOrdered,
-                          booleano: formDataPartsOrdered === true ? 'true' : 'false'
-                        });
-                        
-                        // Stampa di debug per verificare il valore della durata e di parts ordered
-                        console.log("DEBUG - Dati finali da inviare:", {
-                          quoteHours: quoteLaborHours,
-                          formDuration: durationValue,
-                          finalDuration: formData.duration,
-                          partsOrdered: formData.partsOrdered
-                        });
-                        
-                        console.log("Dati appuntamento completi:", formData);
-                        
-                        if (appointment?.id) {
-                          // Aggiornamento di un appuntamento esistente
-                          console.log(`Aggiornamento dell'appuntamento ${appointment.id} in corso...`);
-                        }
-                        
                         await onSubmit(formData);
-                        
-                        // Aggiungo un controllo esplicito per forzare la chiusura della maschera
-                        try {
-                          console.log("DEBUG - Forzo la chiusura del dialog dopo submit");
-                          setTimeout(() => {
-                            if (onSuccess) onSuccess();
-                            onClose();
-                          }, 300);
-                        } catch (error) {
-                          console.error("Errore nella chiusura forzata del dialog:", error);
-                        }
                       }}
                       disabled={isSubmitting || !selectedClient}
-                      className="gap-2 bg-primary"
+                      className="gap-2 bg-primary hover:bg-primary/90 text-sm px-4 py-2 h-9"
                     >
                       {isSubmitting ? (
                         <>
-                          <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                           </svg>
-                          Salvataggio in corso...
+                          <span className="hidden sm:inline">Salvataggio...</span>
+                          <span className="sm:hidden">💾</span>
                         </>
                       ) : (
                         <>
                           <CalendarIcon2 className="h-4 w-4" />
-                          {appointment ? "Aggiorna" : "Fine"}
+                          <span className="hidden sm:inline">{appointment ? "Aggiorna" : "Fine"}</span>
+                          <span className="sm:hidden">{appointment ? "✓" : "📅"}</span>
                         </>
                       )}
                     </Button>

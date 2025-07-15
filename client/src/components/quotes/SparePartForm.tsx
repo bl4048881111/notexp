@@ -44,7 +44,7 @@ export default function SparePartForm({
   // All'inizializzazione, verifica e correggi i prezzi finali di tutti i ricambi
   useEffect(() => {
     if (parts.length > 0) {
-      console.log("Verifica prezzi ricambi esistenti:", parts.length, "ricambi trovati");
+      // console.log("Verifica prezzi ricambi esistenti:", parts.length, "ricambi trovati");
       
       // Controlla se ci sono ricambi con prezzi finali non validi
       const partsWithInvalidPrices = parts.filter(part => 
@@ -54,7 +54,7 @@ export default function SparePartForm({
       );
       
       if (partsWithInvalidPrices.length > 0) {
-        console.log("Trovati", partsWithInvalidPrices.length, "ricambi con prezzi non validi");
+        // console.log("Trovati", partsWithInvalidPrices.length, "ricambi con prezzi non validi");
         
         // Correggi i prezzi finali
         const correctedParts = parts.map(part => {
@@ -64,12 +64,12 @@ export default function SparePartForm({
           
           // Se il prezzo finale non è corretto, correggilo
           if (!part.finalPrice || part.finalPrice !== expectedFinalPrice) {
-            console.log(`Correzione prezzo per ${part.code || part.name}:`, {
-              unitPrice: unitPrice,
-              quantity: quantity,
-              finalPriceAttuale: part.finalPrice || 0,
-              finalPriceCorretto: expectedFinalPrice
-            });
+            // console.log(`Correzione prezzo per ${part.code || part.name}:`, {
+            //   unitPrice: unitPrice,
+            //   quantity: quantity,
+            //   finalPriceAttuale: part.finalPrice || 0,
+            //   finalPriceCorretto: expectedFinalPrice
+            // });
             
             return {
               ...part,
@@ -83,7 +83,7 @@ export default function SparePartForm({
         // Aggiorna i ricambi con i prezzi corretti
         onChange(correctedParts);
       } else {
-        console.log("Tutti i ricambi hanno prezzi finali corretti");
+        // console.log("Tutti i ricambi hanno prezzi finali corretti");
       }
     }
   }, [parts]); // Esegui solo all'inizializzazione o quando cambiano i ricambi
@@ -118,7 +118,7 @@ export default function SparePartForm({
     
     const priceNum = typeof price === "string" ? parseFloat(price) : price || 0;
     if (isNaN(priceNum)) {
-      console.error("Prezzo non valido:", price);
+      // console.error("Prezzo non valido:", price);
       return;
     }
     
@@ -141,12 +141,12 @@ export default function SparePartForm({
             finalPrice: calculatedFinalPrice
           };
           
-          console.log("Ricambio aggiornato:", {
-            codice: updatedPart.code,
-            prezzo: updatedPart.unitPrice,
-            quantità: updatedPart.quantity,
-            totale: updatedPart.finalPrice
-          });
+          // console.log("Ricambio aggiornato:", {
+          //   codice: updatedPart.code,
+          //   prezzo: updatedPart.unitPrice,
+          //   quantità: updatedPart.quantity,
+          //   totale: updatedPart.finalPrice
+          // });
           
           return updatedPart;
         }
@@ -169,12 +169,12 @@ export default function SparePartForm({
       };
       
       // Mostra un log per debug
-      console.log("Nuovo ricambio aggiunto:", {
-        codice: newPart.code,
-        prezzo: newPart.unitPrice,
-        quantità: newPart.quantity,
-        totale: newPart.finalPrice
-      });
+      // console.log("Nuovo ricambio aggiunto:", {
+      //   codice: newPart.code,
+      //   prezzo: newPart.unitPrice,
+      //   quantità: newPart.quantity,
+      //   totale: newPart.finalPrice
+      // });
       
       onChange([...parts, newPart]);
     }
@@ -204,12 +204,12 @@ export default function SparePartForm({
     // Verifica se il prezzo finale è corretto
     const expectedFinalPrice = (part.unitPrice || 0) * (part.quantity || 1);
     if (part.finalPrice !== expectedFinalPrice) {
-      console.warn(`Ricambio ${part.code} ha un prezzo finale non corretto:`, {
-        unitPrice: part.unitPrice,
-        quantity: part.quantity,
-        finalPrice: part.finalPrice,
-        expectedFinalPrice: expectedFinalPrice
-      });
+      // console.warn(`Ricambio ${part.code} ha un prezzo finale non corretto:`, {
+      //   unitPrice: part.unitPrice,
+      //   quantity: part.quantity,
+      //   finalPrice: part.finalPrice,
+      //   expectedFinalPrice: expectedFinalPrice
+      // });
     }
   };
   

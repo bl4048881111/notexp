@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { format, setYear, parseISO } from "date-fns";
 import { it } from "date-fns/locale";
 import { Phone, Mail, Cake } from "lucide-react";
-import { getAllClients } from "@shared/firebase";
+import { getAllClients } from "@shared/supabase";
 import { useQuery } from "@tanstack/react-query";
 import { Client } from "@shared/types";
 import { useLocation } from "wouter";

@@ -5,8 +5,9 @@ import { v4 as uuidv4 } from "uuid";
 import { format } from "date-fns";
 import * as z from "zod";
 import { Client, Quote, createQuoteSchema, QuoteItem, SparePart } from "@shared/schema";
-import { getAllClients, getClientById, createQuote, updateQuote, getAllQuotes } from "@shared/firebase";
+import { getAllClients, getClientById, createQuote, updateQuote, getAllQuotes, getAllAppointments, updateClient } from "@shared/supabase";
 import { calculateItemTotal } from "./QuoteCalculator";
+import { forceUpdateInputValues } from "./FocusableNumberInput";
 import {
   Dialog,
   DialogContent,
@@ -49,14 +50,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { CalendarIcon, XCircle, Pencil, Loader2, ChevronLeft, ChevronRight, X, Trash2 } from "lucide-react";
+import { CalendarIcon, XCircle, Pencil, Loader2, ChevronLeft, ChevronRight, X, Trash2, MessageSquare, UserPlus } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { SimplePopover } from "@/components/ui/CustomUIComponents";
 import { cn } from "@/lib/utils";
 import { it } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import { ComboboxDemo } from "@/components/ui/ComboboxDemoFixed";
-import ServiceSelectionForm from "./ServiceSelectionForm";
 // Utilizziamo la versione completamente statica
 import StaticSparePartsForm from "./StaticSparePartsForm";
 import { appointmentService } from "@/services/appointmentService";
@@ -66,16 +66,18 @@ import ServiceItemForm from "./ServiceItemForm";
 import { LaborCalculator } from "./LaborCalculator";
 import { useQueryClient } from "@tanstack/react-query";
 import SummaryStepForm from "./SummaryStepForm";
+import ClientForm from "@/components/clients/ClientForm";
 
 interface QuoteFormProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: () => void | Promise<void>;
   quote?: Quote | null;
   defaultClientId?: string | null;
+  readOnly?: boolean;
 }
 
-// Interfaccia per i dati aggiuntivi non presenti nello schema Quote
+// Interfaccia per i dati aggiuntivi non presenti nello schema Quotes
 interface QuoteExtraData {
   laborHours?: number;
   model?: string;
@@ -97,7 +99,7 @@ type QuoteWithExtra = Quote & QuoteExtraData;
  * - Il componente LaborCalculator gestisce in modo centralizzato i calcoli della manodopera
  * - Il calcolo dei totali viene fatto automaticamente in base alla tariffa oraria e ore di lavoro
  */
-export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultClientId }: QuoteFormProps) {
+export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultClientId, readOnly = false }: QuoteFormProps) {
   // Versione totalmente ridotta - eliminiamo gli effetti collaterali e i cicli infiniti
   const [clients, setClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -114,9 +116,15 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
+  // Stato per il ClientForm
+  const [isClientFormOpen, setIsClientFormOpen] = useState<boolean>(false);
+  
   // Aggiungiamo un flag per prevenire la chiusura accidentale del form
   const [preventAutoClose, setPreventAutoClose] = useState<boolean>(false);
   const [preventCloseUntilSave, setPreventCloseUntilSave] = useState<boolean>(false);
+  
+  // Stato per controllare se il preventivo è in modalità sola lettura per la regola
+  const [isReadOnlyByRule, setIsReadOnlyByRule] = useState<boolean>(false);
   
   const allowedStatus = ["bozza", "inviato", "accettato", "scaduto", "completato", "archiviato"];
   const normalizeStatus = (status: any) =>
@@ -148,7 +156,7 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
       plate: quote?.plate || "",
       date: quote?.date || format(new Date(), "yyyy-MM-dd"),
       status: normalizeStatus(quote?.status),
-      laborPrice: quote?.laborPrice !== undefined ? quote.laborPrice : 45,
+      laborPrice: quote?.laborPrice !== undefined ? quote.laborPrice : 35,
       notes: quote?.notes || "",
       kilometrage: quote?.kilometrage || 0,
       totalPrice: quote?.totalPrice || 0,
@@ -164,72 +172,53 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
       const quoteExtra = quote as QuoteWithExtra;
       setLaborHours(quoteExtra?.laborHours || 0);
       setModel(quoteExtra?.model || "");
-      setVin(quoteExtra?.vin || "");
+      
+      if (quoteExtra?.vin) {
+        setVin(quoteExtra.vin);
+        // console.log("✅ VIN caricato dal preventivo:", quoteExtra.vin);
+      } else {
+        setVin(""); // Reset se non presente nel preventivo
+        // console.log("❌ Nessun VIN nel preventivo, cercando nel cliente...");
+        
+        // Se il preventivo ha un clientId, prova a caricare SOLO il VIN dal cliente
+        if (quote.clientId) {
+          // console.log("🔍 Caricamento VIN dal cliente:", quote.clientId);
+          fetchClientVinOnly(quote.clientId);
+        }
+      }
+      
+      // console.log("📄 Debug preventivo:", {
+      //   id: quote.id,
+      //   clientId: quote.clientId,
+      //   vinFromQuote: quoteExtra?.vin,
+      //   currentVin: vin
+      // });
     }
-  }, [quote]);
+  }, [quote?.id]); // Dipende solo dall'ID del preventivo per evitare loop
 
-  // Aggiorna i totali quando laborHours o taxRate cambiano
-  useEffect(() => {
-    // Calcola manualmente i totali
-    const partsTotal = items.reduce((sum, item) => {
-      // Calcola il totale delle parti per questo item (SOLO ricambi)
-      return sum + (Array.isArray(item.parts) 
-        ? item.parts.reduce((sum, part) => sum + (part.finalPrice || 0), 0)
-        : 0);
-    }, 0);
-    
-    // Calcola SOLO costo manodopera extra (NO manodopera servizi)
-    const extraLabor = (form.getValues().laborPrice || 0) * laborHours;
-    
-    // Subtotale (ricambi + SOLO manodopera extra)
-    const subtotal = partsTotal + extraLabor;
-    
-    // IVA
-    const taxAmount = (subtotal * taxRate) / 100;
-    
-    // Totale finale
-    const total = subtotal + taxAmount;
-    
-    // Aggiorna lo stato dei totali
-    setSubTotals({
-      subtotal,
-      taxAmount,
-      total,
-      partsSubtotal: partsTotal,
-      laborTotal: extraLabor
-    });
-  }, [items, laborHours, taxRate, form]);
-  
   // Carica i clienti all'inizio - wrappato in useCallback
   const loadClients = useCallback(async () => {
-    if (clients.length === 0) {
-      setIsLoading(true);
-      try {
-        const data = await getAllClients();
-        setClients(data);
-        
-        // Se c'è un defaultClientId, carica i dati del cliente
-        if (defaultClientId) {
-          fetchClientById(defaultClientId);
-        }
-        
-        // Controlla anche l'URL per clientId
-        const urlParams = new URLSearchParams(window.location.search);
-        const clientIdFromUrl = urlParams.get('clientId');
-        if (clientIdFromUrl) {
-          fetchClientById(clientIdFromUrl);
-        }
-      } catch (error) {
-        console.error("Errore nel caricamento dei clienti:", error);
-      } finally {
-        setIsLoading(false);
-      }
+    // Evita chiamate multiple se già caricati
+    if (clients.length > 0) return;
+    
+    setIsLoading(true);
+    try {
+      const data = await getAllClients();
+      setClients(data);
+      
+      // console.log("Clienti caricati:", data.length);
+    } catch (error) {
+      console.error("Errore nel caricamento dei clienti:", error);
+    } finally {
+      setIsLoading(false);
     }
-  }, [clients.length, defaultClientId]);
-  
-  // Carica i clienti al montaggio del componente (solo una volta)
+  }, []);
+
+  // Effetto per caricare i clienti al montaggio
   useEffect(() => {
-    loadClients();
+    if (clients.length === 0) {
+      loadClients();
+    }
   }, [loadClients]);
   
   // Funzione per recuperare un client specifico
@@ -242,12 +231,79 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
         form.setValue("clientId", client.id);
         form.setValue("clientName", `${client.name} ${client.surname}`);
         form.setValue("phone", client.phone);
-        form.setValue("plate", client.plate);
+        if (client.plate) {
+          form.setValue("plate", client.plate);
+        }
+        
+        // Imposta il VIN dal cliente solo se non è già presente dal preventivo
+        if (client.vin && !vin) {
+          setVin(client.vin);
+          // console.log("VIN caricato dal cliente:", client.vin);
+        }
+        
+        // console.log("Cliente caricato:", {
+        //   name: `${client.name} ${client.surname}`,
+        //   vin: client.vin,
+        //   currentVin: vin
+        // });
       }
     } catch (error) {
       console.error("Errore nel caricamento del cliente:", error);
     }
   };
+  
+  // Funzione per recuperare SOLO il VIN dal cliente (senza sovrascrivere altri campi)
+  const fetchClientVinOnly = async (id: string) => {
+    try {
+      const client = await getClientById(id);
+      if (client && client.vin && !vin) {
+        setVin(client.vin);
+        setSelectedClient(client); // Imposta il cliente selezionato per la UI
+        // console.log("VIN caricato dal cliente (solo VIN):", client.vin);
+      }
+    } catch (error) {
+      console.error("Errore nel caricamento del VIN del cliente:", error);
+    }
+  };
+  
+  // Effetto per caricare il cliente dal preventivo esistente
+  useEffect(() => {
+    if (quote?.clientId && !selectedClient) {
+      fetchClientById(quote.clientId);
+    }
+  }, [quote?.clientId]); // Solo quando cambia l'ID del cliente del preventivo
+  
+  // REGOLA: Controllo se il preventivo può essere modificato
+  useEffect(() => {
+    const checkQuoteEditability = async () => {
+      if (quote && quote.status === "accettato") {
+        try {
+          const appointments = await getAllAppointments();
+          const associatedAppointment = appointments.find(app => app.quoteId === quote.id);
+          
+          if (associatedAppointment && associatedAppointment.status === "in_lavorazione") {
+            // Non chiudiamo più il form, ma impostiamo solo la modalità sola lettura
+            setIsReadOnlyByRule(true);
+            toast({
+              title: "Preventivo in sola lettura",
+              description: "Il preventivo è visualizzabile ma non modificabile perché l'appuntamento è in lavorazione.",
+              variant: "default",
+            });
+          } else {
+            setIsReadOnlyByRule(false);
+          }
+        } catch (error) {
+          console.error("Errore nel controllo dell'editabilità del preventivo:", error);
+        }
+      } else {
+        setIsReadOnlyByRule(false);
+      }
+    };
+
+    if (isOpen && quote) {
+      checkQuoteEditability();
+    }
+  }, [isOpen, quote?.id, quote?.status]);
   
   // Gestisce la selezione di un cliente
   const handleSelectClient = (client: Client) => {
@@ -255,16 +311,35 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
     form.setValue("clientId", client.id);
     form.setValue("clientName", `${client.name} ${client.surname}`);
     form.setValue("phone", client.phone);
-    form.setValue("plate", client.plate);
+    
+    // Non impostiamo più automaticamente la targa
+    // Lasciamo che l'utente scelga dal menu a tendina
+    
+    // Imposta il VIN dal cliente SOLO se non è già presente
+    if (client.vin && !vin) {
+      setVin(client.vin);
+    }
+    
     setIsSearching(false);
   };
   
   // Gestisce la rimozione del cliente selezionato
   const handleClearSelectedClient = () => {
     setSelectedClient(null);
-    form.setValue("clientId", "");
-    form.setValue("clientName", "");
-    form.setValue("phone", "");
+    // NON svuotare i campi, lasciarli come sono per permettere la modifica
+    // form.setValue("clientId", "");
+    // form.setValue("clientName", "");
+    // form.setValue("phone", "");
+  };
+  
+  // Gestisce il successo del ClientForm
+  const handleClientFormSuccess = () => {
+    // Ricarica la lista dei clienti
+    loadClients();
+    toast({
+      title: "Cliente creato",
+      description: "Il nuovo cliente è stato creato con successo."
+    });
   };
   
   // Formatta il prezzo
@@ -280,26 +355,33 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
   // Aggiunto flag per gestire lo stato durante l'aggiunta di parti
   const [isProcessingAddPart, setIsProcessingAddPart] = useState(false);
   
-  // Funzione migliorata per aggiornare gli items
+  // Funzione per aggiornare gli items - SEMPLIFICATA
   const updateItems = useCallback((newItems: QuoteItem[]) => {
     try {
-      // Crea una copia profonda per evitare problemi di riferimento
-      const clonedItems = JSON.parse(JSON.stringify(newItems));
+      // Aggiorna direttamente lo stato
+      setItems([...newItems]);
       
-      // Aggiorna gli stati
-      setItems(clonedItems);
-      
-      // Calcola SOLO i totali dei ricambi, SENZA manodopera servizi
-      const partsTotal = clonedItems.reduce((sum: number, item: QuoteItem) => {
+      // console.log("Items aggiornati tramite updateItems:", newItems);
+    } catch (error) {
+      console.error("Errore durante l'aggiornamento degli items:", error);
+    }
+  }, []); // NESSUNA DIPENDENZA per evitare ricreazioni continue
+  
+  // Effetto per ricalcolare i totali ogni volta che cambiano items, laborHours o taxRate
+  useEffect(() => {
+    try {
+      // Calcola immediatamente i totali per aggiornare il riepilogo
+      const partsTotal = items.reduce((sum, item) => {
         return sum + (Array.isArray(item.parts) 
-          ? item.parts.reduce((sum: number, part: SparePart) => sum + (part.finalPrice || 0), 0)
+          ? item.parts.reduce((sum, part) => sum + (part.finalPrice || 0), 0)
           : 0);
       }, 0);
       
-      // Calcola SOLO costo manodopera extra
-      const extraLabor = (form.getValues().laborPrice || 0) * laborHours;
+      // Calcola manodopera extra - usa valori correnti
+      const currentLaborPrice = form.getValues().laborPrice || 35;
+      const extraLabor = currentLaborPrice * laborHours;
       
-      // Subtotale (ricambi + SOLO manodopera extra, NO manodopera servizi)
+      // Subtotale
       const subtotal = partsTotal + extraLabor;
       
       // IVA
@@ -308,7 +390,7 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
       // Totale finale
       const total = subtotal + taxAmount;
       
-      // Aggiorna lo stato dei totali
+      // Aggiorna i totali immediatamente
       setSubTotals({
         subtotal,
         taxAmount,
@@ -317,16 +399,17 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
         laborTotal: extraLabor
       });
       
-      // Forza un re-render dopo un breve timeout
-      setTimeout(() => {
-        setItems([...clonedItems]);
-      }, 50);
-      
-      console.log("Items aggiornati:", clonedItems);
-              } catch (error) {
-      console.error("Errore durante l'aggiornamento degli items:", error);
+      // console.log("Totali ricalcolati automaticamente:", {
+      //   partsTotal,
+      //   extraLabor,
+      //   subtotal,
+      //   taxAmount,
+      //   total
+      // });
+    } catch (error) {
+      console.error("Errore durante il ricalcolo dei totali:", error);
     }
-  }, [form, laborHours, taxRate]);
+  }, [items, laborHours, taxRate, form]); // Dipende da items, laborHours, taxRate e form
   
   // Funzione ottimizzata per l'aggiunta di parti
   const onAddPart = useCallback((serviceId: string, part: Omit<SparePart, "id">, index = -1) => {
@@ -338,7 +421,7 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
       // Crea il nuovo ricambio con un ID unico
       const newPart: SparePart = {
         id: uuidv4(),
-        category: part.category || "",
+        category: part.category || "altro",
         code: part.code,
         description: part.description,
         name: part.name || part.description || part.code,
@@ -348,43 +431,45 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
         finalPrice: part.finalPrice || part.unitPrice * part.quantity
       };
       
-      // Usa una copia profonda degli items per evitare problemi di riferimento
-      const updatedItems = JSON.parse(JSON.stringify(items));
-      
-      // Trova il servizio a cui aggiungere il ricambio
-      const serviceIndex = updatedItems.findIndex((item: QuoteItem) => item.id === serviceId);
-      
-      if (serviceIndex !== -1) {
-        // Inizializza l'array delle parti se non esiste
-        if (!updatedItems[serviceIndex].parts) {
-          updatedItems[serviceIndex].parts = [];
-        }
+      // Aggiorna direttamente gli items esistenti
+      setItems(currentItems => {
+        const updatedItems = currentItems.map(item => {
+          if (item.id === serviceId) {
+            // Inizializza l'array delle parti se non esiste
+            const parts = Array.isArray(item.parts) ? [...item.parts] : [];
+            
+            // Aggiungi il nuovo ricambio all'array delle parti
+            if (index === -1) {
+              parts.push(newPart);
+            } else {
+              parts.splice(index, 0, newPart);
+            }
+            
+            // Ricalcola il totale del servizio - Solo ricambi, senza manodopera
+            const partsTotal = parts.reduce(
+              (sum: number, p: SparePart) => sum + (p.finalPrice || 0),
+              0
+            );
+            
+            // Il totalPrice dell'item è solo il costo dei ricambi
+            return {
+              ...item,
+              parts,
+              totalPrice: partsTotal
+            };
+          }
+          return item;
+        });
         
-        // Aggiungi il nuovo ricambio all'array delle parti
-        if (index === -1) {
-          updatedItems[serviceIndex].parts.push(newPart);
-    } else {
-          updatedItems[serviceIndex].parts.splice(index, 0, newPart);
-        }
-        
-        // Ricalcola il totale del servizio - Solo ricambi, senza manodopera
-        const partsTotal = updatedItems[serviceIndex].parts.reduce(
-          (sum: number, p: SparePart) => sum + (p.finalPrice || 0),
-          0
-        );
-        
-        // Il totalPrice dell'item è solo il costo dei ricambi
-        updatedItems[serviceIndex].totalPrice = partsTotal;
-        
-        // Aggiorna lo stato
-        updateItems(updatedItems);
-      }
+        // console.log("Items aggiornati con nuovo ricambio:", updatedItems);
+        return updatedItems;
+      });
     } catch (error) {
       console.error("Errore durante l'aggiunta del ricambio:", error);
     } finally {
       setIsProcessingAddPart(false);
     }
-  }, [items, isProcessingAddPart, updateItems]);
+  }, [isProcessingAddPart]);
   
   // Gestisce l'aggiornamento degli elementi del preventivo
   const handleItemsChange = useCallback((newItems: QuoteItem[]) => {
@@ -457,100 +542,163 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
         // Valori calcolati per il subtotale e l'IVA
         subtotal: subtotal,
         taxAmount: taxAmount,
-        // Non assegniamo più totalPrice a total, in modo che venga utilizzato correttamente totalPrice
-        // total: totalPrice,
         // Aggiungiamo i subtotali separati
         partsSubtotal: partsSubtotal,
         laborTotal: laborTotal
       };
       
-      console.log("Salvataggio preventivo con campi extra:", quoteToSave);
+      // console.log("Inizio salvataggio preventivo...");
       
-      try {
-        let savedQuote;
-        if (quote?.id) {
-          // Aggiornamento preventivo esistente
+      // Salvataggio preventivo
+      let savedQuote: Quote | null = null;
+      if (quote?.id) {
+        // Aggiornamento preventivo esistente
+        try {
           savedQuote = await updateQuote(quote.id, quoteToSave);
           toast({
             title: "Preventivo aggiornato",
             description: "Il preventivo è stato aggiornato con successo."
           });
-        } else {
-          // Creazione nuovo preventivo
+          
+          // FIX FOCUS: Forza l'aggiornamento dei valori nei campi input dopo il salvataggio
+          if (savedQuote) {
+            setTimeout(() => {
+              forceUpdateInputValues({
+                'extraLaborHours': savedQuote!.laborHours || 0,
+                'extraLaborRate': savedQuote!.laborPrice || 35,
+                'taxRate': (savedQuote as any)?.taxRate || 22
+              });
+              console.log("✅ Valori dei campi input aggiornati forzatamente dopo il salvataggio");
+            }, 100);
+          }
+          
+        } catch (error: any) {
+          console.error("Errore durante l'aggiornamento:", error);
+          
+          // Gestione specifica per errore PGRST116
+          if (error.message && error.message.includes("non esiste più nel database")) {
+            toast({
+              variant: "destructive",
+              title: "Preventivo non trovato",
+              description: "Il preventivo non esiste più nel database. Potrebbe essere stato eliminato. La pagina verrà ricaricata.",
+              duration: 5000,
+            });
+            // Ricarica la pagina dopo 2 secondi
+            setTimeout(() => {
+              window.location.reload();
+            }, 2000);
+            return;
+          } else if (error.message && error.message.includes("non può essere aggiornato")) {
+            toast({
+              variant: "destructive",
+              title: "Errore di aggiornamento",
+              description: "Il preventivo non può essere aggiornato. Prova a ricaricare la pagina.",
+              duration: 5000,
+            });
+            return;
+          }
+          
+          // Altri tipi di errore
+          toast({
+            variant: "destructive",
+            title: "Errore durante il salvataggio",
+            description: error.message || "Si è verificato un errore imprevisto. Riprova.",
+            duration: 5000,
+          });
+          return;
+        }
+      } else {
+        // Creazione nuovo preventivo
+        try {
           savedQuote = await createQuote(quoteToSave);
           toast({
             title: "Preventivo creato",
             description: "Il preventivo è stato creato con successo."
           });
+          
+          // FIX FOCUS: Forza l'aggiornamento dei valori nei campi input dopo il salvataggio
+          if (savedQuote) {
+            setTimeout(() => {
+              forceUpdateInputValues({
+                'extraLaborHours': savedQuote!.laborHours || 0,
+                'extraLaborRate': savedQuote!.laborPrice || 35,
+                'taxRate': (savedQuote as any)?.taxRate || 22
+              });
+              console.log("✅ Valori dei campi input aggiornati forzatamente dopo la creazione");
+            }, 100);
+          }
+        } catch (error: any) {
+          console.error("Errore durante la creazione:", error);
+          toast({
+            variant: "destructive",
+            title: "Errore durante la creazione",
+            description: error.message || "Si è verificato un errore durante la creazione del preventivo. Riprova.",
+            duration: 5000,
+          });
+          return;
         }
-        
-        // Forza aggiornamento della cache React Query utilizzando il queryClient già importato
-        console.log("Forzo aggiornamento cache React Query");
-        
-        // Invalida le query per forzare un refetch
-        await queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
-        await queryClient.invalidateQueries({ queryKey: ['/quotes/client'] });
-        // Invalida anche le query degli appuntamenti per aggiornare i dati del preventivo associato
-        await queryClient.invalidateQueries({ queryKey: ['/api/appointments'] });
-        
-        // Emetti un evento personalizzato per notificare l'aggiornamento
-        window.dispatchEvent(new CustomEvent('quoteUpdated', { 
-          detail: { quoteId: quote?.id || savedQuote?.id, action: quote?.id ? 'updated' : 'created' }
-        }));
-        
-        // Attendi un momento per assicurarsi che i dati siano persistiti
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        // Forza refetch dei dati
-        const freshQuotes = await getAllQuotes();
-        queryClient.setQueryData(['/api/quotes'], freshQuotes);
-        
-        // Chiama la funzione di onSuccess e chiude la modale
-        if (onSuccess) onSuccess();
-        onClose();
-      } catch (error) {
-        console.error("Errore nel salvataggio del preventivo:", error);
-        toast({
-          title: "Errore",
-          description: "Si è verificato un errore durante il salvataggio del preventivo.",
-          variant: "destructive"
-        });
-        // Chiudiamo comunque la modale
-        if (onSuccess) onSuccess();
-        onClose();
       }
+      
+      // console.log("Preventivo salvato, aggiornamento cache...");
+      
+      // Aggiornamento cache completo - invalida tutte le query pertinenti
+      try {
+        await Promise.all([
+          // Query principali
+          queryClient.invalidateQueries({ queryKey: ['/api/quotes'] }),
+          queryClient.invalidateQueries({ queryKey: ['/api/statistics'] }),
+          // Query specifiche per cliente - importante per aggiornare i preventivi negli appuntamenti
+          queryClient.invalidateQueries({ queryKey: ['/quotes/client'] }),
+          // Query per appuntamenti che potrebbero dipendere dai preventivi
+          queryClient.invalidateQueries({ queryKey: ['/appointments'] })
+        ]);
+        // console.log("Cache aggiornata con successo (tutte le query)");
+      } catch (cacheError) {
+        // console.warn("Errore nell'aggiornamento cache:", cacheError);
+      }
+      
+      // Successo - chiama callback e chiudi modale
+      if (onSuccess) {
+        // console.log("Chiamando onSuccess...");
+        try {
+          // Aspetta il completamento dell'aggiornamento dell'UI
+          await onSuccess();
+          // console.log("onSuccess completato con successo");
+        } catch (successError) {
+          console.error("Errore nel callback onSuccess:", successError);
+          // Continua comunque con la chiusura
+        }
+      }
+      onClose();
+      
     } catch (error) {
-      console.error("Errore nella preparazione dei dati:", error);
+      console.error("Errore durante il salvataggio:", error);
       toast({
         title: "Errore",
-        description: "Si è verificato un errore durante la preparazione dei dati.",
+        description: "Si è verificato un errore durante il salvataggio del preventivo.",
         variant: "destructive"
       });
-      // Chiudiamo comunque la modale
-      if (onSuccess) onSuccess();
-      onClose();
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Filtra i clienti in base alla ricerca
-  const filteredClients = clients.filter(client => {
-    if (!searchQuery) return false;
-    
+  // Filtra i clienti in base alla query di ricerca
+  const filteredClients = clients.filter((client) => {
     const fullName = `${client.name} ${client.surname}`.toLowerCase();
     const query = searchQuery.toLowerCase();
     
     return (
       fullName.includes(query) || 
-      client.phone.includes(query) || 
-      client.plate.toLowerCase().includes(query)
+      (client.phone && client.phone.includes(query)) || 
+      (client.plate && client.plate.toLowerCase().includes(query))
     );
   });
   
-  // Stato per il passaggio corrente - se è una modifica, andiamo direttamente allo step 4 (ricambi)
-  const [currentStep, setCurrentStep] = useState<number>(quote ? 4 : 1);
-  const totalSteps = 4;
+  // Stato per il passaggio corrente - se è una modifica, andiamo direttamente allo step 3 (riepilogo)
+  const initialStep: number = quote ? 3 : 1;
+  const [currentStep, setCurrentStep] = useState<number>(initialStep);
+  const totalSteps = 3;
   
   // Stato per tenere traccia del tab attivo nella sezione ricambi
   const [activeTab, setActiveTab] = useState<string>(items.length > 0 ? items[0].id : "");
@@ -566,12 +714,7 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
   
   // Funzione per andare al passaggio precedente
   const goToPreviousStep = () => {
-    // Se siamo al passaggio 4, andiamo direttamente al passaggio 3 (ricambi)
-    if (currentStep === 4) {
-      setCurrentStep(3);
-    } else {
     setCurrentStep(prev => Math.max(prev - 1, 1));
-    }
   };
   
   // Controlla se il passaggio 1 è valido (dati cliente e veicolo)
@@ -580,14 +723,9 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
     return !!clientName && !!phone && !!plate;
   };
   
-  // Controlla se il passaggio 2 è valido (servizi)
-  const isStep2Valid = () => {
-    return items.length > 0;
-  };
-
-  // Miglioro lo scroll nella pagina di riepilogo (Passo 4)
+  // Miglioro lo scroll nella pagina di riepilogo (Passo 3)
   function SummaryStep() {
-  return (
+    return (
       <SummaryStepForm
         items={items}
         laborHours={laborHours}
@@ -601,13 +739,16 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
     );
   }
 
+  // Calcola se il form è in modalità sola lettura (combinando prop e regola)
+  const isFormReadOnly = readOnly || isReadOnlyByRule;
+
   return (
     <Dialog 
-      open={isOpen} 
+      open={isOpen && !isClientFormOpen} 
       onOpenChange={(open) => {
         // Se il flag preventCloseUntilSave è attivo, impedisci completamente la chiusura
         if (!open && preventCloseUntilSave) {
-          console.log("Tentativo di chiusura bloccato - operazione di modifica in corso");
+          // console.log("Tentativo di chiusura bloccato - operazione di modifica in corso");
           return;
         }
         
@@ -618,9 +759,9 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
           return;
         }
         
-        // Se stiamo modificando un preventivo nel passaggio 3 (inserimento ricambi), 
+        // Se stiamo modificando un preventivo nel passaggio 3 (inserimento ricambi) e NON siamo in sola lettura, 
         // conferma prima di chiudere
-        if (!open && currentStep === 3) {
+        if (!open && currentStep === 3 && !isFormReadOnly) {
           const confirmed = window.confirm("Sei sicuro di voler chiudere? Le modifiche non salvate andranno perse.");
           if (!confirmed) {
             // L'utente ha annullato, impediamo la chiusura
@@ -633,17 +774,25 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
       }}
     >
       <DialogContent 
-        className="max-w-4xl max-h-[95vh] overflow-visible p-0 bg-black text-white border border-gray-800 scrollbar-hide"
+        className="max-w-4xl max-h-[95vh] overflow-visible p-0 bg-gray-900 text-white border border-gray-700 scrollbar-hide z-[1100]"
         aria-describedby="quote-form-description"
         onClick={(e) => {
           // Ferma la propagazione dell'evento per evitare chiusure accidentali
           e.stopPropagation();
         }}
       >
-        <DialogHeader className="px-4 py-3 sticky top-0 bg-black z-30 border-b border-gray-800">
-          <DialogTitle className="text-orange-500">{quote ? "Modifica Preventivo" : "Nuovo Preventivo"}</DialogTitle>
+        <DialogHeader className="px-4 py-3 sticky top-0 bg-gray-900 z-30 border-b border-gray-700">
+          <DialogTitle className="text-orange-500">
+            {isFormReadOnly 
+              ? `Visualizza Preventivo ${isReadOnlyByRule ? '(Solo Lettura)' : ''}` 
+              : quote ? "Modifica Preventivo" : "Nuovo Preventivo"
+            }
+          </DialogTitle>
           <DialogDescription id="quote-form-description" className="text-xs text-gray-400">
-            {quote ? "Aggiorna i dettagli del preventivo" : "Crea un nuovo preventivo per un cliente"}
+            {isFormReadOnly 
+              ? "Preventivo visualizzabile ma non modificabile" 
+              : quote ? "Aggiorna i dettagli del preventivo" : "Crea un nuovo preventivo per un cliente"
+            }
           </DialogDescription>
           <button 
             className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground text-gray-400 hover:text-orange-400" 
@@ -654,99 +803,164 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
           </button>
         </DialogHeader>
         
-        {/* Indicatore Passaggi con pallini */}
-        <div className="flex justify-between items-center px-4 py-2 bg-black z-20 border-b border-gray-800">
-          <div className="flex items-center gap-1">
-            {[1, 2, 3, 4].map((step) => (
-              <div 
-                key={step} 
-                className={`rounded-full w-2 h-2 transition-colors ${
-                  currentStep === step 
-                    ? "bg-orange-500" 
-                    : currentStep > step
-                    ? "bg-orange-700"
-                    : "bg-gray-800"
-                }`}
-              />
-            ))}
-          </div>
-        </div>
-        
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="max-h-[calc(95vh-110px)] overflow-auto px-4 py-2 bg-black scrollbar-hide">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="max-h-[calc(95vh-110px)] overflow-auto px-4 py-2 bg-gray-900 scrollbar-hide">
             {/* STEP 1: Dati Cliente */}
             {currentStep === 1 && (
               <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-xl font-semibold">Dati Cliente e Veicolo</h2>
-                  <div className="text-sm text-muted-foreground">Passo 1 di 4</div>
+                {/* Header compatto */}
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-semibold text-white">Dati Cliente e Veicolo</h2>
+                  <div className="text-xs text-orange-400 bg-orange-500/20 px-2 py-1 rounded-full border border-orange-500/30">
+                    Passo 1 di 3
+                  </div>
                 </div>
                 
-                {selectedClient ? (
-                  <div className="flex justify-between items-center border p-4 rounded-md bg-muted/40">
-                    <div>
-                      <h3 className="font-medium">{selectedClient.name} {selectedClient.surname}</h3>
-                      <div className="text-sm text-muted-foreground mt-1 space-y-1">
-                        <p>Tel: {selectedClient.phone}</p>
-                        <p>Veicolo: {selectedClient.plate}</p>
+                {/* Contenuto del passo */}
+                <div className="space-y-3">
+                  {selectedClient ? (
+                    /* Cliente Selezionato - Layout Compatto */
+                    <div className="bg-blue-900/30 border border-blue-500/50 p-4 rounded-lg">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-3">
+                            <div className="w-2 h-2 bg-orange-400 rounded-full"></div>
+                            <h3 className="text-base font-medium text-orange-400">Cliente Selezionato</h3>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                            <div className="flex items-center gap-2 text-gray-300">
+                              <div className="w-1 h-1 bg-orange-400 rounded-full"></div>
+                              <span className="text-white font-medium">{selectedClient.name} {selectedClient.surname}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-gray-300">
+                              <div className="w-1 h-1 bg-orange-400 rounded-full"></div>
+                              <span className="text-gray-200">{selectedClient.phone}</span>
+                            </div>
+                          </div>
+                          
+                          {/* Selezione Veicolo - Compatta */}
+                          <div className="mt-3 pt-3 border-t border-blue-500/30">
+                            <label className="block text-xs font-medium text-orange-400 mb-2">
+                              Seleziona Veicolo
+                            </label>
+                            <select 
+                              value={form.watch("plate") || ""} 
+                              onChange={(e) => {
+                                const value = e.target.value;
+                                form.setValue("plate", value);
+                                
+                                // Trova il veicolo selezionato
+                                const selectedVehicle = selectedClient.vehicles?.find(v => v.plate === value);
+                                
+                                if (selectedVehicle) {
+                                  // Se il veicolo è nell'array vehicles, usa i suoi dati
+                                  if (selectedVehicle.vin) {
+                                    setVin(selectedVehicle.vin);
+                                  }
+                                  // Aggiorna anche il campo legacy plate del cliente
+                                  if (selectedClient.plate !== value) {
+                                    // Aggiorna il cliente nel database
+                                    updateClient(selectedClient.id, {
+                                      plate: value,
+                                      vin: selectedVehicle.vin || ""
+                                    }).catch((error: Error) => {
+                                      console.error("Errore nell'aggiornamento della targa legacy:", error);
+                                    });
+                                  }
+                                } else if (selectedClient.plate === value && selectedClient.vin) {
+                                  // Fallback al campo legacy se necessario
+                                  setVin(selectedClient.vin);
+                                }
+                              }}
+                              className="w-full bg-gray-800 border border-gray-600 text-white rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-orange-400 hover:border-orange-400 transition-colors"
+                            >
+                              <option value="" disabled className="text-gray-400 bg-gray-800">Seleziona una targa...</option>
+                              {/* Veicoli dall'array vehicles (priorità) */}
+                              {selectedClient.vehicles && selectedClient.vehicles.length > 0 ? (
+                                selectedClient.vehicles.map((vehicle, index) => (
+                                  <option 
+                                    key={`vehicle-${index}`} 
+                                    value={vehicle.plate}
+                                    className="bg-gray-800 text-white"
+                                  >
+                                    {vehicle.plate} {vehicle.vin ? `(VIN: ${vehicle.vin.substring(0, 8)}...)` : ''}
+                                  </option>
+                                ))
+                              ) : (
+                                /* Fallback al campo legacy se non ci sono veicoli nell'array */
+                                selectedClient.plate && (
+                                  <option 
+                                    key="legacy-plate" 
+                                    value={selectedClient.plate}
+                                    className="bg-gray-800 text-white"
+                                  >
+                                    {selectedClient.plate} {selectedClient.vin ? `(VIN: ${selectedClient.vin.substring(0, 8)}...)` : ''}
+                                  </option>
+                                )
+                              )}
+                            </select>
+                          </div>
+                        </div>
+                        
+                        <Button 
+                          type="button" 
+                          variant="outline"
+                          size="sm"
+                          onClick={handleClearSelectedClient}
+                          className="border-orange-500/50 text-orange-400 hover:bg-orange-500/10 hover:border-orange-400 text-xs px-3 py-1"
+                        >
+                          Cambia
+                        </Button>
                       </div>
                     </div>
-                    <Button 
-                      type="button" 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={handleClearSelectedClient}
-                    >
-                      <XCircle className="h-4 w-4 mr-1" />
-                      <span>Cambia</span>
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="mb-2 block">Cerca cliente</Label>
-                      <div className="flex gap-2">
-                        <div className="relative flex-1">
+                  ) : (
+                    /* Selezione Cliente - Layout Migliorato */
+                    <div className="space-y-3">
+                      {/* Cerca Cliente Esistente */}
+                      <div className="bg-blue-900/30 border border-blue-500/50 p-4 rounded-lg">
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="w-2 h-2 bg-orange-400 rounded-full"></div>
+                          <h3 className="text-sm font-medium text-orange-400">Cerca Cliente Esistente</h3>
+                        </div>
+                        
+                        <div className="relative">
                           <Input
-                            placeholder="Cerca per nome, targa o telefono"
+                            placeholder="Cerca per nome, targa o telefono..."
                             value={searchQuery}
                             onChange={(e) => {
                               setSearchQuery(e.target.value);
                               setIsSearching(e.target.value.length > 0);
-                              setSelectedIndex(-1); // Reset selected index when typing
+                              setSelectedIndex(-1);
                             }}
                             onKeyDown={(e) => {
                               if (isSearching && filteredClients.length > 0) {
-                                // Freccia giù
                                 if (e.key === 'ArrowDown') {
                                   e.preventDefault();
                                   setSelectedIndex(prev => 
                                     prev < filteredClients.length - 1 ? prev + 1 : prev
                                   );
                                 }
-                                // Freccia su
                                 else if (e.key === 'ArrowUp') {
                                   e.preventDefault();
                                   setSelectedIndex(prev => prev > 0 ? prev - 1 : 0);
                                 }
-                                // Invio per selezionare
                                 else if (e.key === 'Enter' && selectedIndex >= 0) {
                                   e.preventDefault();
                                   handleSelectClient(filteredClients[selectedIndex]);
                                 }
-                                // Esc per chiudere
                                 else if (e.key === 'Escape') {
                                   e.preventDefault();
                                   setIsSearching(false);
                                 }
                               }
                             }}
-                            className="w-full"
+                            className="w-full bg-gray-800 border border-gray-600 text-white placeholder-gray-400 text-sm py-2 focus:border-orange-400 focus:ring-orange-400/30 transition-colors"
                           />
                           {isSearching && (
-                            <div className="absolute top-full mt-1 left-0 right-0 border rounded-md bg-background shadow-md z-10 max-h-52 overflow-y-auto">
+                            <div className="absolute top-full mt-1 left-0 right-0 border border-gray-600 rounded-md bg-gray-800 shadow-lg z-10 max-h-40 overflow-y-auto">
                               {filteredClients.length === 0 ? (
-                                <div className="p-2 text-center text-sm text-muted-foreground">
+                                <div className="p-2 text-center text-xs text-gray-400">
                                   Nessun cliente trovato
                                 </div>
                               ) : (
@@ -754,20 +968,20 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                                   {filteredClients.map((client, index) => (
                                     <div
                                       key={client.id}
-                                      className={`p-2 cursor-pointer flex justify-between items-center ${
-                                        selectedIndex === index ? "bg-accent" : "hover:bg-accent/50"
+                                      className={`p-2 cursor-pointer flex justify-between items-center text-xs transition-colors ${
+                                        selectedIndex === index ? "bg-orange-500/15 border-orange-400/50" : "hover:bg-gray-700/60"
                                       }`}
                                       onClick={() => handleSelectClient(client)}
                                     >
                                       <div>
-                                        <div className="font-medium">
+                                        <div className="font-medium text-white">
                                           {client.name} {client.surname}
                                         </div>
-                                        <div className="text-sm text-muted-foreground">
+                                        <div className="text-gray-300">
                                           {client.plate}
                                         </div>
                                       </div>
-                                      <div className="text-sm text-muted-foreground">
+                                      <div className="text-gray-300">
                                         {client.phone}
                                       </div>
                                     </div>
@@ -778,310 +992,202 @@ export default function QuoteForm({ isOpen, onClose, onSuccess, quote, defaultCl
                           )}
                         </div>
                       </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="clientName"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Nome Cliente</FormLabel>
-                            <FormControl>
-                              <Input {...field} placeholder="Nome completo" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
                       
-                      <FormField
-                        control={form.control}
-                        name="phone"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Telefono</FormLabel>
-                            <FormControl>
-                              <Input {...field} placeholder="Numero di telefono" type="tel" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="plate"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Targa</FormLabel>
-                            <FormControl>
-                              <Input {...field} placeholder="Targa del veicolo" />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <div>
-                        <FormLabel>Modello</FormLabel>
-                        <Input 
-                          value={model}
-                          onChange={(e) => setModel(e.target.value)}
-                          placeholder="Modello del veicolo"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <FormLabel>VIN (Numero di telaio)</FormLabel>
-                        <Input 
-                          value={vin}
-                          onChange={(e) => setVin(e.target.value)}
-                          placeholder="Numero di telaio del veicolo"
-                        />
+                      {/* Separatore */}
+                      <div className="flex items-center justify-center my-3">
+                        <div className="border-t border-gray-600 flex-1"></div>
+                        <span className="px-3 text-orange-400 text-xs font-medium">OPPURE</span>
+                        <div className="border-t border-gray-600 flex-1"></div>
                       </div>
                       
-                      <FormField
-                        control={form.control}
-                        name="status"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Stato Preventivo</FormLabel>
-                            <FormControl>
-                              <Select value={field.value} onValueChange={field.onChange}>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Seleziona stato" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="bozza">Bozza</SelectItem>
-                                  <SelectItem value="inviato">Inviato</SelectItem>
-                                  <SelectItem value="accettato">Accettato</SelectItem>
-                                  <SelectItem value="completato">Completato</SelectItem>
-                                  <SelectItem value="scaduto">Scaduto</SelectItem>
-                                  <SelectItem value="archiviato">Archiviato</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
-                )}
-                
-                <div className="grid grid-cols-1 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="date"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-col">
-                        <FormLabel>Data</FormLabel>
-                        <FormControl>
-                          <SimplePopover
-                            trigger={
-                              <Button
-                                variant={"outline"}
-                                type="button"
-                                className={cn(
-                                  "w-full pl-3 text-left font-normal",
-                                  !field.value && "text-muted-foreground"
-                                )}
-                              >
-                                {field.value ? (
-                                  format(new Date(field.value), "dd MMMM yyyy", {
-                                    locale: it,
-                                  })
-                                ) : (
-                                  <span>Seleziona una data</span>
-                                )}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                              </Button>
-                            }
-                            align="start"
-                            className="p-0"
-                          >
-                            <Calendar
-                              mode="single"
-                              selected={field.value ? new Date(field.value) : undefined}
-                              onSelect={(date: Date | undefined) => {
-                                if (date) {
-                                  field.onChange(format(date, "yyyy-MM-dd"));
-                                }
-                              }}
-                              locale={it}
-                              initialFocus
-                            />
-                          </SimplePopover>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </div>
-            )}
-            
-            {/* STEP 2: Selezione Servizi */}
-            {currentStep === 2 && (
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-xl font-semibold">Selezione Servizi</h2>
-                  <div className="text-sm text-muted-foreground">Passo 2 di 4</div>
-                </div>
-                
-                <ServiceSelectionForm
-                  items={items}
-                  onChange={handleItemsChange}
-                />
-              </div>
-            )}
-            
-            {/* STEP 3: Ricambi */}
-            {currentStep === 3 && (
-              <div className="flex flex-col flex-1 w-full">
-                <div className="py-4 px-6 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
-                  <div>
-                    <h2 className="text-xl font-bold">Inserimento Ricambi</h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      Gestisci i ricambi per i servizi selezionati
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="flex-1 p-6 overflow-auto">
-                  <div className="grid grid-cols-1 gap-4">
-                {/* Componente per la gestione dei ricambi */}
-                <StaticSparePartsForm
-                  items={items}
-                  onAddPart={onAddPart}
-                  onRemovePart={(serviceId, partId) => {
-                    // Crea un nuovo array di servizi senza il ricambio rimosso
-                    const newItems = items.map(item => {
-                      if (item.id === serviceId) {
-                        // Rimuovi il ricambio
-                        const parts = Array.isArray(item.parts) 
-                          ? item.parts.filter(part => part.id !== partId)
-                          : [];
-                        
-                        // Calcola il nuovo prezzo totale
-                            const totalPrice = parts.reduce((sum, part) => sum + (part.finalPrice || 0), 0);
-                        
-                        return {
-                          ...item,
-                          parts,
-                          totalPrice
-                        };
-                      }
-                      return item;
-                    });
-                    
-                    // Aggiorna lo stato
-                    updateItems(newItems);
-                  }}
-                  onUpdateItems={updateItems}
-                  onPrevStep={() => {
-                    // Previeni la chiusura accidentale durante il cambio di passo
-                    setPreventAutoClose(true);
-                    setPreventCloseUntilSave(true);
-                    
-                    // Cambia passo
-                    goToPreviousStep();
-                    
-                    // Dopo un breve periodo, riattiva la possibilità di chiudere
-                    setTimeout(() => {
-                      setPreventCloseUntilSave(false);
-                    }, 500);
-                  }}
-                  onNextStep={() => {
-                    // Previeni la chiusura accidentale durante il cambio di passo
-                    setPreventAutoClose(true);
-                    setPreventCloseUntilSave(true);
-                    
-                    // Cambia passo
-                    goToNextStep();
-                    
-                    // Dopo un breve periodo, riattiva la possibilità di chiudere
-                    setTimeout(() => {
-                      setPreventCloseUntilSave(false);
-                    }, 500);
-                  }}
-                  isNewQuote={!quote}
-                />
-                          </div>
+                      {/* Nuovo Cliente */}
+                      <div className="bg-blue-900/30 border border-blue-500/50 p-4 rounded-lg">
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="w-2 h-2 bg-orange-400 rounded-full"></div>
+                          <h3 className="text-sm font-medium text-orange-400">Crea Nuovo Cliente</h3>
                         </div>
-                          </div>
+                        
+                        <div className="text-center">
+                          <p className="text-gray-300 text-xs mb-3">
+                            Non hai trovato il cliente che stai cercando?
+                          </p>
+                          <Button
+                            type="button"
+                            onClick={() => setIsClientFormOpen(true)}
+                            className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-md text-xs flex items-center gap-2 mx-auto transition-colors border border-orange-500"
+                          >
+                            <UserPlus className="h-3 w-3" />
+                            Crea Nuovo Cliente
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Bottoni di navigazione */}
+                <div className="flex justify-end pt-4 border-t border-gray-700">
+                  <Button 
+                    type="button" 
+                    onClick={goToNextStep}
+                    disabled={!isStep1Valid()}
+                    className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-sm"
+                  >
+                    Avanti
+                    <ChevronRight className="ml-1 h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
             )}
             
-            {/* STEP 4: Riepilogo e Conferma */}
-            {currentStep === 4 && (
-              <SummaryStep />
-            )}
-            
-            <DialogFooter className="pt-4 border-t border-gray-800 space-y-2 sm:space-y-0 bg-black">
-              {currentStep > 1 && currentStep !== 3 && (
-                    <Button 
-                      type="button" 
-                      variant="outline"
-                      onClick={goToPreviousStep}
-                  className="w-full sm:w-auto text-base py-6 sm:py-2 bg-transparent border-orange-500 text-orange-500 hover:bg-orange-950/30"
-                    >
-                  <ChevronLeft className="mr-2 h-4 w-4" />
-                      Indietro
-                    </Button>
-              )}
-                    
-              {currentStep < 4 && currentStep !== 3 ? (
-                      <Button 
-                        type="button" 
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    
-                    // Preveniamo la chiusura accidentale
-                    if (currentStep === 3) {
+            {/* STEP 2: Ricambi e Servizi - FORM UNIFICATO */}
+            {currentStep === 2 && (
+              <div className="space-y-6">
+                {/* Header uniforme per tutti i passi */}
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-semibold text-white">Ricambi e Servizi</h2>
+                  <div className="text-sm text-orange-400 bg-orange-500/20 px-3 py-1 rounded-full border border-orange-500/30">
+                    Passo 2 di 3
+                  </div>
+                </div>
+                
+                {/* Contenuto del passo */}
+                <div className="space-y-4">
+                  <StaticSparePartsForm
+                    items={items}
+                    onAddPart={onAddPart}
+                    onRemovePart={(serviceId, partId) => {
+                      // Crea un nuovo array di servizi senza il ricambio rimosso
+                      const newItems = items.map(item => {
+                        if (item.id === serviceId) {
+                          // Rimuovi il ricambio
+                          const parts = Array.isArray(item.parts) 
+                            ? item.parts.filter(part => part.id !== partId)
+                            : [];
+                          
+                          // Calcola il nuovo prezzo totale
+                          const totalPrice = parts.reduce((sum, part) => sum + (part.finalPrice || 0), 0);
+                          
+                          return {
+                            ...item,
+                            parts,
+                            totalPrice
+                          };
+                        }
+                        return item;
+                      });
+                      
+                      // Aggiorna lo stato
+                      updateItems(newItems);
+                    }}
+                    onUpdateItems={updateItems}
+                    onPrevStep={() => {
+                      // Previeni la chiusura accidentale durante il cambio di passo
                       setPreventAutoClose(true);
-                      // Blocchiamo brevemente la chiusura durante il cambio di step
                       setPreventCloseUntilSave(true);
+                      
+                      // Cambia passo
+                      goToPreviousStep();
+                      
+                      // Dopo un breve periodo, riattiva la possibilità di chiudere
                       setTimeout(() => {
                         setPreventCloseUntilSave(false);
-                      }, 300);
-                    }
-                    
-                    // Procediamo al prossimo step
-                    goToNextStep();
-                  }}
-                  disabled={
-                    (currentStep === 1 && !isStep1Valid()) ||
-                    (currentStep === 2 && !isStep2Valid())
-                  }
-                  className="w-full sm:w-auto text-base py-6 sm:py-2 bg-orange-600 hover:bg-orange-700"
-                >
-                  Avanti
-                  <ChevronRight className="ml-2 h-4 w-4" />
-                      </Button>
-              ) : currentStep === 4 ? (
-                <Button 
-                  type="submit" 
-                  disabled={isLoading}
-                  className="w-full sm:w-auto text-base py-6 sm:py-2 bg-orange-600 hover:bg-orange-700"
-                >
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Salvataggio...
-                    </>
-                  ) : quote ? "Aggiorna Preventivo" : "Crea Preventivo"}
-                </Button>
-              ) : null}
-            </DialogFooter>
+                      }, 500);
+                    }}
+                    onNextStep={() => {
+                      // Previeni la chiusura accidentale durante il cambio di passo
+                      setPreventAutoClose(true);
+                      setPreventCloseUntilSave(true);
+                      
+                      // Cambia passo
+                      goToNextStep();
+                      
+                      // Dopo un breve periodo, riattiva la possibilità di chiudere
+                      setTimeout(() => {
+                        setPreventCloseUntilSave(false);
+                      }, 500);
+                    }}
+                    isNewQuote={!quote}
+                  />
+                </div>
+                
+                {/* Bottoni di navigazione uniforme */}
+                <div className="flex justify-between items-center pt-6 border-t border-gray-700">
+                  <Button 
+                    type="button" 
+                    onClick={goToPreviousStep}
+                    className="px-6 py-2 bg-orange-600 hover:bg-orange-700"
+                  >
+                    <ChevronLeft className="mr-2 h-4 w-4" />
+                    Indietro
+                  </Button>
+                  <Button 
+                    type="button" 
+                    onClick={goToNextStep}
+                    className="px-6 py-2 bg-orange-600 hover:bg-orange-700"
+                  >
+                    Avanti
+                    <ChevronRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+            
+            {/* STEP 3: Riepilogo e Conferma */}
+            {currentStep === 3 && (
+              <div className="space-y-4">
+                {/* Contenuto del passo */}
+                <div>
+                  <SummaryStepForm
+                    items={items}
+                    laborHours={laborHours}
+                    setLaborHours={setLaborHours}
+                    taxRate={taxRate}
+                    setTaxRate={setTaxRate}
+                    form={form}
+                    goToPreviousStep={goToPreviousStep}
+                    onSubmit={onSubmit}
+                  />
+                </div>
+                
+                {/* Bottoni di navigazione uniforme */}
+                <div className="flex justify-between items-center gap-4 border-t border-gray-700 mt-4 pt-2">
+                  <Button 
+                    type="button" 
+                    onClick={goToPreviousStep}
+                    className="px-6 py-2 bg-orange-600 hover:bg-orange-700"
+                  >
+                    <ChevronLeft className="mr-2 h-4 w-4" />
+                    Indietro
+                  </Button>
+                  <Button 
+                    type="submit" 
+                    disabled={isLoading || isFormReadOnly}
+                    className="px-6 py-2 bg-orange-600 hover:bg-orange-700"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Salvataggio...
+                      </>
+                    ) : isFormReadOnly ? "Solo Lettura" : quote ? "Aggiorna Preventivo" : "Crea Preventivo"}
+                  </Button>
+                </div>
+              </div>
+            )}
           </form>
         </Form>
       </DialogContent>
+      
+      {/* ClientForm Dialog */}
+      <ClientForm
+        isOpen={isClientFormOpen}
+        onClose={() => setIsClientFormOpen(false)}
+        onSuccess={() => {
+          handleClientFormSuccess();
+          setIsClientFormOpen(false);
+        }}
+      />
     </Dialog>
   );
 }

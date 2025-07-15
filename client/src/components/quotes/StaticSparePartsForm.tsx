@@ -1,13 +1,45 @@
 // Versione STATICA del form ricambi - nessuno stato locale, solo props
-import { useState, useEffect } from "react";
-import { QuoteItem, SparePart } from "@shared/schema";
+import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
+import { QuoteItem, SparePart, ServiceType } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Pencil, Plus, Trash2, X } from "lucide-react";
+import { Pencil, Plus, Trash2, X, Upload, Percent } from "lucide-react";
 import { Tabs } from "@/components/ui/tabs";
+import { getAllServiceTypes } from "@shared/supabase";
+import { v4 as uuidv4 } from "uuid";
 import React from "react";
+
+// Definizione servizi predefiniti
+const defaultServices: Record<string, Array<{id: string, name: string}>> = {
+  "Tagliando": [
+    { id: "filtro-aria", name: "Filtro Aria" },
+    { id: "filtro-olio", name: "Filtro Olio" },
+    { id: "filtro-carburante", name: "Filtro Carburante" },
+    { id: "filtro-abitacolo", name: "Filtro Abitacolo" },
+    { id: "olio-motore", name: "Olio Motore" },
+  ],
+  "Frenante": [
+    { id: "pastiglie-anteriori", name: "Pastiglie Anteriori" },
+    { id: "pastiglie-posteriori", name: "Pastiglie Posteriori" },
+    { id: "dischi-anteriori", name: "Dischi Anteriori" },
+    { id: "dischi-posteriori", name: "Dischi/Ganasce Posteriori" },
+  ],
+  "Sospensioni": [
+    { id: "ammortizzatori-anteriori", name: "Ammortizzatori Anteriori" },
+    { id: "ammortizzatori-posteriori", name: "Ammortizzatori Posteriori" },
+    { id: "bracci-sospensione", name: "Bracci Sospensione" },
+    { id: "silent-block", name: "Silent Block" },
+  ],
+  "Accessori": [
+    { id: "batteria", name: "Batteria" },
+    { id: "spazzole-tergicristallo", name: "Spazzole Tergicristallo" },
+    { id: "lampadine", name: "Lampadine" },
+    { id: "candele", name: "Candele" },
+  ]
+};
 
 interface StaticSparePartsFormProps {
   items: QuoteItem[];
@@ -36,8 +68,12 @@ export default function StaticSparePartsForm({
   onNextStep,
   isNewQuote = false
 }: StaticSparePartsFormProps) {
-  // Implementiamo un sistema diretto senza alcun dialog
-  const [activeServiceId, setActiveServiceId] = useState<string>("");
+  // Stati per la selezione di categoria e servizio
+  const [selectedCategory, setSelectedCategory] = useState<string>("Frenante");
+  const [selectedService, setSelectedService] = useState<string>("");
+  const [availableServices, setAvailableServices] = useState<Record<string, Array<{id: string, name: string}>>>(defaultServices);
+  
+  // Stati per il form ricambi
   const [partCode, setPartCode] = useState("");
   const [partDescription, setPartDescription] = useState("");
   const [partBrand, setPartBrand] = useState("");
@@ -46,7 +82,29 @@ export default function StaticSparePartsForm({
   const [editingPartId, setEditingPartId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Manteniamo il dialogo originale per modifica
+  // Stato per controllare la visibilità del form
+  const [showAddForm, setShowAddForm] = useState(false);
+  
+  // Ref per il file input CSV
+  const csvFileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Stati per la preview CSV
+  const [showCSVPreview, setShowCSVPreview] = useState(false);
+  const [csvPreviewData, setCSVPreviewData] = useState<Array<{
+    code: string;
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    brand?: string;
+    selectedCategory: string;
+    selectedService: string;
+    margin?: number; // Margine in percentuale
+  }>>([]);
+
+  // Stato per il margine globale di default
+  const [defaultMargin, setDefaultMargin] = useState<number>(30); // 30% di default
+
+  // Dialog per modifica ricambi esistenti
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingPart, setEditingPart] = useState<{
     serviceId: string;
@@ -57,20 +115,67 @@ export default function StaticSparePartsForm({
     quantity: string;
     unitPrice: string;
   } | null>(null);
-  
-  // Raggruppa servizi per categoria (pura computazione, non stato)
-  const categoriesMap: Record<string, QuoteItem[]> = {};
-  items.forEach(item => {
-    const category = item.serviceType.category;
-    if (!categoriesMap[category]) {
-      categoriesMap[category] = [];
+
+  // Ref per il container del dialog CSV
+  const csvDialogRef = useRef<HTMLDivElement | null>(null);
+
+  // Funzione per calcolare il prezzo finale con margine
+  const calculateFinalPrice = (unitPrice: number, quantity: number, margin: number = 0): number => {
+    const basePrice = unitPrice * quantity;
+    return basePrice * (1 + margin / 100);
+  };
+
+  // Carica servizi dal database
+  useEffect(() => {
+    async function loadServices() {
+      try {
+        const allServiceTypes = await getAllServiceTypes();
+        const servicesByCategory = {...defaultServices};
+        
+        if (allServiceTypes && allServiceTypes.length > 0) {
+          // Reset delle categorie
+          Object.keys(servicesByCategory).forEach(key => {
+            servicesByCategory[key] = [];
+          });
+          
+          // Raggruppa servizi per categoria
+          allServiceTypes.forEach(service => {
+            if (!servicesByCategory[service.category]) {
+              servicesByCategory[service.category] = [];
+            }
+            servicesByCategory[service.category].push({
+              id: service.id,
+              name: service.name
+            });
+          });
+        }
+        
+        // Usa servizi predefiniti per categorie vuote
+        Object.keys(servicesByCategory).forEach(key => {
+          if (servicesByCategory[key].length === 0) {
+            servicesByCategory[key] = defaultServices[key] || [];
+          }
+        });
+        
+        setAvailableServices(servicesByCategory);
+      } catch (error) {
+        setAvailableServices(defaultServices);
+      }
     }
-    categoriesMap[category].push(item);
-  });
-  
-  // Ordina le categorie
-  const categories = Object.keys(categoriesMap).sort();
-  
+    
+    loadServices();
+  }, []);
+
+  // Aggiorna servizio selezionato quando cambia categoria (ma solo se non stiamo modificando un ricambio)
+  useEffect(() => {
+    // Non aggiornare automaticamente il servizio se stiamo modificando un ricambio esistente
+    if (editingPartId) return;
+    
+    if (availableServices[selectedCategory]?.length > 0) {
+      setSelectedService(availableServices[selectedCategory][0].id);
+    }
+  }, [selectedCategory, availableServices, editingPartId]);
+
   // Formatta numeri come valuta
   const formatCurrency = (amount: number): string => {
     if (isNaN(amount)) return "€ 0,00";
@@ -90,11 +195,12 @@ export default function StaticSparePartsForm({
     });
   }
   
-  // Funzione per mostrare il form di aggiunta ricambi
-  const showAddPartForm = (serviceId: string) => {
-    const activeService = items.find(item => item.id === serviceId);
+  // Funzione per selezionare un servizio
+  const selectService = (serviceId: string) => {
+    setSelectedService(serviceId);
     
-    setActiveServiceId(serviceId);
+    // Reset del form
+    const activeService = items.find(item => item.id === serviceId);
     setPartCode("");
     setPartDescription(activeService ? `Ricambio per ${activeService.serviceType.name}` : "");
     setPartBrand("");
@@ -102,779 +208,993 @@ export default function StaticSparePartsForm({
     setPartPrice(0);
     setEditingPartId(null);
   };
-  
-  // Funzione per mostrare il form di modifica ricambi
-  const showEditPartForm = (serviceId: string, part: SparePart) => {
-    setActiveServiceId(serviceId);
-    setPartCode(part.code || "");
-    setPartDescription(part.name || "");
-    setPartBrand(part.brand || "");
-    setPartQuantity(part.quantity || 1);
-    setPartPrice(part.unitPrice || 0);
-    setEditingPartId(part.id);
-  };
-  
-  // Funzione per nascondere il form
-  const hidePartForm = () => {
-    setActiveServiceId("");
-    setEditingPartId(null);
-  };
+
+  // Servizio selezionato
+  const selectedServiceObj = items.find(item => item.id === selectedService);
   
   // Controlla se c'è un serviceId da editare al caricamento
   useEffect(() => {
-    // Controlla se c'è un ID di servizio da modificare in localStorage
     const editServiceId = localStorage.getItem('editServiceId');
     if (editServiceId) {
-      // Verifica che questo servizio esista negli items
       const serviceExists = items.some(item => item.id === editServiceId);
       
-      if (serviceExists) {
-        // Imposta il servizio attivo
-        setActiveServiceId(editServiceId);
-        // Mostra il form per l'aggiunta di parti
-        showAddPartForm(editServiceId);
-        
-        // Rimuovi l'ID dal localStorage dopo averlo usato
+      if (serviceExists && selectedService !== editServiceId) {
+        setSelectedService(editServiceId);
         localStorage.removeItem('editServiceId');
       }
-    } else if (items.length > 0 && !activeServiceId) {
-      // Se non c'è un ID da modificare e non è stato selezionato alcun servizio, 
-      // seleziona il primo disponibile
-      setActiveServiceId(items[0].id);
+    } else if (items.length > 0 && !selectedService) {
+      // Imposta solo se non c'è già un servizio selezionato
+      setSelectedService(items[0].id);
     }
-  }, [items, activeServiceId]);
+  }, [items.length]); // Dipendenze ridotte per evitare loop
   
-  // Funzione per aggiungere un ricambio
-  const addPart = async () => {
-    if (!activeServiceId || !partCode) {
-      alert("Inserisci almeno il codice del ricambio");
+  // Effetto per mostrare automaticamente il form per nuovi preventivi
+  useEffect(() => {
+    if (isNewQuote && items.length === 0) {
+      setShowAddForm(true);
+    }
+  }, [isNewQuote, items.length]);
+  
+  // Funzione per aggiungere un ricambio con creazione automatica del servizio
+  const addPartWithService = async () => {
+    if (!selectedService || !partCode) {
+      alert("Seleziona un servizio e inserisci il codice ricambio");
       return;
     }
-    
+
     setIsSubmitting(true);
-    
+
     try {
-      const activeService = items.find(item => item.id === activeServiceId);
-      if (!activeService) {
+      // Trova il servizio negli availableServices
+      const categoryServices = availableServices[selectedCategory];
+      const serviceInfo = categoryServices?.find(s => s.id === selectedService);
+      
+      if (!serviceInfo) {
         throw new Error("Servizio non trovato");
       }
-      
+
       // Dati del ricambio
-    const partData = {
-      code: partCode,
-      name: partDescription || `Ricambio ${partCode}`,
-      brand: partBrand || undefined,
-      category: activeService.serviceType.category.toLowerCase(),
-      quantity: partQuantity,
-      unitPrice: partPrice,
-      finalPrice: partPrice * partQuantity
-    };
-    
-      // IMPORTANTE: Utilizziamo onUpdateItems direttamente per evitare il rirender problematico
-      // Crea un nuovo array di servizi con il nuovo ricambio
-      const newItems = items.map(item => {
-        if (item.id === activeServiceId) {
-          // Se stiamo modificando un ricambio esistente
-          if (editingPartId) {
-          const updatedParts = item.parts.map(part => {
-            if (part.id === editingPartId) {
+      const partData = {
+        code: partCode,
+        name: partDescription || `Ricambio ${partCode}`,
+        brand: partBrand || undefined,
+        category: selectedCategory.toLowerCase() || "altro",
+        quantity: partQuantity,
+        unitPrice: partPrice,
+        finalPrice: partPrice * partQuantity
+      };
+
+      // Cerca se il servizio esiste già negli items
+      const existingServiceIndex = items.findIndex(item => item.serviceType.id === selectedService);
+      
+      let newItems;
+      
+      if (editingPartId) {
+        // MODALITÀ MODIFICA - gestisce cambio di servizio
+        let partFound = false;
+        let originalServiceId = null;
+        
+        // Prima trova dove si trova attualmente il ricambio
+        for (const item of items) {
+          const partExists = item.parts?.find(p => p.id === editingPartId);
+          if (partExists) {
+            originalServiceId = item.serviceType.id;
+            partFound = true;
+            break;
+          }
+        }
+        
+        if (!partFound) {
+          throw new Error("Ricambio da modificare non trovato");
+        }
+        
+        // Se il servizio è cambiato, rimuovi dal vecchio e aggiungi al nuovo
+        if (originalServiceId !== selectedService) {
+          // Rimuovi dal servizio originale
+          newItems = items.map(item => {
+            if (item.serviceType.id === originalServiceId) {
+              const updatedParts = item.parts?.filter(p => p.id !== editingPartId) || [];
+              const totalPrice = updatedParts.reduce((sum, part) => sum + (part.finalPrice || 0), 0) + item.laborPrice;
+              
               return {
-                ...part,
-                ...partData,
-                  id: editingPartId, // Mantieni lo stesso ID
-                  code: partData.code,
-                  name: partData.name,
-                  brand: partData.brand,
-                  quantity: partData.quantity,
-                  unitPrice: partData.unitPrice,
-                  finalPrice: partData.finalPrice
+                ...item,
+                parts: updatedParts,
+                totalPrice
               };
             }
-            return part;
+            return item;
           });
           
-            // Calcola il nuovo prezzo totale
-            const totalPrice = updatedParts.reduce((sum, part) => sum + (part.finalPrice || 0), 0);
+          // Trova o crea il nuovo servizio
+          const newServiceIndex = newItems.findIndex(item => item.serviceType.id === selectedService);
           
-            return {
-              ...item,
-              parts: updatedParts,
-              totalPrice
-            };
-          } else {
-            // Se stiamo aggiungendo un nuovo ricambio
+          if (newServiceIndex === -1) {
+            // Il nuovo servizio non esiste, crealo
             const newPart = {
               ...partData,
-              id: generateUUID(),
-              code: partData.code,
-              quantity: partData.quantity,
-              name: partData.name,
-              category: partData.category,
-              unitPrice: partData.unitPrice,
-              finalPrice: partData.finalPrice
+              id: editingPartId, // Mantieni lo stesso ID
             };
-          
-            // Ottieni l'array delle parti esistenti
-            let parts = Array.isArray(item.parts) ? [...item.parts] : [];
-            parts.push(newPart);
-          
-            // Calcola il nuovo prezzo totale
-            const totalPrice = parts.reduce((sum, part) => sum + (part.finalPrice || 0), 0);
-          
+            
+            const newService: QuoteItem = {
+              id: uuidv4(),
+              serviceType: {
+                id: selectedService,
+                name: serviceInfo.name,
+                category: selectedCategory as any,
+                description: `${selectedCategory} - ${serviceInfo.name}`,
+                laborPrice: 35
+              },
+              laborPrice: 35,
+              laborHours: 1,
+              parts: [newPart],
+              notes: "",
+              totalPrice: newPart.finalPrice + 35
+            };
+            
+            newItems = [...newItems, newService];
+          } else {
+            // Il nuovo servizio esiste, aggiungi il ricambio modificato
+            newItems = newItems.map((item, index) => {
+              if (index === newServiceIndex) {
+                const newPart = {
+                  ...partData,
+                  id: editingPartId, // Mantieni lo stesso ID
+                };
+                
+                const parts = Array.isArray(item.parts) ? [...item.parts, newPart] : [newPart];
+                const totalPrice = parts.reduce((sum, part) => sum + (part.finalPrice || 0), 0) + item.laborPrice;
+                
+                return {
+                  ...item,
+                  parts,
+                  totalPrice
+                };
+              }
+              return item;
+            });
+          }
+        } else {
+          // Il servizio non è cambiato, modifica solo i dati del ricambio
+          newItems = items.map(item => {
+            if (item.serviceType.id === selectedService) {
+              const updatedParts = item.parts?.map(part => {
+                if (part.id === editingPartId) {
+                  return {
+                    ...part,
+                    ...partData,
+                    id: editingPartId,
+                  };
+                }
+                return part;
+              }) || [];
+              
+              const totalPrice = updatedParts.reduce((sum, part) => sum + (part.finalPrice || 0), 0) + item.laborPrice;
+              
+              return {
+                ...item,
+                parts: updatedParts,
+                totalPrice
+              };
+            }
+            return item;
+          });
+        }
+      } else if (existingServiceIndex === -1) {
+        // MODALITÀ AGGIUNTA - il servizio non esiste, crealo
+        const newPart = {
+          ...partData,
+          id: uuidv4(),
+        };
+        
+        const newService: QuoteItem = {
+          id: uuidv4(),
+          serviceType: {
+            id: selectedService,
+            name: serviceInfo.name,
+            category: selectedCategory as any,
+            description: `${selectedCategory} - ${serviceInfo.name}`,
+            laborPrice: 35
+          },
+          laborPrice: 35,
+          laborHours: 1,
+          parts: [newPart],
+          notes: "",
+          totalPrice: newPart.finalPrice + 35
+        };
+        
+        // Aggiungi il nuovo servizio agli items esistenti
+        newItems = [...items, newService];
+      } else {
+        // MODALITÀ AGGIUNTA - il servizio esiste già, aggiungi solo il ricambio
+        newItems = items.map((item, index) => {
+          if (index === existingServiceIndex) {
+            const newPart = {
+              ...partData,
+              id: uuidv4(),
+            };
+            
+            const parts = Array.isArray(item.parts) ? [...item.parts, newPart] : [newPart];
+            const totalPrice = parts.reduce((sum, part) => sum + (part.finalPrice || 0), 0) + item.laborPrice;
+            
             return {
               ...item,
               parts,
               totalPrice
             };
           }
-        }
-        return item;
-      });
-    
-      // Aggiorna lo stato con il nuovo array usando onUpdateItems e onAddPart se disponibili
-      if (onUpdateItems) {
-        // Forza l'aggiornamento immediato dei dati
-        onUpdateItems(JSON.parse(JSON.stringify(newItems)));
-        
-        // Comunica al componente padre che l'aggiornamento è stato completato
-        console.log("Aggiornamento dati completato, refresh vista...");
-        
-        // Notifica di aggiornamento per il componente padre (solo se non è un'operazione di modifica)
-        if (!editingPartId && onAddPart && activeServiceId) {
-          // Nota: qui utilizziamo onAddPart solo per notificare al componente padre che c'è stato un cambiamento
-          const partToAdd = {
-            code: partCode,
-            name: partDescription || `Ricambio ${partCode}`,
-            brand: partBrand || undefined,
-            category: activeService.serviceType.category.toLowerCase(),
-            quantity: partQuantity,
-            unitPrice: partPrice,
-            finalPrice: partPrice * partQuantity
-          };
-          
-          // Utilizziamo un timeout per assicurarci che l'UI sia stata aggiornata prima di procedere
-          setTimeout(() => {
-            try {
-              // Utilizziamo un indice -1 per indicare "aggiungi in fondo"
-              onAddPart(activeServiceId, partToAdd, -1);
-            } catch (error) {
-              console.log("Nota: addPart secondario completato silenziosamente");
-            }
-          }, 10);
-        }
+          return item;
+        });
       }
       
+      // Rimuovi servizi vuoti (senza ricambi)
+      const itemsWithoutEmpty = newItems.filter(item => 
+        Array.isArray(item.parts) && item.parts.length > 0
+      );
+      
+      if (onUpdateItems) {
+        onUpdateItems(itemsWithoutEmpty);
+      }
+
       // Reset del form
       setPartCode("");
-      setPartDescription(activeService ? `Ricambio per ${activeService.serviceType.name}` : "");
+      setPartDescription("");
       setPartBrand("");
       setPartQuantity(1);
       setPartPrice(0);
       setEditingPartId(null);
       
-      // Feedback all'utente che l'operazione è stata completata
-      console.log(`Ricambio ${editingPartId ? 'modificato' : 'aggiunto'} con successo, vista aggiornata`);
+      // Chiudi il form dopo aver salvato
+      setShowAddForm(false);
+
     } catch (error) {
-      console.error("Errore durante l'aggiunta/modifica del ricambio:", error);
       alert("Si è verificato un errore. Riprova.");
     } finally {
-      // Non nascondiamo il form automaticamente, così l'utente può aggiungere altri ricambi
       setIsSubmitting(false);
     }
   };
   
-  // Funzione per aggiungere un ricambio e chiudere il form
-  const addPartAndClose = async () => {
-    if (!activeServiceId || !partCode) {
-      alert("Inserisci almeno il codice del ricambio");
+  // Funzione per modificare un ricambio esistente
+  const editPart = (part: SparePart, serviceId: string) => {
+    // Trova il servizio a cui appartiene il ricambio
+    const service = items.find(item => item.id === serviceId);
+    if (service) {
+      // Imposta categoria e servizio per la modifica
+      setSelectedCategory(service.serviceType.category);
+      setSelectedService(service.serviceType.id);
+    }
+    
+    // Popola il form con i dati del ricambio
+    setPartCode(part.code || "");
+    setPartDescription(part.name || "");
+    setPartBrand(part.brand || "");
+    setPartQuantity(part.quantity || 1);
+    setPartPrice(part.unitPrice || 0);
+    setEditingPartId(part.id);
+    
+    // Apri il form
+    setShowAddForm(true);
+  };
+
+  // Funzione per aprire il form di aggiunta
+  const openAddForm = () => {
+    // Reset del form
+    const activeService = items.find(item => item.id === selectedService);
+    setPartCode("");
+    setPartDescription(activeService ? `Ricambio per ${activeService.serviceType.name}` : "");
+    setPartBrand("");
+    setPartQuantity(1);
+    setPartPrice(0);
+    setEditingPartId(null);
+    setShowAddForm(true);
+  };
+
+  // Funzione per chiudere il form
+  const closeAddForm = () => {
+    setShowAddForm(false);
+    setEditingPartId(null);
+    // Reset del form
+    const activeService = items.find(item => item.id === selectedService);
+    setPartCode("");
+    setPartDescription(activeService ? `Ricambio per ${activeService.serviceType.name}` : "");
+    setPartBrand("");
+    setPartQuantity(1);
+    setPartPrice(0);
+  };
+
+  // Funzione per gestire il caricamento del file CSV
+  const handleCSVUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Verifica che sia un file CSV
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      alert('Per favore seleziona un file CSV valido');
       return;
     }
-    
-    await addPart();
-    hidePartForm();
-  };
-  
-  // Funzione per aprire il dialog di modifica di un ricambio esistente tramite Radix UI
-  const openEditPartDialog = (serviceId: string, part: SparePart) => {
-    setEditingPart({
-      serviceId,
-      partId: part.id,
-      code: part.code || "",
-      description: part.name || part.description || "",
-      brand: part.brand || "",
-      quantity: String(part.quantity || 1),
-      unitPrice: String(part.unitPrice || 0)
-    });
-    
-    setIsEditDialogOpen(true);
-  };
-  
-  // Funzione per salvare le modifiche
-  const saveEditPart = () => {
-    if (!editingPart) return;
-    
-    // Trova il servizio
-    const service = items.find(item => item.id === editingPart.serviceId);
-    if (!service) return;
-    
-    // Calcola il prezzo finale
-    const quantity = Number(editingPart.quantity);
-    const unitPrice = Number(editingPart.unitPrice);
-    const finalPrice = quantity * unitPrice;
-    
-    // Crea l'oggetto ricambio aggiornato
-    const updatedPart: Partial<SparePart> = {
-      id: editingPart.partId,
-      code: editingPart.code,
-      name: editingPart.description, // Aggiorniamo la proprietà name con la descrizione
-      description: editingPart.description,
-      brand: editingPart.brand,
-      quantity,
-      unitPrice,
-      finalPrice
-    };
-    
-    // Trova l'indice del ricambio da aggiornare
-    const partIndex = service.parts?.findIndex(p => p.id === editingPart.partId) ?? -1;
-    
-    if (partIndex !== -1) {
-      // Crea un nuovo array di ricambi
-      const newParts = [...(service.parts || [])];
-      newParts[partIndex] = { ...newParts[partIndex], ...updatedPart };
+
+    try {
+      setIsSubmitting(true);
       
-      // Aggiorna il servizio con i nuovi ricambi
-      const updatedItems = items.map(item => {
-        if (item.id === editingPart.serviceId) {
-          return {
-            ...item,
-            parts: newParts,
-            totalPrice: newParts.reduce((sum, part) => sum + (part.finalPrice || 0), 0)
-          };
-        }
-        return item;
-      });
+      const text = await file.text();
+      const lines = text.split('\n').filter(line => line.trim() !== '');
       
-      // Aggiorna lo stato
-      if (onUpdateItems) {
-        // Forza un aggiornamento completo creando una copia profonda degli oggetti
-        onUpdateItems(JSON.parse(JSON.stringify(updatedItems)));
+      if (lines.length === 0) {
+        alert('Il file CSV è vuoto');
+        return;
+      }
+
+      // Parsing delle righe CSV (colonne 5=CODICE, 6=DESCRIZIONE, 7=QTA, 8=PREZZO)
+      const partsToAdd: Array<{
+        code: string;
+        description: string;
+        quantity: number;
+        unitPrice: number;
+      }> = [];
+
+      // Salta la prima riga (header) e inizia dalla seconda
+      for (let i = 1; i < lines.length; i++) {
+        const line = lines[i];
         
-        // Forza un aggiornamento anche tramite la callback di edit se disponibile
-        if (onEditPart) {
-          try {
-            const fullUpdatedPart = {
-              ...updatedPart,
-              id: editingPart.partId,
-              name: updatedPart.description || "",
-              description: updatedPart.description || "",
-              category: service.serviceType.category.toLowerCase(),
-            } as SparePart;
-            
-            // Notifica immediata della modifica
-            onEditPart(editingPart.serviceId, fullUpdatedPart);
-          } catch (error) {
-            console.log("Errore nella notifica di modifica:", error);
-          }
+        // Prova diversi separatori
+        let columns = [];
+        if (line.includes(';')) {
+          // Usa punto e virgola come separatore
+          columns = line.split(';').map(col => col.trim().replace(/"/g, ''));
+        } else {
+          // Usa virgola come separatore
+          columns = line.split(',').map(col => col.trim().replace(/"/g, ''));
         }
         
-        console.log("Ricambio modificato con successo, vista aggiornata");
+        // Controlla che ci siano almeno 8 colonne
+        if (columns.length < 8) {
+          continue;
+        }
+        
+        const code = columns[4]; // Colonna 5 (indice 4)
+        const description = columns[5]; // Colonna 6 (indice 5)
+        const quantityStr = columns[6]; // Colonna 7 (indice 6)
+        const priceStr = columns[7]; // Colonna 8 (indice 7)
+        
+        // Valida i dati
+        if (!code || !description) {
+          continue;
+        }
+        
+        const quantity = parseFloat(quantityStr.replace(',', '.')) || 1;
+        const unitPrice = parseFloat(priceStr.replace(',', '.')) || 0;
+        
+        partsToAdd.push({
+          code,
+          description,
+          quantity,
+          unitPrice
+        });
+      }
+
+      if (partsToAdd.length === 0) {
+        alert(`Nessun ricambio valido trovato nel file CSV. 
+        
+Debug info:
+- Righe totali: ${lines.length}
+- Formato esempio prima riga dati: ${lines[1] || 'N/A'}
+
+Verifica che:
+1. I dati siano nelle colonne 5 (CODICE), 6 (DESCRIZIONE), 7 (QUANTITÀ), 8 (PREZZO)
+2. Il file usi virgole (,) o punto e virgola (;) come separatori
+3. Non ci siano righe vuote tra i dati`);
+        return;
+      }
+
+      // Prepara i dati per la preview con valori di default
+      const previewData = partsToAdd.map(part => ({
+        code: part.code,
+        description: part.description,
+        quantity: part.quantity,
+        unitPrice: part.unitPrice,
+        brand: "", // Campo vuoto da compilare
+        selectedCategory: "Accessori", // Default sempre Accessori
+        selectedService: "altro", // Default sempre altro
+        margin: defaultMargin // Margine di default
+      }));
+
+      setCSVPreviewData(previewData);
+      setShowCSVPreview(true);
+      
+    } catch (error) {
+      alert('Errore durante l\'importazione del file CSV. Verifica il formato del file.');
+    } finally {
+      setIsSubmitting(false);
+      // Reset del file input
+      if (csvFileInputRef.current) {
+        csvFileInputRef.current.value = '';
       }
     }
-    
-    // Chiudi il dialog
-    setIsEditDialogOpen(false);
-    setEditingPart(null);
   };
-  
+
+  // Funzione per aprire il dialog di selezione file CSV
+  const openCSVUpload = () => {
+    csvFileInputRef.current?.click();
+  };
+
+  // Funzione per confermare l'importazione CSV dopo la preview
+  const confirmCSVImport = async () => {
+    try {
+      setIsSubmitting(true);
+
+      // Crea i nuovi items
+      const newItems: QuoteItem[] = [...items];
+      
+      // Raggruppa i ricambi per servizio ma mantieni ogni ricambio separato
+      const serviceMap = new Map<string, QuoteItem>();
+      
+      for (const partData of csvPreviewData) {
+        const serviceKey = `${partData.selectedCategory}:${partData.selectedService}`;
+        
+        // Trova o crea il servizio per questo gruppo
+        let targetService = serviceMap.get(serviceKey);
+        
+        if (!targetService) {
+          // Cerca se il servizio esiste già negli items esistenti
+          targetService = newItems.find(item => item.serviceType.id === partData.selectedService);
+          
+          if (!targetService) {
+            // Crea il servizio se non esiste
+            const serviceInfo = availableServices[partData.selectedCategory]?.find(s => s.id === partData.selectedService) || 
+                              { id: partData.selectedService, name: `Ricambi ${partData.selectedCategory}` };
+            
+            targetService = {
+              id: uuidv4(),
+              serviceType: {
+                id: serviceInfo.id,
+                name: serviceInfo.name,
+                category: partData.selectedCategory as any,
+                description: `${partData.selectedCategory} - ${serviceInfo.name}`,
+                laborPrice: 0
+              },
+              laborPrice: 0,
+              laborHours: 0,
+              parts: [],
+              totalPrice: 0,
+              notes: "Servizio creato dall'importazione CSV"
+            };
+            
+            newItems.push(targetService);
+          }
+          
+          serviceMap.set(serviceKey, targetService);
+        }
+
+        // Calcola il prezzo finale con margine
+        const finalPrice = calculateFinalPrice(partData.unitPrice, partData.quantity, partData.margin === -1 ? 30 : (partData.margin || 30));
+        
+        // Crea il ricambio SEPARATO
+        const newPart = {
+          id: uuidv4(),
+          code: partData.code,
+          name: partData.description,
+          brand: partData.brand || undefined,
+          category: partData.selectedCategory.toLowerCase() || "altro",
+          quantity: partData.quantity,
+          unitPrice: partData.unitPrice,
+          finalPrice: parseFloat(finalPrice.toFixed(2))
+        };
+
+        // Aggiungi il ricambio al servizio
+        if (!targetService.parts) {
+          targetService.parts = [];
+        }
+        targetService.parts.push(newPart);
+      }
+
+      // Ricalcola i prezzi totali per tutti i servizi modificati
+      serviceMap.forEach((service) => {
+        const totalPartsPrice = service.parts?.reduce((sum, part) => sum + (part.finalPrice || 0), 0) || 0;
+        service.totalPrice = totalPartsPrice + service.laborPrice;
+      });
+
+      // Chiudi PRIMA il dialog CSV
+      setShowCSVPreview(false);
+      setCSVPreviewData([]);
+      
+      // Aggiorna gli items
+      if (onUpdateItems) {
+        onUpdateItems(newItems);
+      }
+      
+    } catch (error) {
+      alert('Errore durante l\'importazione. Riprova.');
+      
+      // In caso di errore, apri il form manuale
+      setShowCSVPreview(false);
+      setCSVPreviewData([]);
+      setShowAddForm(true);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Funzione per aggiornare un item nella preview
+  const updatePreviewItem = (index: number, field: string, value: string | number | undefined) => {
+    const updated = [...csvPreviewData];
+    const currentItem = updated[index];
+    
+    // Gestione tipizzata per ogni campo
+    if (field === 'margin') {
+      updated[index] = { 
+        ...currentItem, 
+        margin: value === -1 ? -1 : (typeof value === 'number' ? value : parseFloat(value as string) || -1)
+      };
+    } else if (field === 'brand') {
+      updated[index] = { 
+        ...currentItem, 
+        brand: value as string 
+      };
+    } else if (field === 'selectedCategory') {
+      updated[index] = { 
+        ...currentItem, 
+        selectedCategory: value as string,
+        selectedService: "altro" // Reset servizio quando cambia categoria
+      };
+    } else if (field === 'selectedService') {
+      updated[index] = { 
+        ...currentItem, 
+        selectedService: value as string 
+      };
+    }
+    
+    setCSVPreviewData(updated);
+  };
+
   return (
-    <div className="space-y-4 overflow-y-auto max-h-[100vh] flex flex-col bg-black text-white scrollbar-hide">
-      {/* Form di aggiunta/modifica ricambi inline */}
-      {activeServiceId && (
-        <div className="mb-3 border border-gray-800 rounded-lg overflow-hidden bg-black shadow-lg w-full">
-          <div className="bg-orange-600 text-white p-2 flex justify-between items-center">
-            <h3 className="font-medium text-sm sm:text-base truncate max-w-[70%]">
-              {editingPartId 
-                ? (items.find(item => item.id === activeServiceId)?.serviceType?.name || "Modifica Ricambio")
-                : "Aggiungi Ricambio"}
-            </h3>
-            <div>
-              <button 
-                onClick={hidePartForm}
-                className="bg-white/20 hover:bg-white/30 rounded-full p-1 transition-colors"
-                disabled={isSubmitting}
-                aria-label="Chiudi"
+    <>
+      {/* Dialog CSV Preview - VERSIONE REACT SEMPLICE */}
+      {showCSVPreview && (
+        <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-[9999] p-2">
+          <div className="bg-gray-900 border border-gray-600 rounded-lg w-[95vw] h-[90vh] flex flex-col text-white">
+            {/* Header */}
+            <div className="p-4 border-b border-gray-600 flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-bold">Anteprima Importazione CSV</h2>
+                <p className="text-gray-300 text-sm">Verifica e modifica i dati dei ricambi prima dell'importazione.</p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowCSVPreview(false);
+                  setCSVPreviewData([]);
+                  setShowAddForm(true);
+                }}
+                className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
               >
-                <X className="h-4 w-4 sm:h-5 sm:w-5" />
+                <X className="h-5 w-5" />
               </button>
             </div>
-          </div>
-          
-          <div className="p-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-              <div className="space-y-1">
-                <Label htmlFor="partCode" className="font-medium text-xs sm:text-sm text-orange-300">Codice*</Label>
-                <Input
-                  id="partCode"
-                  value={partCode}
-                  onChange={(e) => setPartCode(e.target.value)}
-                  placeholder="Inserisci codice"
-                  className="h-8 sm:h-10 text-sm bg-gray-900 border-gray-700 text-white"
-                  required
-                />
-              </div>
-              
-              <div className="space-y-1">
-                <Label htmlFor="partDescription" className="font-medium text-xs sm:text-sm text-orange-300">Descrizione</Label>
-                <Input
-                  id="partDescription"
-                  value={partDescription}
-                  onChange={(e) => setPartDescription(e.target.value)}
-                  placeholder="Descrizione"
-                  className="h-8 sm:h-10 text-sm bg-gray-900 border-gray-700 text-white"
-                />
-              </div>
-              
-              <div className="space-y-1">
-                <Label htmlFor="partBrand" className="font-medium text-xs sm:text-sm text-orange-300">Brand</Label>
-                <Input
-                  id="partBrand"
-                  value={partBrand}
-                  onChange={(e) => setPartBrand(e.target.value)}
-                  placeholder="Marca (opzionale)"
-                  className="h-8 sm:h-10 text-sm bg-gray-900 border-gray-700 text-white"
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label htmlFor="partQuantity" className="font-medium text-xs sm:text-sm text-orange-300">Quantità</Label>
-                  <Input
-                    id="partQuantity"
-                    type="number"
-                    value={partQuantity}
-                    onChange={(e) => setPartQuantity(parseFloat(e.target.value) || 1)}
-                    className="h-8 sm:h-10 text-sm bg-gray-900 border-gray-700 text-white"
-                    min={1}
-                    step={1}
-                  />
-                </div>
-                
-                <div className="space-y-1">
-                  <Label htmlFor="partPrice" className="font-medium text-xs sm:text-sm text-orange-300">Prezzo €</Label>
-                  <Input
-                    id="partPrice"
-                    type="number"
-                    value={partPrice}
-                    onChange={(e) => setPartPrice(parseFloat(e.target.value) || 0)}
-                    className="h-8 sm:h-10 text-sm bg-gray-900 border-gray-700 text-white"
-                    min={0}
-                    step={0.01}
-                  />
-                </div>
+            
+            {/* Content */}
+            <div 
+              className="flex-1 p-4 overflow-y-auto [&::-webkit-scrollbar]:hidden"
+              style={{
+                scrollbarWidth: 'none', /* Firefox */
+                msOverflowStyle: 'none', /* Internet Explorer 10+ */
+              }}
+            >
+              <div className="space-y-4">
+                {csvPreviewData.map((item, index) => (
+                  <div key={index} className="bg-gray-800 p-4 rounded-lg border border-gray-600">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                      {/* Codice */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-300 mb-1">Codice</label>
+                        <Input value={item.code} readOnly className="bg-gray-700 border-gray-600 text-gray-300" />
+                      </div>
+                      
+                      {/* Descrizione - span 2 colonne */}
+                      <div className="md:col-span-2">
+                        <label className="block text-xs font-medium text-gray-300 mb-1">Descrizione</label>
+                        <Input value={item.description} readOnly className="bg-gray-700 border-gray-600 text-gray-300" />
+                      </div>
+                      
+                      {/* Brand */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-300 mb-1">Brand</label>
+                        <Input 
+                          value={item.brand || ''} 
+                          onChange={(e) => updatePreviewItem(index, 'brand', e.target.value)}
+                          placeholder="es. Bosch..."
+                          className="bg-gray-800 border-gray-600 text-white"
+                        />
+                      </div>
+                      
+                      {/* Categoria */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-300 mb-1">Categoria</label>
+                        <select 
+                          value={item.selectedCategory}
+                          onChange={(e) => updatePreviewItem(index, 'selectedCategory', e.target.value)}
+                          className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm text-white"
+                        >
+                          {Object.keys(availableServices).map(category => (
+                            <option key={category} value={category}>{category}</option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      {/* Servizio */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-300 mb-1">Servizio</label>
+                        <select 
+                          value={item.selectedService}
+                          onChange={(e) => updatePreviewItem(index, 'selectedService', e.target.value)}
+                          className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm text-white"
+                        >
+                          {(availableServices[item.selectedCategory] || []).map(service => (
+                            <option key={service.id} value={service.id}>{service.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      
+                      {/* Quantità */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-300 mb-1">Q.tà</label>
+                        <Input value={item.quantity.toString()} readOnly className="bg-gray-700 border-gray-600 text-gray-300" />
+                      </div>
+                      
+                      {/* Prezzo unitario */}
+                      <div>
+                        <label className="block text-xs font-medium text-gray-300 mb-1">Prezzo unitario €</label>
+                        <Input value={item.unitPrice.toFixed(2)} readOnly className="bg-gray-700 border-gray-600 text-gray-300" />
+                      </div>
+                      
+                      {/* Margine */}
+                      <div>
+                        <label className="block text-xs font-medium text-orange-400 mb-1">Margine %</label>
+                        <Input 
+                          type="number" 
+                          value={item.margin !== undefined && item.margin !== -1 ? item.margin : ''} 
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            // Permetti campo vuoto durante la digitazione
+                            if (value === '') {
+                              updatePreviewItem(index, 'margin', -1); // -1 = campo vuoto
+                            } else {
+                              const numValue = parseFloat(value);
+                              if (!isNaN(numValue)) {
+                                updatePreviewItem(index, 'margin', numValue);
+                              }
+                            }
+                          }}
+                          min={0}
+                          max={100}
+                          placeholder="30"
+                          className="bg-gray-800 border-gray-600 text-white"
+                        />
+                      </div>
+                      
+                      {/* Prezzo finale */}
+                      <div>
+                        <label className="block text-xs font-medium text-orange-400 mb-1">Finale €</label>
+                        <Input 
+                          value={calculateFinalPrice(item.unitPrice, item.quantity, item.margin === -1 ? 30 : (item.margin || 30)).toFixed(2)} 
+                          readOnly 
+                          className="bg-orange-900 border-orange-600 text-orange-200 font-medium"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
             
-            <div className="flex flex-row justify-end gap-2 border-t border-gray-800 pt-3">
-              <Button 
-                variant="outline" 
-                onClick={hidePartForm} 
-                disabled={isSubmitting}
-                className="h-8 text-xs sm:text-sm px-2 sm:px-3 bg-transparent border-gray-600 text-white hover:bg-gray-800"
+            {/* Footer */}
+            <div className="p-4 border-t border-gray-600 flex justify-between">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowCSVPreview(false);
+                  setCSVPreviewData([]);
+                  setShowAddForm(true);
+                }}
+                className="border-gray-600 text-gray-300 hover:bg-gray-700"
               >
                 Annulla
               </Button>
-              <div className="flex flex-row gap-2">
-                <Button 
-                  variant="default" 
-                  onClick={addPart}
-                  disabled={!partCode || isSubmitting}
-                  className="h-8 text-xs sm:text-sm px-2 sm:px-3 bg-orange-600 hover:bg-orange-700 relative"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <span className="opacity-0">In corso...</span>
-                      <span className="absolute inset-0 flex items-center justify-center">
-                        <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                      </span>
-                    </>
-                  ) : (
-                    editingPartId ? "Salva" : "Aggiungi"
-                  )}
-                </Button>
-                {!editingPartId && (
-                  <Button 
-                    variant="default" 
-                    onClick={addPartAndClose}
-                    disabled={!partCode || isSubmitting}
-                    className="h-8 text-xs sm:text-sm px-2 sm:px-3 bg-green-600 hover:bg-green-700 relative"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <span className="opacity-0">In corso...</span>
-                        <span className="absolute inset-0 flex items-center justify-center">
-                          <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                        </span>
-                      </>
-                    ) : (
-                      "Aggiungi e Chiudi"
-                    )}
-                  </Button>
+              <Button
+                onClick={confirmCSVImport}
+                disabled={isSubmitting}
+                className="bg-orange-600 hover:bg-orange-700"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                    Importando...
+                  </>
+                ) : (
+                  `Conferma (${csvPreviewData.length} ricambi)`
                 )}
-              </div>
+              </Button>
             </div>
           </div>
         </div>
       )}
-      
-      <div className="flex-1 overflow-y-auto pr-1 pb-20 mb-4 scrollbar-hide">
-        {categories.map(category => (
-          <div key={category} className="border border-gray-800 rounded-lg overflow-hidden mb-3 bg-black">
-            <h3 className="bg-orange-950 text-orange-400 p-2 font-medium sticky top-0 z-10 text-sm sm:text-base">{category}</h3>
-            
-            <div className="p-2 sm:p-3">
-              {categoriesMap[category].map(service => (
-                <div key={service.id} className="mb-4 last:mb-0">
-                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-2">
-                    <h4 className="font-bold text-orange-500 text-sm sm:text-base">
-                      {service.serviceType.name}
-                    </h4>
-                    <span className="text-xs sm:text-sm text-gray-400 mb-1 sm:mb-0">
-                      Prezzo base: {formatCurrency(service.serviceType.laborPrice || 0)}
-                    </span>
-                  </div>
-                  
-                  {service.parts && service.parts.length > 0 ? (
-                    <div className="mb-2">
-                      <div className="hidden sm:block">
-                        <table className="w-full border-collapse text-xs md:text-sm">
-                          <thead>
-                            <tr className="bg-orange-950/50 text-left border-b border-gray-800">
-                              <th className="p-1 md:p-2 font-medium text-orange-300">Codice</th>
-                              <th className="p-1 md:p-2 font-medium text-orange-300">Descrizione</th>
-                              <th className="p-1 md:p-2 font-medium text-orange-300">Brand</th>
-                              <th className="p-1 md:p-2 font-medium text-orange-300 text-center">Qtà</th>
-                              <th className="p-1 md:p-2 font-medium text-orange-300 text-right">Prezzo</th>
-                              <th className="p-1 md:p-2 font-medium text-orange-300 text-right">Totale</th>
-                              <th className="p-1 md:p-2 w-[80px]"></th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {service.parts.map((part, idx) => (
-                              <tr key={part.id} className={`border-b border-gray-800 ${idx % 2 === 0 ? '' : 'bg-gray-900/30'}`}>
-                                <td className="p-1 md:p-2">{part.code}</td>
-                                <td className="p-1 md:p-2 max-w-[120px] truncate">{part.name}</td>
-                                <td className="p-1 md:p-2">{part.brand || "-"}</td>
-                                <td className="p-1 md:p-2 text-center">{part.quantity}</td>
-                                <td className="p-1 md:p-2 text-right">{formatCurrency(part.unitPrice)}</td>
-                                <td className="p-1 md:p-2 text-right font-medium text-orange-400">{formatCurrency(part.finalPrice)}</td>
-                                <td className="p-1 md:p-2 text-right">
-                                  <div className="flex justify-end gap-1">
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-6 w-6 text-orange-500 hover:text-orange-400 hover:bg-transparent"
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        if (e.nativeEvent) {
-                                          e.nativeEvent.stopImmediatePropagation();
-                                        }
-                                        showEditPartForm(service.id, part);
-                                      }}
-                                    >
-                                      <Pencil className="h-3 w-3" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-6 w-6 text-red-500 hover:text-red-400 hover:bg-transparent"
-                                      onClick={() => onRemovePart(service.id, part.id)}
-                                    >
-                                      <Trash2 className="h-3 w-3" />
-                                    </Button>
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                            <tr className="bg-orange-950/20 border-t border-gray-800 font-medium">
-                              <td colSpan={5} className="p-1 md:p-2 text-right">Totale ricambi:</td>
-                              <td className="p-1 md:p-2 text-right text-orange-500 font-bold">
-                                {formatCurrency(
-                                  service.parts.reduce((sum, part) => sum + (part.finalPrice || 0), 0)
-                                )}
-                              </td>
-                              <td></td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      </div>
-                      
-                      <div className="sm:hidden space-y-3 max-h-[40vh] overflow-y-auto scrollbar-hide">
-                        {service.parts.map((part, idx) => (
-                          <div key={part.id} className={`border border-gray-800 rounded-md p-2 ${idx % 2 === 0 ? 'bg-black' : 'bg-gray-900/30'} text-xs`}>
-                            <div className="flex justify-between items-start mb-1">
-                              <div className="font-bold truncate max-w-[65%] text-orange-400">{part.code}</div>
-                              <div className="flex gap-1 shrink-0">
-                                <Button
-                                  variant="outline"
-                                  size="icon"
-                                  className="h-6 w-6 text-orange-500 border border-orange-500 bg-transparent hover:bg-orange-950/30 p-0"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    if (e.nativeEvent) {
-                                      e.nativeEvent.stopImmediatePropagation();
-                                    }
-                                    showEditPartForm(service.id, part);
-                                  }}
-                                >
-                                  <Pencil className="h-3 w-3" />
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="icon"
-                                  className="h-6 w-6 text-red-500 border border-red-500 bg-transparent hover:bg-red-950/30 p-0"
-                                  onClick={() => onRemovePart(service.id, part.id)}
-                                >
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            </div>
-                            
-                            <div className="text-xs mb-1 truncate">{part.name}</div>
-                            
-                            <div className="grid grid-cols-3 gap-1 text-xs mb-1">
-                              <div className="overflow-hidden">
-                                <span className="text-gray-400">Brand: </span>
-                                <span className="font-medium truncate block">{part.brand || "-"}</span>
-                              </div>
-                              <div>
-                                <span className="text-gray-400">Qtà: </span>
-                                <span className="font-medium">{part.quantity}</span>
-                              </div>
-                              <div className="text-right">
-                                <span className="text-gray-400">Prezzo: </span>
-                                <span className="font-medium">{formatCurrency(part.unitPrice)}</span>
-                              </div>
-                            </div>
-                            
-                            <div className="flex justify-between items-center border-t border-gray-800 pt-1 mt-1">
-                              <span className="font-medium text-gray-300">Totale:</span>
-                              <span className="font-bold text-orange-400">{formatCurrency(part.finalPrice)}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-2 px-2 bg-gray-900/30 rounded-lg mb-2 text-xs sm:text-sm">
-                      <p className="text-gray-400">Nessun ricambio aggiunto.</p>
-                    </div>
-                  )}
-                  
-                  <div className="text-right mt-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      className="px-2 py-1 h-7 text-xs border-orange-500 text-orange-500 bg-transparent hover:bg-orange-950/30"
-                      onClick={() => showAddPartForm(service.id)}
-                    >
-                      <Plus className="h-3 w-3 mr-1" />
-                      <span>Aggiungi ricambio</span>
-                    </Button>
-                  </div>
+
+      {/* Contenuto principale */}
+      <div className="space-y-6 bg-gray-900 text-white p-4 pb-20">
+        {/* Input file nascosto per CSV */}
+        <input
+          ref={csvFileInputRef}
+          type="file"
+          accept=".csv"
+          onChange={handleCSVUpload}
+          style={{ display: 'none' }}
+        />
+        
+        {/* Form selezione servizio e ricambi */}
+        <div className="space-y-6">
+          {/* Form aggiunta ricambio - CONDIZIONALE */}
+          {showAddForm && (
+            <div className="bg-blue-900/30 border border-blue-500/50 rounded-lg p-4" data-form="add-parts">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-medium text-white flex items-center gap-2 text-sm">
+                  <div className="w-1.5 h-1.5 bg-green-400 rounded-full"></div>
+                  {editingPartId ? "Modifica Ricambio" : "Nuovo Ricambio"}
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddForm(false);
+                    setEditingPartId(null);
+                    // Reset del form
+                    setPartCode("");
+                    setPartDescription("");
+                    setPartBrand("");
+                    setPartQuantity(1);
+                    setPartPrice(0);
+                  }}
+                  className="p-1 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
+                  title="Chiudi form"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              
+              {/* Select categoria e servizio - SOLO quando si aggiunge/modifica ricambio */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-300 mb-1">
+                    Categoria Servizio <span className="text-red-400">*</span>
+                  </label>
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-colors"
+                  >
+                    {Object.keys(availableServices).map(category => (
+                      <option key={category} value={category}>{category}</option>
+                    ))}
+                  </select>
                 </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-      
-      {/* Dialog per modificare un ricambio - mantengo il dialogo originale ma con stile migliorato */}
-      <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
-        if (open === false) {
-          setIsEditDialogOpen(false);
-        }
-      }}>
-        <DialogContent 
-          className="bg-black text-white border-gray-800 overflow-visible max-w-[90vw] sm:max-w-lg p-3 sm:p-5 rounded-lg z-50 scrollbar-hide"
-          onPointerDownOutside={(e) => {
-            e.preventDefault();
-          }}
-          onInteractOutside={(e) => {
-            e.preventDefault();
-          }}
-        >
-          <DialogHeader className="border-b border-gray-800 pb-3 mb-3">
-            <DialogTitle className="text-orange-500 text-base sm:text-lg">
-              {editingPart && items.find(i => i.id === editingPart.serviceId)?.serviceType?.name ? 
-                items.find(i => i.id === editingPart.serviceId)?.serviceType.name : 
-                "Modifica Ricambio"}
-            </DialogTitle>
-            <DialogDescription className="text-gray-400 mt-1 text-xs sm:text-sm">
-              {editingPart?.description ? editingPart.description : "Aggiorna i dettagli del ricambio"}
-            </DialogDescription>
-          </DialogHeader>
-          
-          {editingPart && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-code" className="text-orange-300 text-xs">Codice *</Label>
-                <Input
-                  id="edit-code"
-                  value={editingPart.code}
-                  onChange={(e) => setEditingPart({ ...editingPart, code: e.target.value })}
-                  placeholder="Codice ricambio"
-                  className="bg-gray-900 border-gray-700 text-white h-8 text-sm"
-                  required
-                />
+                
+                <div>
+                  <label className="block text-xs font-medium text-gray-300 mb-1">
+                    Servizio Specifico <span className="text-red-400">*</span>
+                  </label>
+                  <select
+                    value={selectedService}
+                    onChange={(e) => setSelectedService(e.target.value)}
+                    className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-colors"
+                  >
+                    {availableServices[selectedCategory]?.map(service => (
+                      <option key={service.id} value={service.id}>{service.name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               
-              <div className="space-y-2">
-                <Label htmlFor="edit-description" className="text-orange-300 text-xs">Descrizione</Label>
-                <Input
-                  id="edit-description"
-                  value={editingPart.description}
-                  onChange={(e) => setEditingPart({ ...editingPart, description: e.target.value })}
-                  placeholder="Descrizione ricambio"
-                  className="bg-gray-900 border-gray-700 text-white h-8 text-sm"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="edit-brand" className="text-orange-300 text-xs">Brand</Label>
-                <Input
-                  id="edit-brand"
-                  value={editingPart.brand}
-                  onChange={(e) => setEditingPart({ ...editingPart, brand: e.target.value })}
-                  placeholder="Brand/Marca"
-                  className="bg-gray-900 border-gray-700 text-white h-8 text-sm"
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label htmlFor="edit-quantity" className="text-orange-300 text-xs">Quantità *</Label>
-                  <Input
-                    id="edit-quantity"
-                    type="number"
-                    min="1"
-                    value={editingPart.quantity}
-                    onChange={(e) => setEditingPart({ ...editingPart, quantity: e.target.value })}
-                    className="bg-gray-900 border-gray-700 text-white h-8 text-sm"
-                    required
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                <div>
+                  <label className="block text-xs font-medium text-gray-300 mb-1">
+                    Codice Ricambio <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    placeholder="es. BR001, FL123..."
+                    value={partCode}
+                    onChange={(e) => setPartCode(e.target.value)}
+                    className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-colors"
                   />
                 </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="edit-unitPrice" className="text-orange-300 text-xs">Prezzo Un. *</Label>
-                  <Input
-                    id="edit-unitPrice"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={editingPart.unitPrice}
-                    onChange={(e) => setEditingPart({ ...editingPart, unitPrice: e.target.value })}
-                    className="bg-gray-900 border-gray-700 text-white h-8 text-sm"
-                    required
+                <div>
+                  <label className="block text-xs font-medium text-gray-300 mb-1">Descrizione</label>
+                  <input
+                    placeholder="Descrizione del ricambio"
+                    value={partDescription}
+                    onChange={(e) => setPartDescription(e.target.value)}
+                    className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-colors"
                   />
+                </div>
+                
+                <div>
+                  <label className="block text-xs font-medium text-gray-300 mb-1">Marca (opzionale)</label>
+                  <input
+                    placeholder="es. Bosch, Brembo..."
+                    value={partBrand}
+                    onChange={(e) => setPartBrand(e.target.value)}
+                    className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm text-white placeholder-gray-500 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-colors"
+                  />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-300 mb-1">Quantità</label>
+                    <input
+                      type="number"
+                      value={partQuantity}
+                      onChange={(e) => setPartQuantity(parseFloat(e.target.value) || 1)}
+                      className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-colors"
+                      min={1}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-xs font-medium text-gray-300 mb-1">Prezzo unitario €</label>
+                    <input
+                      type="number"
+                      value={partPrice}
+                      onChange={(e) => setPartPrice(parseFloat(e.target.value) || 0)}
+                      className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-colors"
+                      step={0.01}
+                      placeholder="0.00"
+                    />
+                  </div>
                 </div>
               </div>
               
-              <div className="col-span-1 sm:col-span-2 bg-gray-900 p-3 rounded-md border border-gray-700">
-                <div className="text-orange-300 font-semibold mb-1 text-xs">Totale ricambio:</div>
-                <div className="text-base sm:text-lg font-bold text-orange-500">
-                  {(Number(editingPart.unitPrice) * Number(editingPart.quantity)).toFixed(2)} €
+              {/* Pulsante azione */}
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={addPartWithService}
+                  disabled={!partCode || !selectedService || isSubmitting}
+                  className="px-6 py-2 bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600 disabled:from-gray-600 disabled:to-gray-600 text-white rounded font-medium transition-all duration-200 shadow-lg hover:shadow-orange-500/25 disabled:shadow-none flex items-center gap-2 text-sm"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <div className="animate-spin w-3 h-3 border-2 border-white border-t-transparent rounded-full"></div>
+                      Salvando...
+                    </>
+                  ) : (
+                    <>
+                      {editingPartId ? <Pencil className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
+                      {editingPartId ? "Salva Modifiche" : "Aggiungi Ricambio"}
+                    </>
+                  )}
+                </button>
               </div>
+            </div>
+          )}
+
+          {/* Ricambi aggiunti */}
+          {items.length > 0 && (
+            <div className="bg-blue-900/30 border border-blue-500/50 rounded-lg p-3">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-medium text-white flex items-center gap-2 text-sm">
+                  <div className="w-1.5 h-1.5 bg-orange-400 rounded-full"></div>
+                  Ricambi Aggiunti
+                </h3>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-400 bg-gray-700 px-2 py-1 rounded">
+                    {items.reduce((total, item) => total + (item.parts?.length || 0), 0)} ricambi
+                  </span>
+                  <button
+                    type="button"
+                    onClick={openCSVUpload}
+                    disabled={isSubmitting}
+                    className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded text-xs flex items-center gap-1 transition-colors"
+                    title="Carica ricambi da file CSV"
+                  >
+                    <Upload className="h-3 w-3" />
+                    CSV
+                  </button>
+                  <button
+                    type="button"
+                    onClick={openAddForm}
+                    className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs flex items-center gap-1 transition-colors"
+                    title="Aggiungi nuovo ricambio"
+                  >
+                    <Plus className="h-3 w-3" />
+                    Aggiungi
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                {items.map((service) => (
+                  <div key={service.id}>
+                    <div className="font-medium text-white mb-1.5 text-sm">{service.serviceType.name}</div>
+                    {service.parts?.map((part) => (
+                      <div key={part.id} className="flex justify-between items-center p-2 bg-gray-800/70 rounded border border-gray-600/50 ml-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span className="font-mono text-xs text-orange-300 bg-orange-900/30 px-1.5 py-0.5 rounded">
+                              {part.code}
+                            </span>
+                            <span className="text-white text-xs font-medium truncate">{part.name}</span>
+                            {part.brand && (
+                              <span className="text-xs text-gray-400">• {part.brand}</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 ml-2">
+                          <div className="text-right">
+                            <div className="text-xs text-gray-400">Q.tà {part.quantity}</div>
+                            <div className="font-bold text-orange-400 text-xs">{formatCurrency(part.finalPrice)}</div>
+                          </div>
+                          <div className="flex gap-1">
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                editPart(part, service.id);
+                              }}
+                              type="button"
+                              className="p-1 text-orange-500 hover:text-orange-400 hover:bg-orange-500/10 rounded transition-colors"
+                              title="Modifica ricambio"
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                onRemovePart(service.id, part.id);
+                              }}
+                              type="button"
+                              className="p-1 text-red-500 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors"
+                              title="Rimuovi ricambio"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ))}
               </div>
             </div>
           )}
           
-          <DialogFooter className="flex-row justify-end gap-2 pt-2 border-t border-gray-800">
-            <Button 
-              variant="outline"
-              className="bg-transparent border-gray-600 text-white hover:bg-gray-800 h-8 text-xs sm:text-sm px-3"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setIsEditDialogOpen(false);
-              }}
-            >
-              Annulla
-            </Button>
-            <Button 
-              type="button" 
-              className="bg-orange-500 hover:bg-orange-600 text-white h-8 text-xs sm:text-sm px-3"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                saveEditPart();
-              }}
-            >
-              Salva Modifiche
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Barra di navigazione fissa in basso con indicatore di passaggio */}
-      <div className="fixed bottom-0 left-0 right-0 bg-black border-t border-gray-800 py-2 px-3 flex justify-between items-center z-30">
-        <Button
-          variant="outline"
-          onClick={() => {
-            if (onPrevStep) {
-              onPrevStep();
-            }
-          }}
-          className="border-orange-500 text-orange-500 hover:bg-orange-950/30 h-8 text-xs sm:text-sm bg-transparent"
-          disabled={!onPrevStep}
-        >
-          ← Indietro
-        </Button>
-        
-        <div className="text-center hidden sm:block">
-          <div className="text-xs font-medium text-orange-500">
-            Passo 3: Ricambi
-          </div>
-        </div>
-        
-        <div className="flex gap-2">
-          {isNewQuote && (
-            <Button 
-              variant="outline" 
-              onClick={() => {
-                if (onPrevStep) {
-                  onPrevStep();
-                }
-              }}
-              className="border-orange-500 text-orange-500 hover:bg-orange-950/30 h-8 text-xs sm:text-sm px-2 bg-transparent"
-            >
-              <Plus className="h-3 w-3 mr-1" /> 
-              <span className="hidden sm:inline">Aggiungi Servizi</span>
-              <span className="sm:hidden">Servizi</span>
-            </Button>
+          {/* Messaggio quando non ci sono ricambi e il form non è visibile */}
+          {items.length === 0 && !showAddForm && (
+            <div className="bg-blue-900/30 border border-blue-500/50 rounded-lg p-6 text-center">
+              <div className="text-gray-400 mb-4">
+                <svg className="w-12 h-12 mx-auto mb-3 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                <h3 className="font-medium text-white mb-2">Nessun ricambio aggiunto</h3>
+                <p className="text-sm text-gray-400 mb-4">Inizia ad aggiungere ricambi e servizi per il preventivo</p>
+              </div>
+              <div className="flex justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={openCSVUpload}
+                  disabled={isSubmitting}
+                  className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 disabled:from-gray-600 disabled:to-gray-600 text-white rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-blue-500/25 disabled:shadow-none"
+                >
+                  <Upload className="h-4 w-4" />
+                  Carica da CSV
+                </button>
+                <button
+                  type="button"
+                  onClick={openAddForm}
+                  className="px-6 py-3 bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600 text-white rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-orange-500/25 flex items-center gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  Aggiungi Primo Ricambio
+                </button>
+              </div>
+            </div>
           )}
-          
-          <Button
-            variant="default"
-            onClick={() => {
-              if (onNextStep) {
-                onNextStep();
-              }
-            }}
-            className="bg-orange-600 hover:bg-orange-700 h-8 text-xs sm:text-sm"
-            disabled={!onNextStep}
-          >
-            Avanti →
-          </Button>
         </div>
       </div>
-    </div>
+    </>
   );
 }

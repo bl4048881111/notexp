@@ -3,7 +3,7 @@ import { format } from "date-fns";
 import { Edit, Trash, Calendar } from "lucide-react";
 import { useLocation } from "wouter";
 import { Client } from "@shared/types";
-import { deleteClient } from "@shared/firebase";
+import { deleteClient } from "@shared/supabase";
 import { useToast } from "@/hooks/use-toast";
 
 import {
@@ -153,7 +153,10 @@ export default function ClientTable({ clients, isLoading, onEdit, onDeleteSucces
                     )}
                   </TableCell>
                   <TableCell className="hidden lg:table-cell text-muted-foreground">
-                    {format(new Date(client.createdAt), 'dd/MM/yyyy')}
+                    {client.createdAt && !isNaN(new Date(client.createdAt).getTime()) 
+                      ? format(new Date(client.createdAt), 'dd/MM/yyyy')
+                      : 'N/A'
+                    }
                   </TableCell>
                   <TableCell>
                     <div className="flex space-x-1 md:space-x-2">

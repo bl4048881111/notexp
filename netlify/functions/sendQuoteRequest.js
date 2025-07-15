@@ -67,7 +67,7 @@ Note: ${note || "Nessuna nota"}`;
 
   const mailOptions = {
     from: `AutoExpress richiesta <${process.env.SMTP_USER}>`,
-    to: "a.ferrante@autodiscida.com",
+    to: "a.ferrante@autodiscida.com; g.carolillo@autodiscida.com",
     subject: emailSubject,
     text: emailText
   };

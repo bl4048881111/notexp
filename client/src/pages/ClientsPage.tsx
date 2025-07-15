@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Download } from "lucide-react";
 
-import { getAllClients } from "@shared/firebase";
+import { getAllClients } from "@shared/supabase";
 import { Client } from "@shared/types";
 
 import ClientForm from "../components/clients/ClientForm";
@@ -86,9 +86,15 @@ export default function ClientsPage() {
       case "name-desc":
         return `${b.name} ${b.surname}`.localeCompare(`${a.name} ${a.surname}`);
       case "date-asc":
-        return a.createdAt - b.createdAt;
+        // Gestisce i casi in cui createdAt potrebbe essere undefined
+        const aCreatedAt = a.createdAt || 0;
+        const bCreatedAt = b.createdAt || 0;
+        return aCreatedAt - bCreatedAt;
       case "date-desc":
-        return b.createdAt - a.createdAt;
+        // Gestisce i casi in cui createdAt potrebbe essere undefined
+        const aCreatedAtDesc = a.createdAt || 0;
+        const bCreatedAtDesc = b.createdAt || 0;
+        return bCreatedAtDesc - aCreatedAtDesc;
       default:
         return 0;
     }
@@ -122,23 +128,21 @@ export default function ClientsPage() {
   
   const handleFormSubmit = async () => {
     try {
-      // Primo passo: invalida la cache
       await queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
       
-      // Secondo passo: forza il refetch cancellando eventuali refetch pendenti
       await queryClient.refetchQueries({ 
         queryKey: ['/api/clients'],
         type: 'active',
         exact: true 
       });
       
-      console.log("Dati clienti aggiornati con successo");
+      // console.log("Dati clienti aggiornati con successo");
       
       // Terzo passo: esegui un secondo refetch con un piccolo ritardo
       // per assicurarti che i dati dal server siano completamente aggiornati
       setTimeout(async () => {
         await refetch();
-        console.log("Seconda ricerca completata");
+        // console.log("Seconda ricerca completata");
       }, 500);
       
       toast({

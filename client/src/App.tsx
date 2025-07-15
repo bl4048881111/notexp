@@ -4,15 +4,14 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-
-import { AuthProvider, AuthContext } from "./contexts/AuthContext";
-import { useContext } from "react";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import AppLayout from "./components/layout/AppLayout";
 import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
 import ClientsPage from "./pages/ClientsPage";
 import QuotesPage from "./pages/QuotesPage";
 import AppointmentsPage from "./pages/AppointmentsPage";
+import RequestsPage from "./pages/RequestsPage";
 import ServiceManagementPage from "./pages/ServiceManagementPage";
 import ActivityLogPage from "./pages/ActivityLogPage";
 import AdminTools from "./pages/AdminTools";
@@ -24,32 +23,28 @@ import TagliandoPage from "@/pages/TagliandoPage";
 import TagliandoDettaglioPage from "@/pages/TagliandoDettaglioPage";
 import LaborTestPage from "@/pages/LaborTestPage";
 import StoricoLavoriPage from "./pages/StoricoLavoriPage";
+import ReportLavoriPage from "./pages/ReportLavoriPage";
 import DeliveryPhase from "./components/DeliveryPhase";
 import DbChangesPage from './pages/DbChangesPage';
-import LandingPage from "./pages/LandingPage";
+import NewLandingPage from "./pages/NewLandingPage";
 import ChecklistEditor from "./components/checklist/ChecklistEditor";
 import BirthdaysPage from "./pages/BirthdaysPage";
 import ProfiloClientePage from "./pages/profilo-cliente";
 import PartiSostituitePage from './pages/PartiSostituitePage';
 import SuccessPage from "./pages/SuccessPage";
-
+import WhatsAppTemplatesPage from "./pages/WhatsAppTemplatesPage";
+import SmartRemindersPage from "./pages/SmartRemindersPage.tsx";
+import ChiSiamoPage from "./pages/ChiSiamoPage";
+import IstruzioniPage from "./pages/IstruzioniPage";
+import PartnersPage from "./pages/PartnersPage";
+import SedePage from "./pages/SedePage";
+import AccettazioneMercePage from "./pages/AccettazioneMerce";
 // Import global styles
 import "@/styles/globals.css";
 
-// Funzione diretta per usare il contesto Auth senza l'hook personalizzato
-const useAuthContext = () => {
-  const context = useContext(AuthContext);
-  
-  if (!context) {
-    throw new Error("AuthContext non disponibile");
-  }
-  
-  return context;
-};
-
 // Protected route component
 const ProtectedRoute = ({ component: Component, onlyAdmin = false, onlyClient = false, ...rest }: { component: React.ComponentType<any>, path: string, onlyAdmin?: boolean, onlyClient?: boolean }) => {
-  const { isAuthenticated, user } = useAuthContext();
+  const { isAuthenticated, user } = useAuth();
   if (!isAuthenticated) {
     return <Redirect to="/login" />;
   }
@@ -86,7 +81,7 @@ const NotFoundRedirect = () => {
 };
 
 function Router() {
-  const { isAuthenticated } = useAuthContext();
+  const { isAuthenticated } = useAuth();
   
   useEffect(() => {
     // Empty effect - using Redirect component is more reliable
@@ -107,6 +102,9 @@ function Router() {
       <Route path="/quotes">
         {() => <ProtectedRoute component={QuotesPage} path="/quotes" />}
       </Route>
+      <Route path="/requests">
+        {() => <ProtectedRoute component={RequestsPage} path="/requests" onlyAdmin />}
+      </Route>
       <Route path="/services">
         {() => <ProtectedRoute component={ServiceManagementPage} path="/services" onlyAdmin />}
       </Route>
@@ -119,6 +117,7 @@ function Router() {
       <Route path="/admin-tools">{() => <ProtectedRoute component={AdminTools} path="/admin-tools" onlyAdmin />}</Route>
       <Route path="/labor-test">{() => <ProtectedRoute component={LaborTestPage} path="/labor-test" onlyAdmin />}</Route>
       <Route path="/storico-lavori">{() => <ProtectedRoute component={StoricoLavoriPage} path="/storico-lavori" />}</Route>
+      <Route path="/report-lavori">{() => <ProtectedRoute component={ReportLavoriPage} path="/report-lavori" />}</Route>
       <Route path="/checklist-editor">{() => <ProtectedRoute component={ChecklistEditor} path="/checklist-editor" onlyAdmin />}</Route>
       <Route path="/deliveryPhase/:id">
         {({ id }) => (
@@ -129,7 +128,7 @@ function Router() {
                   vehicleId={id || ''} 
                   customerPhone="" 
                   onComplete={() => {
-                    console.log("PDF generato con successo");
+                    // console.log("PDF generato con successo");
                   }} 
                 />
               </div>
@@ -148,17 +147,27 @@ function Router() {
       </Route>
       <Route path="/success-preventivo" component={SuccessPage} />
       <Route path="/success-checkup" component={SuccessPage} />
-      <Route path="/" component={LandingPage} />
+      <Route path="/whatsapp-templates">{() => <ProtectedRoute component={WhatsAppTemplatesPage} path="/whatsapp-templates" onlyAdmin />}</Route>
+      <Route path="/smart-reminders">{() => <ProtectedRoute component={SmartRemindersPage} path="/smart-reminders" onlyAdmin />}</Route>
+      <Route path="/accettazione-merce">{() => <ProtectedRoute component={AccettazioneMercePage} path="/accettazione-merce" onlyAdmin />}</Route>
+      <Route path="/partners" component={PartnersPage} />
+      <Route path="/chi-siamo" component={ChiSiamoPage} />
+      <Route path="/istruzioni" component={IstruzioniPage} />
+      <Route path="/sede" component={SedePage} />
+      <Route path="/" component={NewLandingPage} />
       <Route component={NotFoundRedirect} />
     </Switch>
   );
 }
 
 function AppContent() {
-  const { isAuthenticated, isLoading } = useAuthContext();
+  const { isAuthenticated, isLoading } = useAuth();
   const [location] = useLocation();
   const isLoginPage = location === '/login';
   const isLandingPage = location === '/';
+  const isPartnersPage = location === '/partners';
+  const isChiSiamoPage = location === '/chi-siamo';
+  const isSedePage = location === '/sede';
   
   if (isLoading) {
     return (
@@ -170,7 +179,7 @@ function AppContent() {
   
   return (
     <TooltipProvider>
-      {isAuthenticated && !isLoginPage && !isLandingPage ? (
+      {isAuthenticated && !isLoginPage && !isLandingPage && !isPartnersPage && !isChiSiamoPage && !isSedePage ? (
         <AppLayout>
           <Router />
         </AppLayout>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { repairAllQuotesClientNames } from "@shared/firebase";
+import { repairAllQuotesClientNames } from "@shared/supabase";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";

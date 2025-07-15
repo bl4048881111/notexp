@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Download, Calendar, List, RefreshCw, CalendarPlus, FileDown, Search } from "lucide-react";
-import { format } from "date-fns";
+import { Plus, Download, Calendar, List, RefreshCw, CalendarPlus, FileDown, Search, CalendarIcon } from "lucide-react";
+import { format, parseISO, isValid } from "date-fns";
+import { it } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -11,8 +12,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 
-import { getAllAppointments, getQuoteById } from "@shared/firebase";
+import { getAllAppointments, getQuoteById } from "@shared/supabase";
 import { Appointment, Quote } from "@shared/schema";
 
 import AppointmentForm from "@/components/appointments/AppointmentForm";
@@ -21,7 +25,7 @@ import TableView from "@/components/appointments/TableView";
 import QuoteForm from "@/components/quotes/QuoteForm";
 import { exportAppointmentsToExcel, exportAppointmentsToPDF } from "@/services/exportService";
 import { appointmentService } from "@/services/appointmentService";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function AppointmentsPage() {
   const [view, setView] = useState<"calendar" | "table">("table");
@@ -34,10 +38,12 @@ export default function AppointmentsPage() {
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [editingQuote, setEditingQuote] = useState<Quote | null>(null);
   const [clientIdForQuote, setClientIdForQuote] = useState<string>("");
+  const [selectedClientForAppointment, setSelectedClientForAppointment] = useState<string | null>(null);
   const [initialViewDay, setInitialViewDay] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [showCompletedAppointments, setShowCompletedAppointments] = useState(false);
+  const [isFormOpening, setIsFormOpening] = useState(false); // Protezione contro aperture multiple
   
   const { toast } = useToast();
   const { user } = useAuth();
@@ -54,16 +60,19 @@ export default function AppointmentsPage() {
   } = useQuery({ 
     queryKey: ['/appointments', user?.clientId],
     queryFn: async () => {
-      const allAppointments = await appointmentService.getAll();
+      let appointments: Appointment[] = [];
       
-      // Filtra gli appuntamenti per cliente se l'utente è un cliente
-      const filteredAppointments = isClient 
-        ? allAppointments.filter(app => app.clientId === user?.clientId)
-        : allAppointments;
+      if (user?.clientId) {
+        // Se è un cliente, carica solo i suoi appuntamenti
+        appointments = await appointmentService.getByClientId(user.clientId);
+      } else {
+        // Se è admin, carica tutti gli appuntamenti
+        appointments = await appointmentService.getAll();
+      }
       
       // IMPORTANTE: Normalizziamo i valori di duration e quoteLaborHours
       // per evitare incongruenze quando si passa dalla dashboard ai preventivi
-      return filteredAppointments.map(app => {
+      return appointments.map(app => {
         // Assicuriamoci che entrambi i valori siano numeri
         let duration = typeof app.duration === 'number' ? app.duration : 
                       typeof app.duration === 'string' ? parseFloat(app.duration) : 1;
@@ -88,22 +97,19 @@ export default function AppointmentsPage() {
         };
       });
     },
-    staleTime: 0, // I dati sono sempre considerati stale per forzare aggiornamenti
-    gcTime: 0, // Rimuove immediatamente i dati dalla cache quando non utilizzati
-    refetchInterval: 30000, // Aggiornamento automatico ogni 30 secondi
-    refetchOnWindowFocus: true, // Aggiorna quando la finestra torna in focus
-    refetchOnMount: true, // Aggiorna sempre al mount
-    refetchOnReconnect: true // Aggiorna quando si riconnette
+    // Usa le impostazioni globali ottimizzate del QueryClient
+    // Rimossi: refetchOnWindowFocus: false, refetchOnMount: false
+    // che impedivano il ricaricamento quando si riapre l'app
   });
   
   // Log di debug per monitorare lo stato della query
   useEffect(() => {
-    console.log("Stato della query degli appuntamenti:", {
-      status,
-      queryLoading,
-      isRefetching,
-      numeroAppuntamenti: fetchedAppointments?.length || 0
-    });
+    // console.log("Stato della query degli appuntamenti:", {
+    //   status,
+    //   queryLoading,
+    //   isRefetching,
+    //   numeroAppuntamenti: fetchedAppointments?.length || 0
+    // });
   }, [status, queryLoading, isRefetching, fetchedAppointments]);
   
   // Filter appointments
@@ -151,8 +157,24 @@ export default function AppointmentsPage() {
       });
       return;
     }
+    
+    // Protezione contro aperture multiple
+    if (isFormOpening || isFormOpen) {
+      // console.log("Form già in apertura o aperto, ignoro richiesta");
+      return;
+    }
+    
+    // console.log("Apertura dettagli appuntamento:", appointment.id, "- SENZA refresh automatico");
+    setIsFormOpening(true);
     setEditingAppointment(appointment);
     setIsFormOpen(true);
+    
+    // Reset della protezione dopo un breve delay
+    setTimeout(() => {
+      setIsFormOpening(false);
+    }, 1000);
+    
+    // NON chiamiamo refetch() qui - il refresh avverrà solo se si salva effettivamente
   };
   
   const handleAddAppointment = (date?: string | Date) => {
@@ -181,43 +203,45 @@ export default function AppointmentsPage() {
   };
   
   const handleFormClose = () => {
+    // console.log("Chiusura form appuntamento SENZA salvataggio - nessun refresh");
     setIsFormOpen(false);
     setEditingAppointment(null);
     setSelectedDate(null);
+    setSelectedClientForAppointment(null);
+    setIsFormOpening(false); // Reset protezione
+    // NON chiamiamo refetch() qui - nessun refresh se si chiude senza salvare
   };
   
   const handleFormSubmit = async () => {
-    console.log("Form inviato, aggiornamento dati in corso...");
+    // console.log("Form salvato con successo, aggiornamento dati in corso...");
     try {
-      // Attendiamo un breve periodo prima di ricaricare i dati,
-      // per assicurarci che il database abbia completato l'aggiornamento
-      setTimeout(async () => {
-        // Aggiorniamo esplicitamente i dati degli appuntamenti
-        console.log("Ricaricamento appuntamenti...");
-        const refreshed = await refetch();
-        console.log("Ricaricamento completato:", refreshed.isSuccess ? "Successo" : "Fallito");
-    
-        // Chiudi i form e resetta gli stati
-        setIsFormOpen(false);
-        setEditingAppointment(null);
-        setSelectedDate(null);
-      }, 1000); // Attendi 1 secondo
+      // Aggiorniamo immediatamente i dati degli appuntamenti SOLO dopo un salvataggio
+      // console.log("Ricaricamento appuntamenti dopo salvataggio...");
+      const refreshed = await refetch();
+      // console.log("Ricaricamento completato:", refreshed.isSuccess ? "Successo" : "Fallito");
+  
+      // Chiudi i form e resetta gli stati solo dopo aver completato l'aggiornamento
+      setIsFormOpen(false);
+      setEditingAppointment(null);
+      setSelectedDate(null);
+      setIsFormOpening(false); // Reset protezione
     } catch (error) {
-      console.error("Errore durante il ricaricamento dei dati:", error);
+      // console.error("Errore durante il ricaricamento dei dati:", error);
       // Chiudi comunque i form in caso di errore
       setIsFormOpen(false);
       setEditingAppointment(null);
       setSelectedDate(null);
+      setIsFormOpening(false); // Reset protezione anche in caso di errore
     }
   };
 
   const handleEditQuote = (quote: Quote) => {
-    console.log("handleEditQuote chiamata con:", {
-      quoteId: quote.id,
-      isClient: isClient,
-      userClientId: user?.clientId,
-      user: user
-    });
+    // console.log("handleEditQuote chiamata con:", {
+    //   quoteId: quote.id,
+    //   isClient: isClient,
+    //   userClientId: user?.clientId,
+    //   user: user
+    // });
     
     if (isClient) {
       toast({
@@ -228,7 +252,7 @@ export default function AppointmentsPage() {
       return;
     }
     
-    console.log("Aprendo form di modifica preventivo per:", quote.id);
+    // console.log("Aprendo form di modifica preventivo per:", quote.id);
     setEditingQuote(quote);
     setIsQuoteFormOpen(true);
   };
@@ -243,27 +267,33 @@ export default function AppointmentsPage() {
       });
       return;
     }
+    
+    // console.log("handleCreateNewQuote chiamato con clientId:", clientId);
+    
+    // Salva l'ID del cliente per poterlo ripristinare quando si riapre il form appuntamento
+    setSelectedClientForAppointment(clientId);
     setClientIdForQuote(clientId);
     setEditingQuote(null);
     setIsQuoteFormOpen(true);
   };
 
   const handleQuoteFormClose = () => {
-    console.log("handleQuoteFormClose chiamata");
+    // console.log("handleQuoteFormClose chiamata");
     setIsQuoteFormOpen(false);
     setEditingQuote(null);
     setClientIdForQuote("");
+    setSelectedClientForAppointment(null);
   };
 
   const handleQuoteFormSubmit = async () => {
-    console.log("handleQuoteFormSubmit chiamata");
+    // console.log("handleQuoteFormSubmit chiamata");
     setIsQuoteFormOpen(false);
     setEditingQuote(null);
     setClientIdForQuote("");
     
     // Aggiornamento immediato e aggressivo dei dati
     try {
-      console.log("Aggiornamento immediato dati dopo modifica preventivo...");
+      // console.log("Aggiornamento immediato dati dopo modifica preventivo...");
       
       // 1. Invalida immediatamente tutte le query correlate
       await queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
@@ -274,7 +304,7 @@ export default function AppointmentsPage() {
       const result = await refetch();
       
       if (result.isSuccess) {
-        console.log("Dati aggiornati con successo in tempo reale");
+        // console.log("Dati aggiornati con successo in tempo reale");
         toast({
           title: "Preventivo aggiornato",
           description: "Il preventivo è stato aggiornato con successo",
@@ -283,7 +313,7 @@ export default function AppointmentsPage() {
         throw new Error("Refetch fallito");
       }
     } catch (error) {
-      console.error("Errore nell'aggiornamento immediato:", error);
+      // console.error("Errore nell'aggiornamento immediato:", error);
       
       // Fallback: prova un aggiornamento ritardato
       setTimeout(async () => {
@@ -294,7 +324,7 @@ export default function AppointmentsPage() {
             description: "Il preventivo è stato aggiornato con successo",
           });
         } catch (retryError) {
-          console.error("Errore anche nel retry:", retryError);
+          // console.error("Errore anche nel retry:", retryError);
           toast({
             title: "Attenzione",
             description: "Preventivo aggiornato, ma potrebbero essere necessari alcuni secondi per vedere le modifiche",
@@ -311,12 +341,12 @@ export default function AppointmentsPage() {
   // Funzione per aggiornare un appuntamento
   const handleUpdateAppointment = async (updatedAppointment: Appointment) => {
     try {
-      console.log("Aggiornamento appuntamento:", updatedAppointment.id);
-      console.log("Dati aggiornamento:", updatedAppointment);
+      // console.log("Aggiornamento appuntamento:", updatedAppointment.id);
+      // console.log("Dati aggiornamento:", updatedAppointment);
       
       // Verifica che l'ID sia valido
       if (!updatedAppointment.id) {
-        console.error("ID appuntamento mancante durante l'aggiornamento");
+        // console.error("ID appuntamento mancante durante l'aggiornamento");
         toast({
           title: "Errore",
           description: "Errore durante l'aggiornamento dell'appuntamento",
@@ -327,20 +357,20 @@ export default function AppointmentsPage() {
       
       // Assicurati che lo stato partsOrdered sia gestito correttamente
       if (updatedAppointment.partsOrdered === undefined) {
-        console.log("Stato parti non definito, impostando su false");
+        // console.log("Stato parti non definito, impostando su false");
         updatedAppointment.partsOrdered = false;
       } else {
-        console.log(`Stato parti ricevuto: ${updatedAppointment.partsOrdered}`);
+        // console.log(`Stato parti ricevuto: ${updatedAppointment.partsOrdered}`);
       }
       
       // Assicurati che la durata venga aggiornata correttamente
       if (updatedAppointment.quoteId && 
           updatedAppointment.quoteLaborHours !== undefined && 
           updatedAppointment.quoteLaborHours > 0) {
-        console.log(`Impostiamo la durata dall'appuntamento aggiornato: ${updatedAppointment.quoteLaborHours}h`);
+        // console.log(`Impostiamo la durata dall'appuntamento aggiornato: ${updatedAppointment.quoteLaborHours}h`);
         updatedAppointment.duration = updatedAppointment.quoteLaborHours;
       } else if (updatedAppointment.duration === undefined) {
-        console.log("Durata non definita, impostando a 1h");
+        // console.log("Durata non definita, impostando a 1h");
         updatedAppointment.duration = 1;
       }
       
@@ -391,7 +421,7 @@ export default function AppointmentsPage() {
   // Effetto per caricare gli appointments all'inizio e sincronizzare lo stato con i dati dalla query
   useEffect(() => {
     if (fetchedAppointments && fetchedAppointments.length > 0) {
-      console.log("DEBUG - AppointmentsPage: ricevuti nuovi dati dalla query, aggiorno lo stato locale");
+      // console.log("DEBUG - AppointmentsPage: ricevuti nuovi dati dalla query, aggiorno lo stato locale");
       setAppointments(fetchedAppointments);
     }
     
@@ -402,8 +432,12 @@ export default function AppointmentsPage() {
     }
   }, [fetchedAppointments, queryLoading]);
 
-  // Sistema di aggiornamento automatico in tempo reale
+  // Sistema di aggiornamento automatico in tempo reale - VERSIONE MENO AGGRESSIVA
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    let lastUpdateTime = 0;
+    const MIN_UPDATE_INTERVAL = 3000; // Minimo 3 secondi tra aggiornamenti
+    
     // Listener per i cambiamenti nelle query dei preventivi
     const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
       // Se viene aggiornata una query dei preventivi
@@ -413,18 +447,36 @@ export default function AppointmentsPage() {
         // Controlla se è una query relativa ai preventivi
         if (Array.isArray(queryKey) && 
             (queryKey.includes('/api/quotes') || queryKey.includes('/quotes/client'))) {
-          console.log("Rilevato aggiornamento preventivi, aggiorno appuntamenti automaticamente");
           
-          // Aggiorna gli appuntamenti dopo un breve delay per permettere al database di sincronizzarsi
-          setTimeout(() => {
+          const now = Date.now();
+          
+          // Evita aggiornamenti troppo frequenti
+          if (now - lastUpdateTime < MIN_UPDATE_INTERVAL) {
+            // console.log("Aggiornamento preventivi ignorato (troppo frequente)");
+            return;
+          }
+          
+          // console.log("Rilevato aggiornamento preventivi, aggiorno appuntamenti automaticamente");
+          lastUpdateTime = now;
+          
+          // Debounce: cancella il timeout precedente e ne crea uno nuovo
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+          }
+          
+          // Aggiorna gli appuntamenti dopo un delay più lungo per evitare loop
+          timeoutId = setTimeout(() => {
             refetch();
-          }, 500);
+          }, 2000); // Aumentato a 2 secondi
         }
       }
     });
 
     // Cleanup
     return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
       unsubscribe();
     };
   }, [queryClient, refetch]);
@@ -432,23 +484,23 @@ export default function AppointmentsPage() {
   // Esponi la funzione di ricarica a livello globale
   useEffect(() => {
     (window as any).reloadAppointments = async () => {
-      console.log("DEBUG - Ricarico gli appuntamenti da AppointmentsPage");
+      // console.log("DEBUG - Ricarico gli appuntamenti da AppointmentsPage");
       try {
         // Prima facciamo il refetch per aggiornare i dati da Firebase
         const result = await refetch();
-        console.log("DEBUG - Refetch completato, risultato:", result.isSuccess ? "successo" : "fallito");
+        // console.log("DEBUG - Refetch completato, risultato:", result.isSuccess ? "successo" : "fallito");
         
         // Aggiorniamo lo stato locale con i dati aggiornati
         if (result.isSuccess && result.data) {
           setAppointments(result.data);
-          console.log("DEBUG - Appuntamenti ricaricati con successo:", result.data.length);
+          // console.log("DEBUG - Appuntamenti ricaricati con successo:", result.data.length);
           return true;
         } else {
           // Se il refetch non ha funzionato, prova a caricare con un metodo alternativo
-          console.log("DEBUG - Refetch non ha avuto successo, provo a caricare direttamente");
+          // console.log("DEBUG - Refetch non ha avuto successo, provo a caricare direttamente");
           const data = await appointmentService.getAll();
           setAppointments(data);
-          console.log("DEBUG - Appuntamenti caricati direttamente:", data.length);
+          // console.log("DEBUG - Appuntamenti caricati direttamente:", data.length);
           return true;
         }
       } catch (error) {
@@ -507,10 +559,7 @@ export default function AppointmentsPage() {
   const handleForceRefresh = async () => {
     try {
       await refetch();
-      toast({
-        title: "Dati aggiornati",
-        description: "Gli appuntamenti sono stati aggiornati con successo"
-      });
+      // Refresh silenzioso - nessun toast
     } catch (error) {
       console.error("Errore durante l'aggiornamento:", error);
       toast({
@@ -543,43 +592,6 @@ export default function AppointmentsPage() {
     // Ricarica i dati dopo il cambio di stato
     refetch();
   };
-
-  // Sistema di polling aggressivo quando il form preventivo è aperto
-  useEffect(() => {
-    let intervalId: NodeJS.Timeout;
-    
-    if (isQuoteFormOpen) {
-      console.log("Form preventivo aperto, attivo polling aggressivo");
-      // Polling ogni 2 secondi quando il form preventivo è aperto
-      intervalId = setInterval(() => {
-        refetch();
-      }, 2000);
-    }
-    
-    return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-        console.log("Polling aggressivo disattivato");
-      }
-    };
-  }, [isQuoteFormOpen, refetch]);
-
-  // Listener per eventi personalizzati di aggiornamento preventivi
-  useEffect(() => {
-    const handleQuoteUpdate = (event: CustomEvent) => {
-      console.log("Ricevuto evento quoteUpdated:", event.detail);
-      // Aggiornamento immediato senza delay
-      refetch();
-    };
-
-    // Aggiungi il listener per l'evento personalizzato
-    window.addEventListener('quoteUpdated', handleQuoteUpdate as EventListener);
-
-    // Cleanup
-    return () => {
-      window.removeEventListener('quoteUpdated', handleQuoteUpdate as EventListener);
-    };
-  }, [refetch]);
 
   return (
     <div className="container py-4 w-full">
@@ -673,12 +685,28 @@ export default function AppointmentsPage() {
             </SelectContent>
           </Select>
           
-          <Input
-            type="date"
-            value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value)}
-            className="w-32 md:w-[180px]"
-          />
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="w-32 md:w-[180px]">
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                <span className="hidden md:inline">
+                  {dateFilter ? format(parseISO(dateFilter), 'MMM d, yyyy') : 'Seleziona data'}
+                </span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0">
+              <CalendarComponent
+                mode="single"
+                selected={dateFilter ? parseISO(dateFilter) : undefined}
+                onSelect={(date) => {
+                  if (date) {
+                    setDateFilter(format(date, 'yyyy-MM-dd'));
+                  }
+                }}
+                initialFocus
+              />
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
       
@@ -730,6 +758,7 @@ export default function AppointmentsPage() {
           selectedDate={selectedDate}
           onEditQuote={handleEditQuote}
           onCreateQuote={handleCreateNewQuote}
+          defaultClientId={selectedClientForAppointment || undefined}
         />
       )}
       

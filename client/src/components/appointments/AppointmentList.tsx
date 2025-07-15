@@ -12,7 +12,7 @@ import {
   SelectItem 
 } from '@/components/ui/select';
 import { Search as SearchIcon } from 'lucide-react';
-import { getAllAppointments } from '@shared/firebase';
+import { getAllAppointments } from '@shared/supabase';
 import { Appointment } from '@shared/schema';
 
 interface AppointmentListProps {

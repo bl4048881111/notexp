@@ -27,10 +27,5 @@ export interface AuthState {
   isAuthenticated: boolean;
 }
 
-export const DEFAULT_CREDENTIALS = {
-  username: 'aut@express!',
-  password: 's!vol@'
-};
-
 // Re-export from schema
 export * from './types-export';

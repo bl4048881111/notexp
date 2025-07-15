@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { QuoteItem, ServiceType } from "@shared/schema";
 import { Button } from "@/components/ui/button";
-import { getAllServiceTypes } from "@shared/firebase";
+import { getAllServiceTypes } from "@shared/supabase";
 
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -57,26 +57,25 @@ export default function ServiceSelectionForm({
   items, 
   onChange 
 }: ServiceSelectionFormProps) {
-  // Stati del componente
-  const [activeCategory, setActiveCategory] = useState<ServiceCategory>("Tagliando");
+  const [activeCategory, setActiveCategory] = useState<ServiceCategory>("Frenante");
   const [selectedServices, setSelectedServices] = useState<Record<string, boolean>>({});
-  const [dynamicServices, setDynamicServices] = useState<Record<ServiceCategory, Array<{id: string, name: string}>>>({
-    "Tagliando": [],
-    "Frenante": [],
-    "Sospensioni": [],
-    "Accessori": []
-  });
   
+  // Inizializza subito con i servizi predefiniti
+  const [dynamicServices, setDynamicServices] = useState<Record<ServiceCategory, Array<{id: string, name: string}>>>(defaultServices);
+
   // Carica tutti i tipi di servizio dal database
   useEffect(() => {
     async function loadAllServiceTypes() {
       try {
+        // console.log("Caricamento servizi dal database...");
         const allServiceTypes = await getAllServiceTypes();
         
         // Inizializza con i servizi predefiniti come fallback
         const servicesByCategory = {...defaultServices};
         
         if (allServiceTypes && allServiceTypes.length > 0) {
+          // console.log("Servizi trovati nel database:", allServiceTypes.length);
+          
           // Reset delle categorie se abbiamo servizi dal database
           Object.keys(servicesByCategory).forEach(key => {
             servicesByCategory[key as ServiceCategory] = [];
@@ -96,20 +95,24 @@ export default function ServiceSelectionForm({
               name: service.name
             });
           });
+        } else {
+          // console.log("Nessun servizio nel database, uso servizi predefiniti");
         }
         
         // Se dopo il caricamento alcune categorie sono vuote, usa i servizi predefiniti
         Object.keys(servicesByCategory).forEach(key => {
           if (servicesByCategory[key as ServiceCategory].length === 0) {
+            // console.log(`Categoria ${key} vuota, uso servizi predefiniti`);
             servicesByCategory[key as ServiceCategory] = defaultServices[key as ServiceCategory];
           }
         });
         
         setDynamicServices(servicesByCategory);
-        console.log("Servizi caricati:", servicesByCategory);
+        // console.log("Servizi finali caricati:", servicesByCategory);
       } catch (error) {
         console.error("Errore durante il caricamento dei servizi:", error);
         // In caso di errore, usa i servizi predefiniti
+        // console.log("Uso servizi predefiniti per errore");
         setDynamicServices(defaultServices);
       }
     }
@@ -160,11 +163,11 @@ export default function ServiceSelectionForm({
     const newItem: QuoteItem = {
       id: uuidv4(),
       serviceType,
-      laborPrice: 45, // Valore di default
+      laborPrice: 35, // Valore di default
       laborHours: 1,  // Valore di default
       parts: [],      // Sarà compilato nel passo 3
       notes: "",
-      totalPrice: 45  // Solo manodopera temporanea
+      totalPrice: 35  // Solo manodopera temporanea
     };
     
     // Crea una copia dell'array per evitare modifiche dirette
@@ -224,30 +227,39 @@ export default function ServiceSelectionForm({
           <div className="border rounded-lg p-4">
             <h3 className="font-medium mb-4">Servizi {activeCategory}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {dynamicServices[activeCategory]?.map((service: {id: string, name: string}) => (
-                <div 
-                  key={service.id} 
-                  className={`border rounded-lg p-3 cursor-pointer transition-all ${
-                    selectedServices[service.id] ? 'border-primary bg-primary/5' : 'hover:border-primary/50'
-                  }`}
-                  onClick={() => handleServiceClick(activeCategory, service)}
-                >
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-5 h-5 rounded-sm border flex items-center justify-center ${
-                        selectedServices[service.id] ? 'bg-primary border-primary text-primary-foreground' : 'border-input'
-                      }`}>
-                        {selectedServices[service.id] && <span className="material-icons text-sm">check</span>}
-                      </div>
-                      <div>
-                        <Label className="cursor-pointer font-medium">
-                          {service.name}
-                        </Label>
+              {dynamicServices[activeCategory]?.length > 0 ? (
+                dynamicServices[activeCategory]?.map((service: {id: string, name: string}) => (
+                  <div 
+                    key={service.id} 
+                    className={`border rounded-lg p-3 cursor-pointer transition-all ${
+                      selectedServices[service.id] ? 'border-primary bg-primary/5' : 'hover:border-primary/50'
+                    }`}
+                    onClick={() => handleServiceClick(activeCategory, service)}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-5 h-5 rounded-sm border flex items-center justify-center ${
+                          selectedServices[service.id] ? 'bg-primary border-primary text-primary-foreground' : 'border-input'
+                        }`}>
+                          {selectedServices[service.id] && <span className="material-icons text-sm">check</span>}
+                        </div>
+                        <div>
+                          <Label className="cursor-pointer font-medium">
+                            {service.name}
+                          </Label>
+                        </div>
                       </div>
                     </div>
                   </div>
+                ))
+              ) : (
+                <div className="col-span-2 text-center text-gray-500 py-4">
+                  <div>Nessun servizio disponibile per la categoria {activeCategory}</div>
+                  <div className="text-sm text-gray-400 mt-1">
+                    Debug: Servizi caricati = {JSON.stringify(dynamicServices[activeCategory])}
+                  </div>
                 </div>
-              ))}
+              )}
             </div>
           </div>
         )}

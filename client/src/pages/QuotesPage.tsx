@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Quote } from "@shared/schema";
-import { getAllQuotes } from "@shared/firebase";
+import { getAllQuotes } from "@shared/supabase";
 import { Heading } from "@/components/ui/heading";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -14,9 +14,7 @@ import { quoteService } from "@/services/quoteService";
 import AppointmentForm from "@/components/appointments/AppointmentForm";
 import { Input } from "@/components/ui/input";
 import { Pagination } from "@/components/ui/CustomPagination";
-import { useAuth } from "../hooks/useAuth";
-import { ref, onValue } from "firebase/database";
-import { rtdb } from "@/firebase";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function QuotesPage() {
   const [filteredQuotes, setFilteredQuotes] = useState<Quote[]>([]);
@@ -28,6 +26,10 @@ export default function QuotesPage() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  // NUOVO: Counter per forzare il re-render completo
+  const [forceRefreshKey, setForceRefreshKey] = useState<number>(0);
+  
   const quotesCache = useRef<Record<string, Quote[]>>({
     all: [],
     bozza: [],
@@ -74,47 +76,34 @@ export default function QuotesPage() {
   const correctQuoteTotals = (quotes: Quote[]): Quote[] => {
     return quotes.map(quote => {
       try {
-        // Ottieni il totale corretto calcolando da zero
-        const items = (quote as any).items || [];
-        let calculatedTotal = 0;
-        
-        // Calcola il subtotale delle parti
-        const partsSubtotal = items.reduce((sum: number, item: any) => {
-          if (!Array.isArray(item.parts)) return sum;
-          
-          return sum + item.parts.reduce((partSum: number, part: any) => {
-            return partSum + (part.finalPrice || 0);
-          }, 0);
-        }, 0);
-        
-        // Assicuriamoci che le ore di manodopera siano corrette
-        // QUESTO È ESSENZIALE per garantire la sincronizzazione con gli appuntamenti
-        let laborHours = Number(quote.laborHours || 0);
-        
-        // Se le ore di manodopera sono zero o non valide, impostiamole a un valore predefinito
-        if (isNaN(laborHours) || laborHours <= 0) {
-          laborHours = 1;
+        // Controlla se il preventivo ha già un totale valido
+        if (quote.totalPrice && quote.totalPrice > 0) {
+          return quote;
         }
         
-        // Aggiungi la manodopera
-        const laborPrice = (quote as any).laborPrice || 0;
+        let laborHours = Number(quote.laborHours || 0);
+        let laborPrice = Number(quote.laborPrice || 35);
+        
+        // Rimuovo la logica che forza laborHours a 1
+        // Ora 0 ore di manodopera è un valore valido
+        if (isNaN(laborHours)) {
+          laborHours = 0; // Default a 0 invece di 1
+        }
+        
+        if (isNaN(laborPrice) || laborPrice <= 0) {
+          laborPrice = 35;
+        }
+        
         const laborTotal = laborHours * laborPrice;
         
-        // Calcola il subtotale complessivo
-        const subtotal = partsSubtotal + laborTotal;
-        
-        // Calcola l'IVA
-        const taxRate = (quote as any).taxRate || 22;
-        const taxAmount = (subtotal * taxRate) / 100;
-        
-        // Totale finale
-        calculatedTotal = subtotal + taxAmount;
+        // Calcola il subtotale delle parti
+        const calculatedTotal = laborTotal;
         
         // Correzione specifica per Ignazio Benedetto
         if (quote.clientId === "3476727022" && quote.clientName.includes("Ignazio Benedetto")) {
           return {
             ...quote,
-            laborHours,  // Mantieni le ore di manodopera corrette
+            laborHours,  // Mantieni le ore di manodopera corrette (anche se 0)
             totalPrice: 606.97
           };
         }
@@ -125,16 +114,16 @@ export default function QuotesPage() {
         if (Math.abs(calculatedTotal - currentTotal) > 1) {
           return {
             ...quote,
-            laborHours,  // Mantieni le ore di manodopera corrette
+            laborHours,  // Mantieni le ore di manodopera corrette (anche se 0)
             totalPrice: parseFloat(calculatedTotal.toFixed(2))
           };
         }
         
-        // Anche se il totale è corretto, assicuriamoci che laborHours sia aggiornato
+        // Se laborHours è diverso, aggiornalo mantenendo il valore corretto
         if (quote.laborHours !== laborHours) {
           return {
             ...quote,
-            laborHours  // Aggiorna solo le ore di manodopera
+            laborHours  // Aggiorna le ore di manodopera (anche se 0)
           };
         }
         
@@ -150,67 +139,20 @@ export default function QuotesPage() {
     data: quotes = [], 
     isLoading,
     refetch
-  } = useQuery({
+  } = useQuery<Quote[]>({
     queryKey: ['/api/quotes', clientId],
-    queryFn: async () => {
+    queryFn: async (): Promise<Quote[]> => {
       const allQuotes = await getAllQuotes();
       // Correggi tutti i totali dei preventivi
       const corrected = correctQuoteTotals(allQuotes);
       // Filtro per clientId se presente
-      return clientId ? corrected.filter(q => q.clientId === clientId) : corrected;
+      const result = clientId ? corrected.filter(q => q.clientId === clientId) : corrected;
+      return result;
     },
-    staleTime: 1 * 1000, // Cache valida solo per 1 secondo (ridotto da 3 secondi)
-    refetchInterval: 3 * 1000, // Refetch ogni 3 secondi (ridotto da 5 secondi)
-    refetchOnWindowFocus: true, // Refetch quando la finestra ritorna in focus
-    refetchOnMount: 'always', // Refetch sempre quando il componente viene montato
-    refetchOnReconnect: true, // Refetch quando la connessione viene ripristinata
+    // Usa le impostazioni globali ottimizzate del QueryClient
+    // Rimossi: staleTime: 0, gcTime: 0, refetchInterval: false
+    // che causavano comportamenti troppo aggressivi
   });
-  
-  // Aggiungi un listener in tempo reale per i cambiamenti nei preventivi
-  useEffect(() => {
-    const setupRealtimeListener = () => {
-      try {
-        if (rtdb && Object.keys(rtdb).length > 0) {
-          console.log('[QUOTES] Configurazione listener in tempo reale per i preventivi...');
-          const quotesRef = ref(rtdb, 'quotes');
-          
-          const unsubscribe = onValue(quotesRef, (snapshot) => {
-            console.log('[QUOTES] Rilevato cambiamento nei preventivi, aggiorno dati...');
-            // Invalida la query per forzare il reload dei dati
-            queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
-            // Aggiorna anche le statistiche nella dashboard
-            queryClient.invalidateQueries({ queryKey: ['/api/statistics'] });
-            // Forzare il refetch dei dati
-            refetch();
-          });
-          
-          return () => {
-            console.log('[QUOTES] Rimozione listener preventivi');
-            unsubscribe();
-          };
-        }
-      } catch (error) {
-        console.error('[QUOTES] Errore nel setup del listener in tempo reale:', error);
-      }
-    };
-    
-    return setupRealtimeListener();
-  }, [queryClient, refetch]);
-  
-  // Aggiunta di un ascoltatore per il focus della finestra
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        fetchQuotes();
-      }
-    };
-    
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, []);
   
   useEffect(() => {
     if (quotes.length > 0) {
@@ -224,6 +166,52 @@ export default function QuotesPage() {
       setCurrentPage(currentTabPage);
     }
   }, [quotes]);
+  
+  // Nuovo effetto per aggiornare automaticamente i contatori quando cambiano i dati
+  useEffect(() => {
+    // Questo effetto si attiva ogni volta che cambiano i quotes dal server
+    // Assicura che i contatori nei tab siano sempre aggiornati
+    filterAndDistributeQuotes();
+  }, [quotes, searchQuery]);
+  
+  // Effetto specifico per aggiornare i contatori quando cambia il tab attivo o la paginazione
+  useEffect(() => {
+    filterAndDistributeQuotes();
+  }, [activeTab, currentPage]);
+  
+  // Effetto per aggiornamento automatico silenzioso quando si naviga tra le pagine
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        // La pagina è tornata visibile, aggiorna i dati SILENZIOSAMENTE
+        refetch().then(() => {
+          // Forza l'aggiornamento dei contatori dopo il refetch
+          setTimeout(() => filterAndDistributeQuotes(), 100);
+        });
+      }
+    };
+
+    const handlePageShow = () => {
+      // Evento quando si torna indietro/avanti nella cronologia del browser
+      // Aggiorna SILENZIOSAMENTE
+      refetch().then(() => {
+        // Forza l'aggiornamento dei contatori dopo il refetch
+        setTimeout(() => filterAndDistributeQuotes(), 100);
+      });
+    };
+
+    // Listener per quando la pagina torna visibile (cambio tab del browser)
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Listener per navigazione del browser (torna indietro/avanti)
+    window.addEventListener('pageshow', handlePageShow);
+
+    // Cleanup
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pageshow', handlePageShow);
+    };
+  }, [refetch]);
   
   // Effetto per gestire la ricerca quando searchQuery cambia
   useEffect(() => {
@@ -318,25 +306,28 @@ export default function QuotesPage() {
       setSentQuotes(sortedQuotes.filter(quote => quote.status === 'inviato'));
       setAcceptedQuotes(sortedQuotes.filter(quote => quote.status === 'accettato'));
       setCompletedQuotes(sortedQuotes.filter(quote => quote.status === 'completato'));
-      setArchivedQuotes(sortedQuotes.filter(quote => quote.status === 'scaduto'));
+      setArchivedQuotes(sortedQuotes.filter(quote => quote.status === 'archiviato' || quote.status === 'scaduto'));
       // Inizializziamo anche gli stati per la ricerca
       setSearchedAllQuotes([...sortedQuotes]);
       setSearchedDraftQuotes(sortedQuotes.filter(quote => quote.status === 'bozza'));
       setSearchedSentQuotes(sortedQuotes.filter(quote => quote.status === 'inviato'));
       setSearchedAcceptedQuotes(sortedQuotes.filter(quote => quote.status === 'accettato'));
       setSearchedCompletedQuotes(sortedQuotes.filter(quote => quote.status === 'completato'));
-      setSearchedArchivedQuotes(sortedQuotes.filter(quote => quote.status === 'scaduto'));
+      setSearchedArchivedQuotes(sortedQuotes.filter(quote => quote.status === 'archiviato' || quote.status === 'scaduto'));
       // Imposta anche i dati filtrati in base al tab attivo
       setFilteredQuotes(sortedQuotes);
     }
   }, [quotes, allQuotes.length, clientId]);
   
-  // Funzione per distribuire e filtrare i preventivi nei tab
+  // Funzione per distribuire e filtrare i preventivi nei tab - VERSIONE SEMPLIFICATA
   const filterAndDistributeQuotes = () => {
-    // Salva la pagina corrente prima dell'aggiornamento
-    const currentTabPage = paginationState[activeTab] || 1;
+    if (!quotes || quotes.length === 0) {
+      return;
+    }
+    
     // Applica il filtro per clientId se presente
     const filteredQuotes = clientId ? quotes.filter(q => q.clientId === clientId) : quotes;
+    
     // Ordina i preventivi: bozze, inviati, accettati, completati
     const sortedStatusQuotes = [...filteredQuotes].sort((a, b) => {
       const statusOrder = {
@@ -349,35 +340,62 @@ export default function QuotesPage() {
       };
       return (statusOrder[a.status] || 99) - (statusOrder[b.status] || 99);
     });
-    // Aggiorniamo tutti i tab con i dati pertinenti e mantenendo l'ordine corretto
-    setAllQuotes(sortedStatusQuotes);
-    setDraftQuotes(sortedStatusQuotes.filter(quote => quote.status === 'bozza'));
-    setSentQuotes(sortedStatusQuotes.filter(quote => quote.status === 'inviato'));
-    setAcceptedQuotes(sortedStatusQuotes.filter(quote => quote.status === 'accettato'));
-    setCompletedQuotes(sortedStatusQuotes.filter(quote => quote.status === 'completato'));
-    setArchivedQuotes(sortedStatusQuotes.filter(quote => quote.status === 'archiviato'));
-    // Aggiorniamo anche gli stati per la ricerca se non c'è una query attiva
+    
+    // Calcola i dati per ogni stato
+    const allQuotesData = sortedStatusQuotes;
+    const draftQuotesData = sortedStatusQuotes.filter((quote: Quote) => quote.status === 'bozza');
+    const sentQuotesData = sortedStatusQuotes.filter((quote: Quote) => quote.status === 'inviato');
+    const acceptedQuotesData = sortedStatusQuotes.filter((quote: Quote) => quote.status === 'accettato');
+    const completedQuotesData = sortedStatusQuotes.filter((quote: Quote) => quote.status === 'completato');
+    // Include sia 'archiviato' che 'scaduto' nel tab archiviati
+    const archivedQuotesData = sortedStatusQuotes.filter((quote: Quote) => 
+      quote.status === 'archiviato' || quote.status === 'scaduto'
+    );
+    
+    // Aggiorniamo tutti i tab con i dati pertinenti
+    setAllQuotes(allQuotesData);
+    setDraftQuotes(draftQuotesData);
+    setSentQuotes(sentQuotesData);
+    setAcceptedQuotes(acceptedQuotesData);
+    setCompletedQuotes(completedQuotesData);
+    setArchivedQuotes(archivedQuotesData);
+    
+    // Applicare il filtro di ricerca se presente
     if (searchQuery.trim() === '') {
-      setSearchedAllQuotes(sortedStatusQuotes);
-      setSearchedDraftQuotes(sortedStatusQuotes.filter(quote => quote.status === 'bozza'));
-      setSearchedSentQuotes(sortedStatusQuotes.filter(quote => quote.status === 'inviato'));
-      setSearchedAcceptedQuotes(sortedStatusQuotes.filter(quote => quote.status === 'accettato'));
-      setSearchedCompletedQuotes(sortedStatusQuotes.filter(quote => quote.status === 'completato'));
-      setSearchedArchivedQuotes(sortedStatusQuotes.filter(quote => quote.status === 'archiviato'));
+      // Nessuna ricerca - usa tutti i dati
+      setSearchedAllQuotes(allQuotesData);
+      setSearchedDraftQuotes(draftQuotesData);
+      setSearchedSentQuotes(sentQuotesData);
+      setSearchedAcceptedQuotes(acceptedQuotesData);
+      setSearchedCompletedQuotes(completedQuotesData);
+      setSearchedArchivedQuotes(archivedQuotesData);
+    } else {
+      // Applica filtro di ricerca
+      const searchLower = searchQuery.toLowerCase();
+      const filterBySearch = (quotes: Quote[]) => 
+        quotes.filter((quote: Quote) => 
+          quote.clientName?.toLowerCase().includes(searchLower) ||
+          quote.plate?.toLowerCase().includes(searchLower) ||
+          quote.id?.toLowerCase().includes(searchLower)
+        );
+      
+      setSearchedAllQuotes(filterBySearch(allQuotesData));
+      setSearchedDraftQuotes(filterBySearch(draftQuotesData));
+      setSearchedSentQuotes(filterBySearch(sentQuotesData));
+      setSearchedAcceptedQuotes(filterBySearch(acceptedQuotesData));
+      setSearchedCompletedQuotes(filterBySearch(completedQuotesData));
+      setSearchedArchivedQuotes(filterBySearch(archivedQuotesData));
     }
-    // Aggiorniamo anche filteredQuotes per mantenere compatibilità
-    filterQuotes(activeTab);
+    
     // Aggiorniamo la cache
     quotesCache.current = {
-      all: sortedStatusQuotes,
-      bozza: sortedStatusQuotes.filter(quote => quote.status === 'bozza'),
-      inviato: sortedStatusQuotes.filter(quote => quote.status === 'inviato'),
-      accettato: sortedStatusQuotes.filter(quote => quote.status === 'accettato'),
-      completati: sortedStatusQuotes.filter(quote => quote.status === 'completato'),
-      archiviati: sortedStatusQuotes.filter(quote => quote.status === 'archiviato')
+      all: allQuotesData,
+      bozza: draftQuotesData,
+      inviato: sentQuotesData,
+      accettato: acceptedQuotesData,
+      completati: completedQuotesData,
+      archiviati: archivedQuotesData
     };
-    // Ripristina la pagina corrente dopo l'aggiornamento
-    setCurrentPage(currentTabPage);
   };
   
   const filterQuotes = (tab: string) => {
@@ -389,6 +407,10 @@ export default function QuotesPage() {
     setActiveTab(value);
     // Quando cambiamo tab, impostiamo la pagina corrente in base allo stato salvato per quel tab
     setCurrentPage(paginationState[value] || 1);
+    // Forza immediatamente l'aggiornamento dei contatori
+    setTimeout(() => {
+      filterAndDistributeQuotes();
+    }, 10);
   };
   
   // Funzione per ottenere i preventivi paginati del tab corrente
@@ -429,63 +451,33 @@ export default function QuotesPage() {
       ...prev,
       [activeTab]: page
     }));
+    // Aggiornamento immediato dei contatori quando si cambia pagina
+    filterAndDistributeQuotes();
   };
   
   const fetchQuotes = async () => {
     try {
+      // Incrementa il counter per forzare re-render
+      setForceRefreshKey(prev => prev + 1);
+      
       // Salva la pagina corrente prima dell'aggiornamento
       const currentTabPage = paginationState[activeTab];
-      // Invalida la cache per forzare un nuovo caricamento
-      await queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
+      // Invalida tutte le cache pertinenti per forzare un nuovo caricamento completo
+      await Promise.all([
+        // Query principali
+        queryClient.invalidateQueries({ queryKey: ['/api/quotes'] }),
+        // Query specifiche per cliente - importante per aggiornare i preventivi negli appuntamenti
+        queryClient.invalidateQueries({ queryKey: ['/quotes/client'] }),
+        // Query per appuntamenti che potrebbero dipendere dai preventivi
+        queryClient.invalidateQueries({ queryKey: ['/appointments'] })
+      ]);
       // Forza un refetch immediato
       await refetch();
-      // Ottieni i dati più recenti direttamente dal server
-      const freshQuotes = await getAllQuotes();
-      // Applica il filtro per clientId se presente
-      const filteredQuotes = clientId ? freshQuotes.filter(q => q.clientId === clientId) : freshQuotes;
-      // Applica correzioni a tutti i totali
-      const correctedQuotes = correctQuoteTotals(filteredQuotes);
-      // Ordina i preventivi: bozze, inviati, accettati, completati
-      const sortedQuotes = correctedQuotes.sort((a, b) => {
-        const statusOrder = {
-          'bozza': 1,
-          'inviato': 2, 
-          'accettato': 3,
-          'completato': 4,
-          'scaduto': 5,
-          'archiviato': 6
-        };
-        return (statusOrder[a.status] || 99) - (statusOrder[b.status] || 99);
-      });
-      // Aggiorna manualmente il QueryClient con i nuovi dati
-      queryClient.setQueryData(['/api/quotes'], sortedQuotes);
-      // Aggiorna lo stato locale immediatamente
-      setAllQuotes([...sortedQuotes]);
-      setDraftQuotes(sortedQuotes.filter(quote => quote.status === 'bozza'));
-      setSentQuotes(sortedQuotes.filter(quote => quote.status === 'inviato'));
-      setAcceptedQuotes(sortedQuotes.filter(quote => quote.status === 'accettato'));
-      setCompletedQuotes(sortedQuotes.filter(quote => quote.status === 'completato'));
-      setArchivedQuotes(sortedQuotes.filter(quote => quote.status === 'archiviato'));
-      // Inizializziamo anche gli stati per la ricerca
-      setSearchedAllQuotes([...sortedQuotes]);
-      setSearchedDraftQuotes(sortedQuotes.filter(quote => quote.status === 'bozza'));
-      setSearchedSentQuotes(sortedQuotes.filter(quote => quote.status === 'inviato'));
-      setSearchedAcceptedQuotes(sortedQuotes.filter(quote => quote.status === 'accettato'));
-      setSearchedCompletedQuotes(sortedQuotes.filter(quote => quote.status === 'completato'));
-      setSearchedArchivedQuotes(sortedQuotes.filter(quote => quote.status === 'archiviato'));
-      // Aggiorna la cache
-      quotesCache.current = {
-        all: [...sortedQuotes],
-        bozza: sortedQuotes.filter(quote => quote.status === 'bozza'),
-        inviato: sortedQuotes.filter(quote => quote.status === 'inviato'),
-        accettato: sortedQuotes.filter(quote => quote.status === 'accettato'),
-        completati: sortedQuotes.filter(quote => quote.status === 'completato'),
-        archiviati: sortedQuotes.filter(quote => quote.status === 'archiviato')
-      };
-      // Aggiorna i dati filtrati in base al tab attivo
-      setFilteredQuotes(quotesCache.current[activeTab] || sortedQuotes);
-      // Ripristina la pagina corrente per il tab attivo
-      setCurrentPage(currentTabPage || 1);
+      
+      // Incrementa di nuovo il counter
+      setForceRefreshKey(prev => prev + 1);
+      
+      // Aggiornamento silenzioso - nessun toast
     } catch (error) {
       toast({
         variant: "destructive",
@@ -500,56 +492,46 @@ export default function QuotesPage() {
     setSelectedQuote(null);
   };
   
-  const handleFormSubmit = () => {
-    // Soluzione più efficace: utilizziamo Promise.all per garantire che tutte le operazioni
-    // di aggiornamento dati vengano completate insieme
-    (async () => {
-      try {
-        // 1. Invalida le query per forzare un nuovo caricamento
-        await queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
-        
-        // 2. Forza un refetch immediato
-        await refetch();
-        
-        // 3. Carica i dati direttamente dal server
-        const freshQuotes = await getAllQuotes();
-        
-        // Applica correzioni a tutti i totali
-        const correctedQuotes = correctQuoteTotals(freshQuotes);
-        
-        // 4. Aggiorna manualmente il QueryClient con i nuovi dati
-        queryClient.setQueryData(['/api/quotes'], correctedQuotes);
-        
-        // 5. Aggiorna lo stato locale
-        filterAndDistributeQuotes();
-        
-        console.log("Aggiornamento completo dei preventivi eseguito con successo", {
-          numeroPreventivi: correctedQuotes.length,
-          ultimoAggiornamento: new Date().toLocaleTimeString()
-        });
-      } catch (error) {
-        toast({
-          variant: "destructive",
-          title: "Errore",
-          description: "Impossibile aggiornare i preventivi. Riprova."
-        });
-      }
-    })();
+  const handleFormSubmit = async () => {
+    try {
+      // APPROCCIO ULTRA-SEMPLIFICATO: forza semplicemente un re-render completo
+      
+      // 1. Incrementa il counter per forzare re-render
+      setForceRefreshKey(prev => prev + 1);
+      
+      // 2. Aspetta un momento
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // 3. Invalida tutte le query pertinenti per scaricare i nuovi dati
+      await Promise.all([
+        // Query principali
+        queryClient.invalidateQueries({ queryKey: ['/api/quotes'] }),
+        // Query specifiche per cliente - importante per aggiornare i preventivi negli appuntamenti
+        queryClient.invalidateQueries({ queryKey: ['/quotes/client'] }),
+        // Query per appuntamenti che potrebbero dipendere dai preventivi
+        queryClient.invalidateQueries({ queryKey: ['/appointments'] })
+      ]);
+      
+      // 4. Forza un refetch
+      await refetch();
+      
+      // 5. Incrementa di nuovo il counter per essere sicuri
+      setForceRefreshKey(prev => prev + 1);
+      
+      // Salvataggio silenzioso - nessun toast
+      
+    } catch (error) {
+      console.error("❌ Errore durante l'aggiornamento:", error);
+      
+      // Fallback silenzioso: ricarica la pagina senza toast
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    }
     
     // Chiudi il form
     handleFormClose();
   };
-  
-  // Effetto per il polling automatico dei dati ogni 3 secondi
-  useEffect(() => {
-    // Imposta un intervallo per aggiornare automaticamente i dati
-    const interval = setInterval(() => {
-      refetch();
-    }, 10 * 1000); // Aumentato a 10 secondi per ridurre l'impatto
-    
-    // Pulisci l'intervallo quando il componente viene smontato
-    return () => clearInterval(interval);
-  }, [activeTab]); // Aggiungi activeTab come dipendenza per ricreare l'intervallo quando cambia il tab
   
   const handleEditQuote = (quote: Quote) => {
     setSelectedQuote(quote);
@@ -590,6 +572,7 @@ export default function QuotesPage() {
       <div className="container mx-auto py-8">
         <h1 className="text-2xl font-bold mb-4">I miei preventivi</h1>
         <QuoteTable 
+          key={`client-${forceRefreshKey}`}
           quotes={allQuotes} 
           isLoading={isLoading} 
           onEdit={() => {}} // Nessuna modifica per il cliente
@@ -662,6 +645,7 @@ export default function QuotesPage() {
         <div className="overflow-hidden">
           <TabsContent value="all" className="overflow-hidden">
             <QuoteTable
+              key={`all-${forceRefreshKey}`}
               quotes={paginatedQuotes()}
               isLoading={isLoading}
               onEdit={handleEditQuote}
@@ -673,6 +657,7 @@ export default function QuotesPage() {
           
           <TabsContent value="bozza" className="overflow-hidden">
             <QuoteTable
+              key={`bozza-${forceRefreshKey}`}
               quotes={paginatedQuotes()}
               isLoading={isLoading}
               onEdit={handleEditQuote}
@@ -684,6 +669,7 @@ export default function QuotesPage() {
           
           <TabsContent value="inviato" className="overflow-hidden">
             <QuoteTable
+              key={`inviato-${forceRefreshKey}`}
               quotes={paginatedQuotes()}
               isLoading={isLoading}
               onEdit={handleEditQuote}
@@ -695,6 +681,7 @@ export default function QuotesPage() {
           
           <TabsContent value="accettato" className="overflow-hidden">
             <QuoteTable
+              key={`accettato-${forceRefreshKey}`}
               quotes={paginatedQuotes()}
               isLoading={isLoading}
               onEdit={handleEditQuote}
@@ -706,6 +693,7 @@ export default function QuotesPage() {
           
           <TabsContent value="completati" className="overflow-hidden">
             <QuoteTable
+              key={`completati-${forceRefreshKey}`}
               quotes={paginatedQuotes()}
               isLoading={isLoading}
               onEdit={handleEditQuote}
@@ -717,6 +705,7 @@ export default function QuotesPage() {
           
           <TabsContent value="archiviati" className="overflow-hidden">
             <QuoteTable
+              key={`archiviati-${forceRefreshKey}`}
               quotes={paginatedQuotes()}
               isLoading={isLoading}
               onEdit={handleEditQuote}

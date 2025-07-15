@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getAllAppointments } from "@shared/firebase";
+import { getAllAppointments } from "@shared/supabase";
 import { Appointment } from "@shared/schema";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";

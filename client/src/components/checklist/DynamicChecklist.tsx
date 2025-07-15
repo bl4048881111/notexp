@@ -133,7 +133,7 @@ export function DynamicChecklist({
         if (snapshot.exists()) {
           setParameters(snapshot.val());
         } else {
-          console.log("Nessun parametro di checklist trovato");
+          // console.log("Nessun parametro di checklist trovato");
         }
       } catch (error) {
         console.error("Errore nel caricamento dei parametri:", error);
@@ -193,7 +193,7 @@ export function DynamicChecklist({
             if (typeof data === 'object' && Object.keys(data).length > 0) {
               // Se i dati hanno la struttura corretta con stato e note
               if (Object.values(data).some((item: any) => item?.stato !== undefined)) {
-                console.log(`Controlli trovati in ${path}:`, data);
+                // console.log(`Controlli trovati in ${path}:`, data);
                 foundControls = normalizeControls(data);
                 foundPath = path;
                 break;
@@ -203,10 +203,10 @@ export function DynamicChecklist({
         }
         
         if (foundControls) {
-          console.log(`Utilizzo controlli da ${foundPath}`);
+          // console.log(`Utilizzo controlli da ${foundPath}`);
           setControls(foundControls);
         } else {
-          console.log("Nessun controllo trovato nei percorsi disponibili");
+          // console.log("Nessun controllo trovato nei percorsi disponibili");
         }
       } catch (error) {
         console.error("Errore nel caricamento dei controlli:", error);
@@ -249,7 +249,7 @@ export function DynamicChecklist({
       const control = updatedControls[parameterId] || { stato: newState, note: '' };
       saveChecklistControl(vehicleId || null, appointmentId || null, parameterId, control)
         .then(() => {
-          console.log(`Stato del controllo ${parameterId} aggiornato con successo`);
+          // console.log(`Stato del controllo ${parameterId} aggiornato con successo`);
           if (onChecklistChange) {
             onChecklistChange(updatedControls);
           }
@@ -288,7 +288,7 @@ export function DynamicChecklist({
         
         saveChecklistControl(vehicleId || null, appointmentId || null, parameterId, control)
           .then(() => {
-            console.log(`Note del controllo ${parameterId} aggiornate con successo`);
+            // console.log(`Note del controllo ${parameterId} aggiornate con successo`);
             // Chiama onChecklistChange solo dopo il salvataggio riuscito
             if (onChecklistChange) {
               onChecklistChange(updatedControls);

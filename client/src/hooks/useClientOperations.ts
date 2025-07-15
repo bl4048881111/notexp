@@ -6,8 +6,9 @@ import {
   updateClient, 
   getClientById, 
   getAllQuotes, 
-  updateQuoteClientInfo 
-} from '@shared/firebase';
+  updateQuoteClientInfo,
+  getQuotesByClientId
+} from '@shared/supabase';
 import { useToast } from './use-toast';
 import { useActivityLogger, ActivityType } from '@/components/dev/ActivityLogger';
 
@@ -63,17 +64,23 @@ export function useClientOperations() {
    */
   const update = async (id: string, data: Partial<Client>): Promise<Client | null> => {
     setIsLoading(true);
+    console.log('🚀 HOOK: Inizio aggiornamento cliente', { id, data });
+    
     try {
       // Prima controlla se il cliente esiste
       const existingClient = await getClientById(id);
       if (!existingClient) {
+        console.error('❌ HOOK: Cliente non trovato', id);
         throw new Error(`Cliente con ID ${id} non trovato`);
       }
 
+      console.log('✅ HOOK: Cliente esistente trovato', existingClient);
+      
       // Log per debug
-      console.log(`Aggiornamento cliente ${id} in corso...`, data);
+      console.log(`🔄 HOOK: Aggiornamento cliente ${id} in corso...`, data);
       
       // Aggiorna il cliente
+      console.log('📞 HOOK: Chiamata updateClient...');
       await updateClient(id, data);
       
       // Attende un momento per garantire che l'aggiornamento sia completato
@@ -100,58 +107,30 @@ export function useClientOperations() {
         }
       );
       
-      // Aggiorna tutti i preventivi associati a questo cliente
-      try {
-        // Ottiene tutti i preventivi
-        const allQuotes = await getAllQuotes();
+      // 🔧 FIX: Trova SOLO i preventivi associati a QUESTO cliente specifico
+      const clientQuotes = await getQuotesByClientId(id); // ← CORRETTO: solo preventivi di questo cliente
+      
+      // Aggiorna il nome del cliente SOLO nei suoi preventivi
+      if (clientQuotes.length > 0 && (data.name || data.surname || data.phone || data.plate)) {
+        console.log(`📋 Aggiornamento ${clientQuotes.length} preventivi del cliente ${id}`);
         
-        // Filtra i preventivi di questo cliente
-        const clientQuotes = allQuotes.filter(quote => quote.clientId === id);
-        
-        if (clientQuotes.length > 0) {
-          console.log(`Trovati ${clientQuotes.length} preventivi da aggiornare per il cliente ${id}`);
-          
-          // Formatta il nome completo correttamente
-          const clientFullName = `${updatedClient.name} ${updatedClient.surname}`.trim();
-          console.log(`Nome completo cliente formattato: "${clientFullName}"`);
-          
-          // Preparazione dati da aggiornare
-          const clientInfo = {
-            clientName: clientFullName,
-            phone: updatedClient.phone,
-            plate: updatedClient.plate
-          };
-          
-          // Aggiorna tutti i preventivi in parallelo usando la nuova funzione che aggiorna solo i dati cliente
-          const updatePromises = clientQuotes.map(quote => {
-            console.log(`Aggiornamento preventivo ${quote.id}, vecchio nome: "${quote.clientName}", vecchia targa: "${quote.plate}", nuovo nome: "${clientFullName}", nuova targa: "${updatedClient.plate}"`);
-            return updateQuoteClientInfo(quote.id, clientInfo);
-          });
-          
-          // Attendi il completamento di tutti gli aggiornamenti
-          await Promise.all(updatePromises);
-          console.log('Aggiornati tutti i preventivi associati al cliente');
-          
-          // Registra l'aggiornamento dei preventivi associati
-          if (clientQuotes.length > 0) {
-            logActivity(
-              'update_quote',
-              `Aggiornati ${clientQuotes.length} preventivi associati al cliente ${updatedClient.name} ${updatedClient.surname}`,
-              { clientId: id, quoteIds: clientQuotes.map(q => q.id) }
-            );
+        for (const quote of clientQuotes) {
+          try {
+            await updateQuoteClientInfo(quote.id, {
+              clientName: `${updatedClient.name} ${updatedClient.surname}`.trim(),
+              phone: updatedClient.phone,
+              plate: updatedClient.plate
+            });
+            console.log(`✅ Preventivo ${quote.id} aggiornato`);
+          } catch (error) {
+            console.error(`❌ Errore aggiornamento preventivo ${quote.id}:`, error);
           }
-          
-          // Invalida la cache dei preventivi e forza un refetch
-          await queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
-          await queryClient.refetchQueries({ queryKey: ['/api/quotes'] });
         }
-      } catch (quoteError) {
-        console.error('Errore durante l\'aggiornamento dei preventivi:', quoteError);
-        // Non blocchiamo l'aggiornamento del cliente se fallisce l'aggiornamento dei preventivi
       }
       
       // Invalida manualmente la cache di React Query
       await queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/quotes'] }); // Aggiunto per aggiornare anche i preventivi
       
       // Per forzare un aggiornamento più affidabile, aggiorna manualmente anche la cache
       queryClient.setQueryData(['/api/clients'], (oldData: Client[] | undefined) => {

@@ -24,7 +24,7 @@ function NoteInput({
   onNoteChange: (parameterId: string, note: string) => void;
 }) {
   const [localValue, setLocalValue] = useState(initialValue);
-  const timeoutRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const inputRef = useRef<HTMLInputElement>(null);
   const onNoteChangeRef = useRef(onNoteChange);
   
@@ -39,6 +39,20 @@ function NoteInput({
       setLocalValue(initialValue);
     }
   }, [initialValue]);
+
+  // Gestione migliorata del focus per tablet
+  const handleFocus = useCallback((e: React.FocusEvent<HTMLInputElement>) => {
+    // Previeni lo scroll automatico
+    e.preventDefault();
+    
+    // Salva la posizione di scroll corrente
+    const currentScrollTop = window.scrollY;
+    
+    // Forza il mantenimento della posizione di scroll
+    requestAnimationFrame(() => {
+      window.scrollTo(0, currentScrollTop);
+    });
+  }, []);
   
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -60,6 +74,7 @@ function NoteInput({
       type="text" 
       value={localValue}
       onChange={handleChange}
+      onFocus={handleFocus}
       data-parameter-id={parameterId}
       className="w-full p-2 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
       placeholder="Aggiungi note..."
@@ -101,25 +116,25 @@ export default function DynamicChecklistSection({
   const currentPageItems = validParameterIds.slice(startIndex, endIndex);
   
   // Debug paginazione
-  console.log(`Sezione ${sectionName}:`, {
-    validParameterIds: validParameterIds.length,
-    itemsPerPage,
-    totalPages,
-    currentPage,
-    startIndex,
-    endIndex,
-    currentPageItems: currentPageItems.length,
-    shouldShowPagination: validParameterIds.length > itemsPerPage,
-    currentPageItemsIds: currentPageItems
-  });
+  // console.log(`Sezione ${sectionName}:`, {
+  //   validParameterIds: validParameterIds.length,
+  //   itemsPerPage,
+  //   totalPages,
+  //   currentPage,
+  //   startIndex,
+  //   endIndex,
+  //   currentPageItems: currentPageItems.length,
+  //   shouldShowPagination: validParameterIds.length > itemsPerPage,
+  //   currentPageItemsIds: currentPageItems
+  // });
   
   // VERIFICA CRITICA: currentPageItems dovrebbe avere max 9 elementi
   if (sectionName === "Sospensione Anteriore") {
-    console.log("🔍 VERIFICA PAGINAZIONE:", {
-      totalElements: validParameterIds.length,
-      currentPageElements: currentPageItems.length,
-      elementsToRender: currentPageItems
-    });
+    // console.log("🔍 VERIFICA PAGINAZIONE:", {
+    //   totalElements: validParameterIds.length,
+    //   currentPageElements: currentPageItems.length,
+    //   elementsToRender: currentPageItems
+    // });
   }
   
   // Callback per gestire il cambio delle note - NON aggiorna stato locale
@@ -136,6 +151,9 @@ export default function DynamicChecklistSection({
 
   // Callback per gestire il cambio di stato - NON aggiorna stato locale
   const handleControlChange = useCallback((parameterId: string, newState: 'CONTROLLATO' | 'NON CONTROLLATO' | 'DA FARE') => {
+    // Salva la posizione di scroll corrente
+    const currentScrollTop = window.scrollY;
+    
     // Aggiorna solo il store globale
     globalControlsStore[parameterId] = {
       ...globalControlsStore[parameterId],
@@ -147,6 +165,11 @@ export default function DynamicChecklistSection({
     
     // Forza un re-render solo per aggiornare l'icona dello stato
     setSelectedParameters(prev => [...prev]);
+    
+    // Ripristina la posizione di scroll
+    requestAnimationFrame(() => {
+      window.scrollTo(0, currentScrollTop);
+    });
   }, [onControlChange]);
   
   // Funzioni di navigazione pagina
@@ -164,18 +187,18 @@ export default function DynamicChecklistSection({
   
   // Se non ci sono parametri per questa sezione, non renderizzare nulla
   if (!parameterIds || parameterIds.length === 0) {
-    console.log(`La sezione ${sectionName} non ha parametri da visualizzare`);
+    // console.log(`La sezione ${sectionName} non ha parametri da visualizzare`);
     return null;
   }
 
-  console.log(`Rendering sezione ${sectionName} con parametri:`, parameterIds);
+  // console.log(`Rendering sezione ${sectionName} con parametri:`, parameterIds);
   
   if (validParameterIds.length === 0) {
-    console.log(`La sezione ${sectionName} non ha parametri validi da visualizzare`);
+    // console.log(`La sezione ${sectionName} non ha parametri validi da visualizzare`);
     return null;
   }
   
-  console.log(`Parametri validi per la sezione ${sectionName}:`, validParameterIds);
+  // console.log(`Parametri validi per la sezione ${sectionName}:`, validParameterIds);
 
   const StatusIcon = ({ status }: { status: 'CONTROLLATO' | 'NON CONTROLLATO' | 'DA FARE' }) => {
     if (status === 'CONTROLLATO') {
@@ -313,7 +336,7 @@ export default function DynamicChecklistSection({
       {currentPageItems.map((parameterId) => {
         const parameter = parameters[parameterId];
         if (!parameter) {
-          console.warn(`Parametro ${parameterId} non trovato`);
+          // console.warn(`Parametro ${parameterId} non trovato`);
           return null;
         }
         

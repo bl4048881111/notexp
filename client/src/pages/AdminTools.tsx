@@ -1,4 +1,5 @@
 import { RepairTool } from "@/components/admin/RepairTool";
+import { AuthDebugPanel } from "@/components/dev/AuthDebugPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Activity, ActivityType, useActivityLogger } from "../components/dev/ActivityLogger";
@@ -56,7 +57,7 @@ export default function AdminTools() {
         }));
         
         setLocalLogs(parsedWithDates);
-        console.log(`Caricati ${parsedWithDates.length} log da localStorage`);
+        // console.log(`Caricati ${parsedWithDates.length} log da localStorage`);
       }
     } catch (e) {
       console.error("Errore durante il caricamento dei log:", e);
@@ -288,6 +289,7 @@ export default function AdminTools() {
           <TabsTrigger value="repairs">Riparazioni</TabsTrigger>
           <TabsTrigger value="accessi">Accessi</TabsTrigger>
           <TabsTrigger value="modifiche">Modifiche al Database</TabsTrigger>
+          <TabsTrigger value="auth-debug">Debug Auth</TabsTrigger>
         </TabsList>
         
         <TabsContent value="repairs">
@@ -401,6 +403,10 @@ export default function AdminTools() {
         
         <TabsContent value="modifiche">
           <DbChangesPage isEmbedded={true} />
+        </TabsContent>
+        
+        <TabsContent value="auth-debug">
+          <AuthDebugPanel />
         </TabsContent>
       </Tabs>
     </div>

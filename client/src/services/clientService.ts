@@ -5,8 +5,9 @@ import {
   createClient, 
   updateClient, 
   deleteClient, 
-  getRecentClients 
-} from "@shared/firebase";
+  getRecentClients,
+  getClientByCodeOrEmail
+} from "@shared/supabase";
 
 // Client service
 export const clientService = {
@@ -31,8 +32,8 @@ export const clientService = {
   },
   
   // Update a client
-  update: async (id: string, client: Partial<Client>): Promise<void> => {
-    await updateClient(id, client);
+  update: async (id: string, client: Partial<Client>): Promise<Client> => {
+    return await updateClient(id, client);
   },
   
   // Delete a client
@@ -55,10 +56,6 @@ export const clientService = {
   
   // Cerca un cliente tramite codice cliente o email
   findByCodeOrEmail: async (identifier: string): Promise<Client | null> => {
-    const clients = await getAllClients();
-    const lowered = identifier.toLowerCase();
-    return (
-      clients.find(c => c.id?.toLowerCase() === lowered || c.email?.toLowerCase() === lowered) || null
-    );
+    return await getClientByCodeOrEmail(identifier);
   }
 };

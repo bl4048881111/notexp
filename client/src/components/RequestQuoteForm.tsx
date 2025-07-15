@@ -3,7 +3,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { User, Mail, Phone, Car, StickyNote, ShieldCheck, ArrowRight, Radio, FileText, Calendar, Clock, Sun, Moon, CheckCircle, Loader2 } from "lucide-react";
+import { User, Mail, Phone, Car, StickyNote, ShieldCheck, ArrowRight, Radio, FileText, Calendar, Clock, Sun, Moon, CheckCircle, Loader2, MapPin } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -49,10 +49,12 @@ export default function RequestQuoteForm() {
     dataNascita: null as Date | null,
     dataNascitaManuale: "", // Campo per l'inserimento manuale
     note: "",
+    coupon: "",
     tipoRichiesta: "preventivo", // Default a preventivo
     dataAppuntamento: null as Date | null,
     oraAppuntamento: "",
-    preferenzaOrario: "mattina" as "mattina" | "pomeriggio"
+    preferenzaOrario: "mattina" as "mattina" | "pomeriggio",
+    sedeRiferimento: "monopoli" // Sede di default
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -131,7 +133,12 @@ export default function RequestQuoteForm() {
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    
+    // Trasforma in maiuscolo solo per il campo targa
+    const finalValue = name === 'targa' ? value.toUpperCase() : value;
+    
+    setForm({ ...form, [name]: finalValue });
   };
 
   const handleTipoRichiestaChange = (value: string) => {
@@ -219,6 +226,10 @@ export default function RequestQuoteForm() {
     }
   };
 
+  const handleSedeChange = (value: string) => {
+    setForm({ ...form, sedeRiferimento: value });
+  };
+
   const validateForm = () => {
     // Valida la soluzione del CAPTCHA
     const captchaResult = captchaChallenge.num1 + captchaChallenge.num2;
@@ -281,7 +292,9 @@ export default function RequestQuoteForm() {
       formData.append('targa', form.targa);
       formData.append('data-nascita', form.dataNascita ? format(form.dataNascita, 'dd/MM/yyyy') : '');
       formData.append('note', form.note);
+      formData.append('coupon', form.coupon);
       formData.append('tipo-richiesta', form.tipoRichiesta);
+      formData.append('sede-riferimento', form.sedeRiferimento);
       formData.append('captcha-challenge', `${captchaChallenge.num1} + ${captchaChallenge.num2}`);
       formData.append('captcha-result', captchaValue);
       formData.append('privacy-policy', privacyChecked ? "accettata" : "non-accettata");
@@ -292,8 +305,8 @@ export default function RequestQuoteForm() {
         formData.append('preferenza-orario', form.preferenzaOrario);
       }
       
-      // Invia il form a Netlify Forms (questo attiverà automaticamente il webhook)
-      const response = await fetch('/', {
+      // Invia direttamente al webhook form-handler
+      const response = await fetch('/.netlify/functions/form-handler', {
         method: 'POST',
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: new URLSearchParams(formData as any).toString()
@@ -313,10 +326,12 @@ export default function RequestQuoteForm() {
             dataNascita: null,
             dataNascitaManuale: "",
             note: "",
+            coupon: "",
             tipoRichiesta: "preventivo",
             dataAppuntamento: null,
             oraAppuntamento: "",
-            preferenzaOrario: "mattina"
+            preferenzaOrario: "mattina",
+            sedeRiferimento: "monopoli"
           });
           setIsSubmitted(false);
           setPrivacyChecked(false);
@@ -374,11 +389,17 @@ export default function RequestQuoteForm() {
         </label>
       </div>
 
-      {/* Campi nascosti per dati complessi */}
-      <input type="hidden" name="data-nascita" value={form.dataNascita ? format(form.dataNascita, 'dd/MM/yyyy') : ''} />
+      {/* Campi nascosti per tutti i dati - QUESTI SONO FONDAMENTALI PER NETLIFY */}
+      <input type="hidden" name="tipo-richiesta" value={form.tipoRichiesta} />
+      <input type="hidden" name="data-nascita" value={form.dataNascita ? format(form.dataNascita, 'dd/MM/yyyy') : form.dataNascitaManuale} />
       <input type="hidden" name="data-appuntamento" value={form.dataAppuntamento ? format(form.dataAppuntamento, 'dd/MM/yyyy') : ''} />
       <input type="hidden" name="ora-appuntamento" value={form.oraAppuntamento} />
       <input type="hidden" name="preferenza-orario" value={form.preferenzaOrario} />
+      <input type="hidden" name="coupon" value={form.coupon} />
+      <input type="hidden" name="captcha-challenge" value={`${captchaChallenge.num1} + ${captchaChallenge.num2}`} />
+      <input type="hidden" name="captcha-result" value={captchaValue} />
+      <input type="hidden" name="privacy-policy" value={privacyChecked ? "accettata" : "non-accettata"} />
+      <input type="hidden" name="sede-riferimento" value={form.sedeRiferimento} />
 
       {/* Tipo Richiesta */}
       <div className="mb-6">
@@ -413,8 +434,6 @@ export default function RequestQuoteForm() {
             </Label>
           </div>
         </RadioGroup>
-        {/* Campo nascosto per Netlify */}
-        <input type="hidden" name="tipo-richiesta" value={form.tipoRichiesta} />
       </div>
 
       {/* Dati personali e veicolo */}
@@ -457,27 +476,6 @@ export default function RequestQuoteForm() {
                 onChange={handleBirthDateManualInput}
                 className="h-8 text-sm bg-zinc-900 border-zinc-800 focus:border-orange-500 text-white placeholder-zinc-500"
               />
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-8 px-2 bg-zinc-900 border-zinc-800 hover:bg-zinc-800"
-                  >
-                    <CalendarIcon className="h-3.5 w-3.5 text-orange-500" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 bg-zinc-900 border-zinc-800 text-white">
-                  <CalendarComponent
-                    mode="single"
-                    selected={form.dataNascita || undefined}
-                    onSelect={handleBirthDateSelect}
-                    disabled={{ after: new Date() }}
-                    initialFocus
-                    className="bg-zinc-900 text-white"
-                  />
-                </PopoverContent>
-              </Popover>
             </div>
           </div>
           <div className="flex flex-col">
@@ -487,7 +485,20 @@ export default function RequestQuoteForm() {
             <Input id="targa" name="targa" placeholder="Targa" maxLength={7} value={form.targa} onChange={handleChange} required className="h-8 text-sm bg-zinc-900 border-zinc-800 focus:border-orange-500 text-white placeholder-zinc-500 uppercase" />
           </div>
         </div>
-
+        
+{/* CAMPO COUPON */}
+        <div className="flex flex-col mt-2">
+          <label htmlFor="coupon" className="text-xs font-medium text-orange-500 mb-1 flex items-center">
+            <Radio className="h-3 w-3 text-orange-500 mr-1" /> Coupon (opzionale)
+          </label>
+          <Input
+            id="coupon"
+            name="coupon"
+            value={form.coupon}
+            onChange={handleChange}
+            className="h-8 text-sm bg-zinc-900 border-zinc-800 focus:border-orange-500 text-white placeholder-zinc-500 uppercase"
+          /><br></br>
+        </div>
         {/* Note */}
         <div className="flex flex-col">
           <label htmlFor="note" className="text-xs font-medium text-orange-500 mb-1 flex items-center">
@@ -501,8 +512,31 @@ export default function RequestQuoteForm() {
             onChange={handleChange} 
             className="h-20 text-sm bg-zinc-900 border-zinc-800 focus:border-orange-500 text-white placeholder-zinc-500" 
           />
+        </div><br></br>
+        
+        {/* Sede di riferimento */}
+        <div className="flex flex-col">
+          <label className="text-xs font-medium text-orange-500 mb-1 flex items-center">
+            <MapPin className="h-3 w-3 text-orange-500 mr-1" /> Sede di riferimento
+          </label>
+          <Select value={form.sedeRiferimento} onValueChange={handleSedeChange}>
+            <SelectTrigger className="h-10 text-sm bg-zinc-900 border-zinc-800 focus:border-orange-500 text-white data-[placeholder]:text-zinc-500">
+              <SelectValue placeholder="Seleziona una sede" />
+            </SelectTrigger>
+            <SelectContent className="bg-zinc-800 border-zinc-700 text-white shadow-lg">
+              <SelectItem value="monopoli" className="text-white hover:bg-zinc-700 focus:bg-zinc-700 cursor-pointer py-3">
+                <div className="flex items-center">
+                  <MapPin className="h-4 w-4 text-orange-500 mr-3 flex-shrink-0" />
+                  <div className="flex flex-col space-y-1">
+                    <span className="font-medium text-orange-500">Monopoli <span className="text-white">Via Eugenio Montale 12</span></span>
+                  </div>
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
         </div>
-      </div>
+        
+      </div>  
         
       {/* Sezione appuntamento per checkup */}
       {form.tipoRichiesta === "checkup" && (
@@ -600,8 +634,6 @@ export default function RequestQuoteForm() {
               <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
-          {/* Campi nascosti per il CAPTCHA */}
-          <input type="hidden" name="captcha-challenge" value={`${captchaChallenge.num1} + ${captchaChallenge.num2}`} />
         </div>
         
         {/* Privacy Checkbox */}
@@ -616,7 +648,6 @@ export default function RequestQuoteForm() {
           <label htmlFor="privacy" className="text-sm text-zinc-400 ml-2 cursor-pointer">
             Accetto la <a href="/privacy-policy" className="text-orange-500 hover:underline">Privacy Policy</a>
           </label>
-          <input type="hidden" name="privacy-policy" value={privacyChecked ? "accettata" : "non-accettata"} />
         </div>
       </div>
       

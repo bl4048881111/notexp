@@ -1,13 +1,16 @@
 import { useEffect, useState } from "react";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "../contexts/AuthContext";
 import { Input } from "@/components/ui/input";
 import { Table, TableHead, TableBody, TableRow, TableCell, TableHeader } from "@/components/ui/table";
-import { getAllAppointments, getQuoteById } from "@shared/firebase";
+import { getAllAppointments, getQuoteById, getWorkPhaseByVehicleId, getAllQuotes } from "@shared/supabase";
 import { Appointment, SparePart } from "@shared/types";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
-import { ref, get } from "firebase/database";
-import { rtdb } from "@/firebase";
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+import * as XLSX from 'xlsx';
+import { Button } from '@/components/ui/button';
+import { FileDown } from 'lucide-react';
 
 interface Sostituzione {
   partCode: string;
@@ -18,6 +21,10 @@ interface Sostituzione {
   clientName: string;
   plate: string;
   date: string;
+  unitPrice: number;
+  unitPriceFormatted: string;
+  quoteId: string;
+  status: string;
 }
 
 export default function PartiSostituitePage() {
@@ -33,71 +40,59 @@ export default function PartiSostituitePage() {
   useEffect(() => {
     async function fetchData() {
       setLoading(true);
-      const appointments: Appointment[] = await getAllAppointments();
+      // Prendi tutti i preventivi
+      const quotes = await getAllQuotes();
+      // Filtra solo quelli accettati o completati
+      const completedQuotes = quotes.filter(q => q.status === "accettato" || q.status === "completato");
       const sostituzioni: Sostituzione[] = [];
-      for (const app of appointments) {
-        if (app.status !== "completato") continue;
-        if (user?.clientId && app.clientId !== user.clientId) continue;
-        // Ricambi da delivery phase
-        try {
-          const deliveryRef = ref(rtdb, `/deliveryPhases/${app.id}`);
-          const snap = await get(deliveryRef);
-          if (snap.exists()) {
-            const deliveryData = snap.val();
-            const items = deliveryData.items || [];
-            if (Array.isArray(items)) {
-              items.forEach((item: any) => {
-                if (Array.isArray(item.parts)) {
-                  item.parts.forEach((part: any) => {
-                    sostituzioni.push({
-                      partCode: part.code || "-",
-                      brand: part.brand || part.description || part.name || "-",
-                      description: part.description || part.name || "-",
-                      quantity: part.quantity || 1,
-                      clientId: app.clientId || "-",
-                      clientName: app.clientName || "-",
-                      plate: app.plate || "-",
-                      date: app.date ? format(new Date(app.date), "dd/MM/yyyy", { locale: it }) : "-"
-                    });
-                  });
-                }
+      for (const quote of completedQuotes) {
+        const items = quote.items || [];
+        let hasItems = Array.isArray(items) && items.length > 0;
+        if (hasItems) {
+          items.forEach((item: any) => {
+            if (Array.isArray(item.parts)) {
+              item.parts.forEach((part: any) => {
+                sostituzioni.push({
+                  partCode: part.code || "-",
+                  brand: part.brand || part.description || part.name || "-",
+                  description: part.description || part.name || "-",
+                  quantity: part.quantity || 1,
+                  clientId: quote.clientId || "-",
+                  clientName: quote.clientName || "-",
+                  plate: quote.plate || "-",
+                  date: quote.date ? format(new Date(quote.date), "dd/MM/yyyy", { locale: it }) : "-",
+                  unitPrice: part.unitPrice || part.price || 0,
+                  unitPriceFormatted: (part.unitPrice || part.price) ? (part.unitPrice || part.price).toLocaleString('it-IT') : "0,00",
+                  status: quote.status || "-",
+                  quoteId: quote.id || "-",
+                });
               });
             }
-          }
-        } catch (e) { /* ignora errori singoli */ }
-        // Ricambi dal preventivo associato
-        if (app.quoteId) {
-          try {
-            const quote = await getQuoteById(app.quoteId);
-            if (quote) {
-              const items = quote.items || [];
-              if (Array.isArray(items)) {
-                items.forEach((item: any) => {
-                  if (Array.isArray(item.parts)) {
-                    item.parts.forEach((part: any) => {
-                      sostituzioni.push({
-                        partCode: part.code || "-",
-                        brand: part.brand || part.description || part.name || "-",
-                        description: part.description || part.name || "-",
-                        quantity: part.quantity || 1,
-                        clientId: app.clientId || "-",
-                        clientName: app.clientName || "-",
-                        plate: app.plate || "-",
-                        date: app.date ? format(new Date(app.date), "dd/MM/yyyy", { locale: it }) : "-"
-                      });
-                    });
-                  }
-                });
-              }
-            }
-          } catch (e) { /* ignora errori singoli */ }
+          });
+        } else if (Array.isArray(quote.parts)) {
+          quote.parts.forEach((part: any) => {
+            sostituzioni.push({
+              partCode: part.code || "-",
+              brand: part.brand || part.description || part.name || "-",
+              description: part.description || part.name || "-",
+              quantity: part.quantity || 1,
+              clientId: quote.clientId || "-",
+              clientName: quote.clientName || "-",
+              plate: quote.plate || "-",
+              date: quote.date ? format(new Date(quote.date), "dd/MM/yyyy", { locale: it }) : "-",
+              unitPrice: part.unitPrice || part.price || 0,
+              unitPriceFormatted: (part.unitPrice || part.price) ? (part.unitPrice || part.price).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' }) : "0,00",
+              quoteId: quote.id || "-",
+              status: quote.status || "-",
+            });
+          });
         }
       }
       setData(sostituzioni);
       setLoading(false);
     }
     fetchData();
-  }, []);
+  }, [user?.clientId]);
 
   useEffect(() => {
     let rows = data;
@@ -129,12 +124,41 @@ export default function PartiSostituitePage() {
   return (
     <div className="w-full px-4 py-6">
       <h1 className="text-2xl font-bold mb-4">Parti Sostituite</h1>
-      <Input
-        placeholder="Cerca per codice, brand, cliente, targa, data..."
-        value={search}
-        onChange={e => setSearch(e.target.value)}
-        className="mb-4"
-      />
+      <div className="flex items-center gap-4 mb-4">
+        <Input
+          placeholder="Cerca per codice, brand, cliente, targa, data..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="mb-0"
+        />
+        <Button
+          variant="outline"
+          className="flex items-center gap-2 border-orange-500 text-orange-600 hover:bg-orange-50 hover:text-orange-700 transition-colors"
+          onClick={() => {
+            // Esportazione Excel di tutti i dati
+            const exportData = data.map(row => ({
+              'Codice': row.partCode,
+              'Brand': row.brand,
+              'Descrizione': row.description,
+              'Quantità': row.quantity,
+              'Prezzo unità': row.unitPriceFormatted,
+              'Stato': row.status,
+              'Codice cliente': row.clientId,
+              'Preventivo': row.quoteId,
+              'Nome cliente': row.clientName,
+              'Targa': row.plate,
+              'Data': row.date
+            }));
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            XLSX.utils.book_append_sheet(wb, ws, "Parti Sostituite");
+            XLSX.writeFile(wb, `parti_sostituite_${new Date().toISOString().split('T')[0]}.xlsx`);
+          }}
+        >
+          <FileDown className="w-5 h-5" />
+          Esporta Excel
+        </Button>
+      </div>
       {loading ? (
         <div className="text-center text-gray-400 py-12">Caricamento dati...</div>
       ) : filtered.length === 0 ? (
@@ -151,8 +175,12 @@ export default function PartiSostituitePage() {
                 <TableHead>Brand</TableHead>
                 <TableHead>Descrizione</TableHead>
                 <TableHead>Quantità</TableHead>
+                <TableHead>Prezzo unità</TableHead>
                 {!isClient && (
-                  <TableHead>Codice cliente</TableHead>
+                  <>
+                    <TableHead>Codice cliente</TableHead>
+                    <TableHead>Preventivo</TableHead>
+                  </>
                 )}
                 <TableHead>Nome cliente</TableHead>
                 <TableHead>Targa veicolo</TableHead>
@@ -168,8 +196,12 @@ export default function PartiSostituitePage() {
                   <TableCell>{row.brand}</TableCell>
                   <TableCell>{row.description}</TableCell>
                   <TableCell>{row.quantity}</TableCell>
+                  <TableCell>{row.unitPriceFormatted}</TableCell>
                   {!isClient && (
-                    <TableCell>{row.clientId}</TableCell>
+                    <>
+                      <TableCell>{row.clientId}</TableCell>
+                      <TableCell>{row.quoteId}</TableCell>
+                    </>
                   )}
                   <TableCell>{row.clientName}</TableCell>
                   <TableCell>{row.plate}</TableCell>

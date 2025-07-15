@@ -1,0 +1,132 @@
+/* Miglioramenti contrasti per DbChangesPage */
+
+/* Assicura che tutti i testi siano ben visibili */
+.db-changes-page {
+  color: hsl(var(--foreground));
+}
+
+.db-changes-page .text-gray-400,
+.db-changes-page .text-gray-500,
+.db-changes-page .text-gray-600,
+.db-changes-page .text-gray-700 {
+  color: hsl(var(--foreground)) !important;
+}
+
+/* Migliora i contrasti dei badge */
+.db-changes-page .badge-outline {
+  border-color: hsl(var(--border));
+  color: hsl(var(--foreground));
+}
+
+/* Migliora i contrasti delle card */
+.db-changes-page .card {
+  background-color: hsl(var(--card));
+  border-color: hsl(var(--border));
+}
+
+.db-changes-page .card:hover {
+  background-color: hsl(var(--muted) / 0.5);
+}
+
+/* Migliora i contrasti degli input */
+.db-changes-page input,
+.db-changes-page select,
+.db-changes-page textarea {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--border));
+}
+
+.db-changes-page input:focus,
+.db-changes-page select:focus,
+.db-changes-page textarea:focus {
+  border-color: hsl(var(--primary));
+  box-shadow: 0 0 0 2px hsl(var(--primary) / 0.2);
+}
+
+/* Migliora i contrasti dei pre e code */
+.db-changes-page pre,
+.db-changes-page code {
+  background-color: hsl(var(--muted) / 0.3);
+  color: hsl(var(--foreground));
+  border: 1px solid hsl(var(--border));
+}
+
+/* Migliora i contrasti delle icone */
+.db-changes-page .lucide {
+  color: hsl(var(--foreground));
+}
+
+/* Migliora i contrasti dei link */
+.db-changes-page a {
+  color: hsl(var(--primary));
+}
+
+.db-changes-page a:hover {
+  color: hsl(var(--primary) / 0.8);
+}
+
+/* Forza la visibilità di tutti gli elementi di testo */
+.db-changes-page * {
+  color: inherit;
+}
+
+/* Assicura che i placeholder siano visibili */
+.db-changes-page input::placeholder,
+.db-changes-page textarea::placeholder {
+  color: hsl(var(--muted-foreground));
+}
+
+/* Migliora i contrasti dei dropdown */
+.db-changes-page [role="combobox"],
+.db-changes-page [role="listbox"] {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--border));
+}
+
+/* Migliora i contrasti degli elementi selezionati */
+.db-changes-page [data-selected="true"] {
+  background-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+/* Migliora i contrasti degli alert */
+.db-changes-page .alert {
+  background-color: hsl(var(--muted) / 0.5);
+  border-color: hsl(var(--border));
+  color: hsl(var(--foreground));
+}
+
+/* Migliora i contrasti dei badge colorati */
+.db-changes-page .bg-purple-100 {
+  background-color: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+}
+
+.db-changes-page .bg-blue-100 {
+  background-color: hsl(var(--secondary)) !important;
+  color: hsl(var(--secondary-foreground)) !important;
+}
+
+.db-changes-page .text-purple-800,
+.db-changes-page .text-blue-800 {
+  color: hsl(var(--primary-foreground)) !important;
+}
+
+/* Migliora i contrasti per i colori di stato */
+.db-changes-page .text-red-600 {
+  color: #ef4444 !important; /* red-500 più visibile */
+}
+
+.db-changes-page .text-green-600 {
+  color: #22c55e !important; /* green-500 più visibile */
+}
+
+.db-changes-page .text-red-400 {
+  color: #f87171 !important; /* red-400 */
+}
+
+.db-changes-page .text-green-400 {
+  color: #4ade80 !important; /* green-400 */
+} 

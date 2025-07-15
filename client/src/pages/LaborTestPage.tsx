@@ -6,7 +6,7 @@ import { Separator } from '@/components/ui/separator';
 
 export default function LaborTestPage() {
   const [globalLaborData, setGlobalLaborData] = useState({
-    rate: 45,
+    rate: 35,
     hours: 0,
     total: 0
   });
@@ -18,7 +18,7 @@ export default function LaborTestPage() {
 
   const handleGlobalLaborChange = (data: { rate: number; hours: number; total: number }) => {
     setGlobalLaborData(data);
-    console.log('Manodopera globale aggiornata:', data);
+    // console.log('Manodopera globale aggiornata:', data);
   };
   
   const handleServiceLaborChange = (serviceId: string, hours: number) => {
@@ -26,7 +26,7 @@ export default function LaborTestPage() {
       ...prev,
       [serviceId]: hours
     }));
-    console.log(`Manodopera per servizio ${serviceId} aggiornata:`, hours);
+    // console.log(`Manodopera per servizio ${serviceId} aggiornata:`, hours);
   };
   
   // Calcola i totali

@@ -35,6 +35,9 @@ const MobileNav = ({ onNavClick }: { onNavClick: () => void }) => {
         <Link href="/admin/db-changes">
           <a onClick={onNavClick} className="text-foreground py-2 px-3 rounded-md hover:bg-accent">Modifiche Database</a>
         </Link>
+        <Link href="/istruzioni">
+          <a onClick={onNavClick} className="text-foreground py-2 px-3 rounded-md hover:bg-accent">Istruzioni</a>
+        </Link>
       </div>
     </div>
   );
@@ -80,6 +83,9 @@ export default function Header() {
           </Link>
           <Link href="/services">
             <a className="text-foreground/90 transition-colors hover:text-foreground">Servizi</a>
+          </Link>
+          <Link href="/istruzioni">
+            <a className="text-foreground/90 transition-colors hover:text-foreground">Istruzioni</a>
           </Link>
         </nav>
 

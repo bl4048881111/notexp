@@ -8,7 +8,7 @@ import {
   getQuotesByClientId,
   calculateQuoteTotals,
   getAllAppointments
-} from "@shared/firebase";
+} from "@shared/supabase";
 
 // Quote service
 export const quoteService = {

@@ -3,7 +3,7 @@ import { useState, useCallback } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { format } from "date-fns";
 import { ServiceType, Quote, QuoteItem, SparePart, Client } from "@shared/schema";
-import { getAllClients, getClientById, getAllServiceTypes, createQuote } from "@shared/firebase";
+import { getAllClients, getClientById, getAllServiceTypes, createQuote } from "@shared/supabase";
 import { useToast } from "@/hooks/use-toast";
 
 import {
@@ -132,10 +132,12 @@ export default function QuickCreateQuote({ isOpen, onClose, onSuccess }: QuickCr
         taxAmount: 0, // Verrà calcolato da calculateQuoteTotals
         total: 0, // Verrà calcolato da calculateQuoteTotals
         notes: notes,
-        laborPrice: 45,
+        laborPrice: 35,
         laborHours: 0,
         kilometrage: 0,
-        createdAt: Date.now()
+        createdAt: Date.now(),
+        parts: [],
+        totalPrice: quoteItems.reduce((sum, item) => sum + item.totalPrice, 0)
       };
       
       // Salva il preventivo

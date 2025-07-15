@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { format } from "date-fns";
-import { Edit, Trash, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+import { Edit, Trash, Calendar, ChevronLeft, ChevronRight, FileText, Car } from "lucide-react";
 import { useLocation } from "wouter";
 import { Client } from "@shared/types";
-import { deleteClient } from "@shared/firebase";
+import { deleteClient } from "@shared/supabase";
 import { useToast } from "@/hooks/use-toast";
+import { formatDateSafe } from "@shared/utils";
 
 import {
   Table,
@@ -122,9 +123,50 @@ export default function ClientTable({ clients, isLoading, onEdit, onDeleteSucces
     }
   };
   
-  const handleCreateAppointment = (client: Client) => {
+  const handleCreateQuote = (client: Client) => {
     // Navigate to appointments page with client data
-    setLocation(`/appointments?clientId=${client.id}`);
+    setLocation(`/quotes?clientId=${client.id}`);
+  };
+  
+  // Funzione per ottenere tutti i veicoli del cliente
+  const getClientVehicles = (client: Client) => {
+    // Se il cliente ha l'array vehicles (nuovo sistema), usalo
+    if (client.vehicles && client.vehicles.length > 0) {
+      return client.vehicles;
+    }
+    // Altrimenti usa i campi legacy se presenti
+    if (client.plate) {
+      return [{
+        id: 'legacy',
+        plate: client.plate,
+        vin: client.vin || '',
+        model: client.model || ''
+      }];
+    }
+    return [];
+  };
+
+  // Funzione per renderizzare i veicoli in modo minimale ed elegante
+  const renderVehicles = (client: Client) => {
+    const vehicles = getClientVehicles(client);
+    
+    if (vehicles.length === 0) {
+      return (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground italic">
+          <Car className="h-3 w-3" />
+          <span>0</span>
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex items-center gap-2">
+        <Car className="h-4 w-4 text-orange-500" />
+        <span className="text-sm font-medium text-foreground">
+          {vehicles.length}
+        </span>
+      </div>
+    );
   };
   
   if (isLoading) {
@@ -172,18 +214,23 @@ export default function ClientTable({ clients, isLoading, onEdit, onDeleteSucces
                   <TableCell>
                     <div className="font-medium">{client.name} {client.surname}</div>
                     <div className="sm:hidden text-xs text-muted-foreground">
-                      <div>{client.model} - {client.plate}</div>
+                      <div>
+                        {getClientVehicles(client).length > 0 
+                          ? `${client.model || 'Veicolo'} - ${getClientVehicles(client)[0].plate}`
+                          : 'Nessun veicolo'
+                        }
+                        {getClientVehicles(client).length > 1 && (
+                          <span className="text-blue-600 ml-1">
+                            (+{getClientVehicles(client).length - 1})
+                          </span>
+                        )}
+                      </div>
                       <div>{client.phone}</div>
                     </div>
                   </TableCell>
                   <TableCell className="hidden sm:table-cell">
                     <div>{client.phone}</div>
                     <div className="text-xs text-muted-foreground">{client.email}</div>
-                    {client.birthDate && (
-                      <div className="text-xs text-muted-foreground mt-1">
-                        Nato il: {client.birthDate.split('-').reverse().join('/')}
-                      </div>
-                    )}
                   </TableCell>
                   <TableCell className="hidden sm:table-cell">
                     <div>{client.email}</div>
@@ -194,14 +241,10 @@ export default function ClientTable({ clients, isLoading, onEdit, onDeleteSucces
                     )}
                   </TableCell>
                   <TableCell className="hidden sm:table-cell">
-                    <div>{client.model}</div>
-                    <div className="text-xs text-muted-foreground">{client.plate}</div>
-                    {client.vin && (
-                      <div className="text-xs text-muted-foreground mt-1">VIN: {client.vin}</div>
-                    )}
+                    {renderVehicles(client)}
                   </TableCell>
                   <TableCell className="hidden lg:table-cell text-muted-foreground">
-                    {format(new Date(client.createdAt), 'dd/MM/yyyy')}
+                    {formatDateSafe(client.createdAt)}
                   </TableCell>
                   <TableCell>
                     <div className="flex space-x-1 md:space-x-2">
@@ -232,11 +275,11 @@ export default function ClientTable({ clients, isLoading, onEdit, onDeleteSucces
                         size="icon" 
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleCreateAppointment(client);
+                          handleCreateQuote(client);
                         }}
-                        title="Crea appuntamento"
+                        title="Crea Preventivo"
                       >
-                        <Calendar className="h-4 w-4 text-primary" />
+                        <FileText className="h-4 w-4 text-primary" />
                       </Button>
                     </div>
                   </TableCell>

@@ -12,7 +12,7 @@ interface LaborCalculatorProps {
 }
 
 export function LaborCalculator({
-  initialRate = 45,
+  initialRate = 35,
   initialHours = 0,
   onChange,
   readOnly = false,

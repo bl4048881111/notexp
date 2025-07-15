@@ -1,0 +1,25 @@
+User-agent: *
+Allow: /
+
+# Blocca l'accesso ai file di sistema e sviluppo
+Disallow: /node_modules/
+Disallow: /.netlify/
+Disallow: /.git/
+Disallow: /server/
+Disallow: /components/
+Disallow: /shared/
+Disallow: /attached_assets/
+Disallow: /*.json$
+Disallow: /*.ts$
+Disallow: /*.js$
+Disallow: /netlify/
+Disallow: /dist/*.js
+Disallow: /dist/*.css
+Disallow: /dist/*.map
+
+# Permetti l'accesso alle pagine HTML principali
+Allow: /dist/*.html
+Allow: /client/public/*.html
+
+# Sitemap
+Sitemap: https://autoexpressadservice.it/sitemap.xml 

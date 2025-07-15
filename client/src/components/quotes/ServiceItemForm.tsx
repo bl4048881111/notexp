@@ -65,7 +65,7 @@ interface ServiceItemFormProps {
 }
 
 export default function ServiceItemForm({ items, onChange }: ServiceItemFormProps) {
-  const [laborPrice, setLaborPrice] = useState<number>(45);
+  const [laborPrice, setLaborPrice] = useState<number>(35);
   const [laborHours, setLaborHours] = useState<number | "">("");
   const [notes, setNotes] = useState<string>("");
   const [selectedServices, setSelectedServices] = useState<Record<string, boolean>>({});
@@ -184,11 +184,11 @@ export default function ServiceItemForm({ items, onChange }: ServiceItemFormProp
     const newItem: QuoteItem = {
       id: uuidv4(),
       serviceType,
-      laborPrice: 45, // Valore di default
+      laborPrice: 35, // Valore di default
       laborHours: 1,  // Valore di default
       parts: [],      // Sarà compilato nel passo 3
       notes: "",
-      totalPrice: 45  // Solo manodopera temporanea
+      totalPrice: 35  // Solo manodopera temporanea
     };
     
     // Aggiungi l'elemento
@@ -369,7 +369,7 @@ export default function ServiceItemForm({ items, onChange }: ServiceItemFormProp
                       )}
                     </TableCell>
                     <TableCell>{item.serviceType.category}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(item.serviceType.laborPrice)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(item.serviceType.laborPrice || 35)}</TableCell>
                     <TableCell className="text-right">
                       {formatCurrency(item.laborPrice * item.laborHours)}
                       <div className="text-xs text-muted-foreground">

@@ -1,18 +1,50 @@
 [build]
-  command = "npm run build"
+  command = "npm run build:netlify"
   publish = "dist"
   functions = "netlify/functions"
 
 [build.environment]
   NODE_VERSION = "18"
+  # Le variabili d'ambiente per le credenziali devono essere configurate
+  # nelle impostazioni del sito Netlify sotto "Environment variables"
+  # VITE_DEFAULT_ADMIN_USERNAME = "configurare_nelle_impostazioni_netlify"
+  # VITE_DEFAULT_ADMIN_PASSWORD = "configurare_nelle_impostazioni_netlify"
+
+# Documentazione variabili d'ambiente richieste:
+# 
+# CREDENZIALI ADMIN (opzionali):
+# VITE_DEFAULT_ADMIN_USERNAME - Username personalizzato per l'admin
+# VITE_DEFAULT_ADMIN_PASSWORD - Password personalizzata per l'admin
+#
+# CONFIGURAZIONE FIREBASE (OBBLIGATORIE):
+# VITE_FIREBASE_API_KEY - Chiave API Firebase
+# VITE_FIREBASE_AUTH_DOMAIN - Dominio di autenticazione Firebase
+# VITE_FIREBASE_DATABASE_URL - URL del database Firebase Realtime
+# VITE_FIREBASE_PROJECT_ID - ID del progetto Firebase
+# VITE_FIREBASE_STORAGE_BUCKET - Bucket di storage Firebase
+# VITE_FIREBASE_MESSAGING_SENDER_ID - ID del sender per messaging
+# VITE_FIREBASE_APP_ID - ID dell'app Firebase
+#
+# Configurare queste variabili in: Netlify Dashboard > Site Settings > Environment Variables
 
 # Configurazione webhook per Netlify Forms
 [[plugins]]
   package = "@netlify/plugin-emails"
 
+# Plugin per obfuscazione JavaScript
+[[plugins]]
+  package = "netlify-plugin-js-obfuscator"
+  [plugins.inputs]
+    # Configurazioni di obfuscazione supportate
+    compact = true
+    numbersToExpressions = true
+    simplify = true
+    shuffleStringArray = true
+    splitStrings = true
+
 # Webhook per form submissions
 [forms]
-  webhook = "/.netlify/functions/form-webhook"
+  webhook = "/.netlify/functions/form-handler"
 
 # Redirects per le pagine di successo - devono reindirizzare all'index.html per React Router
 [[redirects]]

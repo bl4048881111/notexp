@@ -1,7 +1,36 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { AlertTriangle, Check, X, Clipboard, Save } from 'lucide-react';
-import { ref, get, update } from 'firebase/database';
-import { rtdb } from '../../firebase';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { 
+  AlertTriangle, 
+  Check, 
+  X, 
+  Clipboard, 
+  Save, 
+  Wrench,
+  Navigation,
+  Disc,
+  Zap,
+  Settings,
+  Car,
+  Wind,
+  Circle as WheelIcon,
+  ChevronDown,
+  ChevronRight,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Circle,
+  Lightbulb,
+  Snowflake
+} from 'lucide-react';
+import {
+  getChecklistItemsByAppointmentId,
+  updateChecklistItem,
+  createChecklistItemsFromTemplate,
+  getAllChecklistTemplates,
+  removeDuplicateChecklistItems,
+  supabase
+} from '@shared/supabase';
+import type { ChecklistItem } from '@shared/schema';
 import {
   Table,
   TableBody,
@@ -17,15 +46,64 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import React from 'react';
 
-interface Controllo {
-  stato: 'CONTROLLATO' | 'NON CONTROLLATO' | 'DA FARE';
-  note: string;
-}
-
-interface ControlliVeicolo {
-  [key: string]: Controllo;
-}
+// CSS personalizzato per prevenire lo scroll automatico
+const customNoScrollStyle = `
+  .checklist-no-scroll {
+    scroll-behavior: auto !important;
+    overflow-anchor: none !important;
+    overscroll-behavior: none !important;
+  }
+  .checklist-no-scroll * {
+    scroll-behavior: auto !important;
+    overflow-anchor: none !important;
+    overscroll-behavior: none !important;
+  }
+  .checklist-no-scroll button:focus {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+  .checklist-no-scroll .status-button:focus {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+  .checklist-no-scroll .status-button:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+  .checklist-no-scroll button:active {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+  .checklist-no-scroll button:hover {
+    scroll-behavior: auto !important;
+  }
+  /* Previeni scroll durante le transizioni */
+  .checklist-no-scroll .transition-all {
+    overflow-anchor: none !important;
+  }
+  /* Previeni scroll automatico su input e select */
+  .checklist-no-scroll input,
+  .checklist-no-scroll select {
+    scroll-behavior: auto !important;
+    overflow-anchor: none !important;
+    overscroll-behavior: none !important;
+  }
+  /* Forza il contenitore a mantenere la posizione */
+  .checklist-no-scroll .modal-content {
+    position: relative !important;
+    transform: translateZ(0) !important;
+    will-change: transform !important;
+  }
+  /* Classe per bloccare lo scroll */
+  .scroll-locked {
+    position: fixed !important;
+    width: 100% !important;
+    height: 100% !important;
+    overflow: hidden !important;
+  }
+`;
 
 interface SchedaIspezioneVeicoloProps {
   vehicleId: string;
@@ -38,96 +116,189 @@ interface SchedaIspezioneVeicoloProps {
   parametri?: {
     [key: string]: string | number;
   };
+  onClose?: () => void;
 }
 
-export default function SchedaIspezioneVeicolo({ vehicleId, appointmentId, model, kilometrage, clientName, vehicleType, inspectionDate, parametri: parametriIniziali }: SchedaIspezioneVeicoloProps) {
+interface ChecklistItemGroup {
+  category: string;
+  items: ChecklistItem[];
+}
+
+// Funzione per ottenere l'icona della categoria
+const getCategoryIcon = (category: string) => {
+  switch (category) {
+    case 'CONTROLLO MOTORE':
+      return <Wrench className="w-6 h-6" />;
+    case 'STERZO AUTO':
+      return <Navigation className="w-6 h-6" />;
+    case 'IMPIANTO FRENANTE':
+      return <Disc className="w-6 h-6" />;
+    case 'ILLUMINAZIONE':
+      return <Lightbulb className="w-6 h-6" />;
+    case 'CLIMATIZZAZIONE':
+      return <Snowflake className="w-6 h-6" />;
+    case 'SOSPENSIONE ANTERIORE':
+    case 'SOSPENSIONE POSTERIORE':
+      return <Zap className="w-6 h-6" />;
+    case 'TRASMISSIONE ANT/POST':
+      return <Settings className="w-6 h-6" />;
+    case 'IMPIANTO DI SCARICO':
+      return <Wind className="w-6 h-6" />;
+    case 'PNEUMATICI':
+      return <WheelIcon className="w-6 h-6" />;
+    case 'IMPIANTO ELETTRICO':
+      return <Zap className="w-6 h-6" />;
+    default:
+      return <Car className="w-6 h-6" />;
+  }
+};
+
+// Funzione per ottenere la descrizione della categoria
+const getCategoryDescription = (category: string) => {
+  switch (category) {
+    case 'CONTROLLO MOTORE':
+      return 'Controlli motore, filtri, cinghie e supporti';
+    case 'STERZO AUTO':
+      return 'Sistema sterzo, tiranti, testine e cuffie';
+    case 'ILLUMINAZIONE':
+      return 'Lampade, segnaletica e retrovisori';
+    case 'CLIMATIZZAZIONE':
+      return 'Climatizzatore, filtro aria e condensatore';
+    case 'IMPIANTO FRENANTE':
+      return 'Dischi, pastiglie, tubi freno e sistema vacuum';
+    case 'SOSPENSIONE ANTERIORE':
+      return 'Ammortizzatori, molle, bracci anteriori';
+    case 'SOSPENSIONE POSTERIORE':
+      return 'Ammortizzatori, molle, bracci posteriori';
+    case 'TRASMISSIONE ANT/POST':
+      return 'Cambio, frizione, semiassi e giunti';
+    case 'IMPIANTO DI SCARICO':
+      return 'Filtro antiparticolato, marmitta e terminale';
+    case 'PNEUMATICI':
+      return 'Battistrada e pressione pneumatici';
+    case 'IMPIANTO ELETTRICO':
+      return 'Impianto elettrico, batterie, cablaggi e accessori';
+    default:
+      return 'Controlli generali del veicolo';
+  }
+};
+
+// Funzione per ordinare le categorie secondo la priorità desiderata
+const getCategoryOrder = (category: string): number => {
+  const orderMap: { [key: string]: number } = {
+    'CONTROLLO MOTORE': 1,
+    'IMPIANTO FRENANTE': 2,
+    'STERZO AUTO': 3,
+    'SOSPENSIONE ANTERIORE': 4,
+    'SOSPENSIONE POSTERIORE': 5,
+    'TRASMISSIONE ANT/POST': 6,
+    'IMPIANTO DI SCARICO': 7,
+    'PNEUMATICI': 8,
+    'ILLUMINAZIONE': 9,
+    'CLIMATIZZAZIONE': 10,
+    'IMPIANTO ELETTRICO': 11,
+  };
+  
+  return orderMap[category] || 999; // Le categorie non mappate vanno alla fine
+};
+
+// Funzione di utilità per la chiave localStorage
+function getChecklistStorageKey(vehicleId?: string, appointmentId?: string) {
+  return `checklist_${vehicleId || ''}_${appointmentId || ''}`;
+}
+
+// Salva checklist su localStorage
+function saveChecklistToStorage(vehicleId: string, appointmentId: string | undefined, items: ChecklistItem[]) {
+  const key = getChecklistStorageKey(vehicleId, appointmentId);
+  localStorage.setItem(key, JSON.stringify(items));
+}
+
+// Recupera checklist da localStorage
+function loadChecklistFromStorage(vehicleId: string, appointmentId: string | undefined): ChecklistItem[] | null {
+  const key = getChecklistStorageKey(vehicleId, appointmentId);
+  const data = localStorage.getItem(key);
+  if (data) {
+    try {
+      return JSON.parse(data);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+export default function SchedaIspezioneVeicolo({ 
+  vehicleId, 
+  appointmentId, 
+  model, 
+  kilometrage, 
+  clientName, 
+  vehicleType, 
+  inspectionDate, 
+  parametri: parametriIniziali, 
+  onClose 
+}: SchedaIspezioneVeicoloProps) {
   const [openSection, setOpenSection] = useState<string | null>(null);
   const modalContentRef = useRef<HTMLDivElement>(null);
   const [scrollPosition, setScrollPosition] = useState<number>(0);
-  const [parametri, setParametri] = useState<{[key: string]: string | number}>({});
-  const [nuovoParametroChiave, setNuovoParametroChiave] = useState<string>('');
-  const [nuovoParametroValore, setNuovoParametroValore] = useState<string>('');
-  const [parametriDialog, setParametriDialog] = useState<boolean>(false);
+  const [isScrollLocked, setIsScrollLocked] = useState(false);
+  const scrollLockTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
   
-  // Stato principale sincronizzato con il database
-  const [controlliVeicolo, setControlliVeicolo] = useState<ControlliVeicolo>({
-    // Motore
-    livelloOlioMotore: { stato: 'CONTROLLATO', note: '' },
-    livelloRefrigerante: { stato: 'CONTROLLATO', note: '' },
-    olioMotore: { stato: 'DA FARE', note: '' },
-    filtroOlio: { stato: 'DA FARE', note: '' },
-    filtroAria: { stato: 'DA FARE', note: '' },
-    filtroAbitacolo: { stato: 'DA FARE', note: '' },
-    cinghiaServizi: { stato: 'CONTROLLATO', note: '' },
-    cinghiaDistribuzione: { stato: 'CONTROLLATO', note: '' },
-    
-    // Sterzo
-    tiranteDx: { stato: 'CONTROLLATO', note: '' },
-    tiranteSx: { stato: 'CONTROLLATO', note: '' },
-    testinaDx: { stato: 'CONTROLLATO', note: '' },
-    testinaSx: { stato: 'CONTROLLATO', note: '' },
-    cuffiaTiranteDx: { stato: 'CONTROLLATO', note: '' },
-    cuffiaTiranteSx: { stato: 'CONTROLLATO', note: '' },
-    
-    // Freni
-    livelloOlioFreni: { stato: 'CONTROLLATO', note: '' },
-    discoAntSx: { stato: 'DA FARE', note: '' },
-    discoAntDx: { stato: 'DA FARE', note: '' },
-    discoPostSx: { stato: 'DA FARE', note: '' },
-    discoPostDx: { stato: 'DA FARE', note: '' },
-    pastiglieAntSx: { stato: 'CONTROLLATO', note: '' },
-    pastiglieAntDx: { stato: 'CONTROLLATO', note: '' },
-    pastigliePostSx: { stato: 'CONTROLLATO', note: '' },
-    pastigliePostDx: { stato: 'CONTROLLATO', note: '' },
-    tubiFrenoAnt: { stato: 'CONTROLLATO', note: '' },
-    tubiFrenoPost: { stato: 'CONTROLLATO', note: '' },
-    sistemaVacuum: { stato: 'CONTROLLATO', note: '' },
-
-    // Sospensione anteriore
-    ammortizzatoreAnterioreS: { stato: 'CONTROLLATO', note: '' },
-    ammortizzatoreAnterioreD: { stato: 'CONTROLLATO', note: '' },
-    paraPolvere: { stato: 'CONTROLLATO', note: '' },
-    cuffiaStelo: { stato: 'CONTROLLATO', note: '' },
-    mollaElicoidaleAnterioreS: { stato: 'CONTROLLATO', note: '' },
-    mollaElicoidaleAnterioreD: { stato: 'CONTROLLATO', note: '' },
-    tiranteAmmortizzatoreSospesoS: { stato: 'DA FARE', note: '' },
-    tiranteAmmortizzatoreSospesoD: { stato: 'DA FARE', note: '' },
-    braccioInferioreS: { stato: 'CONTROLLATO', note: '' },
-    braccioInferioreD: { stato: 'CONTROLLATO', note: '' },
-    barraStabilizzatriceAnte: { stato: 'CONTROLLATO', note: '' },
-    gomminiBarraStabilizzatrice: { stato: 'CONTROLLATO', note: '' },
-
-    // Pneumatici
-    battistradaAnt: { stato: 'CONTROLLATO', note: '' },
-    battistradaPost: { stato: 'CONTROLLATO', note: '' },
-    controlloPressione: { stato: 'CONTROLLATO', note: '' },
-    
-    // Prova su strada
-    provaSuStrada: { stato: 'CONTROLLATO', note: '' }
-  });
-
-  // Copia locale per modifiche prima del salvataggio - questa non viene sincronizzata finché non si salva
-  const [controlliLocali, setControlliLocali] = useState<ControlliVeicolo>({});
-  
-  // Stati di lavoro
-  const [commenti, setCommenti] = useState<string>('');
-  const [isUpdating, setIsUpdating] = useState(false);
+  // Stati principali
+  const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
+  const [groupedItems, setGroupedItems] = useState<ChecklistItemGroup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isUpdating, setIsUpdating] = useState(false);
   const [needsSaving, setNeedsSaving] = useState(false);
+  const [commenti, setCommenti] = useState<string>('');
+  const [preservedScrollTop, setPreservedScrollTop] = useState<number>(0);
+  
+  // Stato per le note locali (solo per inizializzazione)
+  const [localNotes, setLocalNotes] = useState<{[key: string]: string}>({});
 
-  // Inizializza i parametri
-  useEffect(() => {
-    if (parametriIniziali) {
-      setParametri(parametriIniziali);
+  // Stati per il modal delle note
+  const [noteModalOpen, setNoteModalOpen] = useState(false);
+  const [selectedItemForNote, setSelectedItemForNote] = useState<ChecklistItem | null>(null);
+  const [noteText, setNoteText] = useState('');
+
+  // Funzione per bloccare temporaneamente lo scroll
+  const lockScroll = useCallback(() => {
+    if (modalContentRef.current) {
+      const currentScrollTop = modalContentRef.current.scrollTop;
+      setIsScrollLocked(true);
+      document.body.classList.add('scroll-locked');
+      
+      // Rimuovi il lock dopo un breve delay
+      if (scrollLockTimeoutRef.current) {
+        clearTimeout(scrollLockTimeoutRef.current);
+      }
+      scrollLockTimeoutRef.current = setTimeout(() => {
+        setIsScrollLocked(false);
+        document.body.classList.remove('scroll-locked');
+        if (modalContentRef.current) {
+          modalContentRef.current.scrollTop = currentScrollTop;
+        }
+      }, 300);
     }
-  }, [parametriIniziali]);
+  }, []);
 
   // Funzione per memorizzare la posizione di scroll
   const memorizzaPosizione = useCallback(() => {
     if (modalContentRef.current) {
-      setScrollPosition(modalContentRef.current.scrollTop);
+      const currentScroll = modalContentRef.current.scrollTop;
+      setScrollPosition(currentScroll);
+      setPreservedScrollTop(currentScroll);
     }
   }, []);
+
+  // Effetto per preservare lo scroll durante i re-render
+  useEffect(() => {
+    if (modalContentRef.current && preservedScrollTop > 0 && !isLoading) {
+      requestAnimationFrame(() => {
+        modalContentRef.current!.scrollTop = preservedScrollTop;
+      });
+    }
+  }, [groupedItems, preservedScrollTop, isLoading]);
 
   // Aggiungi event listener per lo scroll
   useEffect(() => {
@@ -140,161 +311,80 @@ export default function SchedaIspezioneVeicolo({ vehicleId, appointmentId, model
     }
   }, [memorizzaPosizione]);
 
-  // Ripristina la posizione di scroll quando cambia lo stato
-  useEffect(() => {
-    if (modalContentRef.current && !isUpdating) {
-      // Utilizza una variabile per tenere traccia se si sta digitando
-      const activeElement = document.activeElement;
-      const isInputActive = activeElement && 
-        (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA');
-      
-      // Ripristina lo scroll solo se non si sta digitando in un input
-      if (!isInputActive) {
-        setTimeout(() => {
-          if (modalContentRef.current) {
-            modalContentRef.current.scrollTop = scrollPosition;
-          }
-        }, 10);
-      }
-    }
-  }, [controlliVeicolo, scrollPosition, isUpdating]);
-
-  // Inizializza i controlli locali quando si apre una sezione
-  useEffect(() => {
-    if (openSection) {
-      setControlliLocali({...controlliVeicolo});
-    }
-  }, [openSection, controlliVeicolo]);
-
-  // Carica i dati dal database
+  // Carica i dati dal database o da localStorage
   useEffect(() => {
     const loadChecklistData = async () => {
       setIsLoading(true);
       try {
-        let checklistData = null;
+        let items: ChecklistItem[] = [];
         
-        // Utilizziamo prima l'appointmentId se disponibile (prioritario)
-        if (appointmentId) {
-          console.log(`Tentativo di caricamento dati usando appointmentId: ${appointmentId}`);
-          
-          // Prova a caricare dai percorsi relativi all'appuntamento
-          const percorsiAppuntamento = [
-            `appointments/${appointmentId}`,
-            `appointments/${appointmentId}/checklist`,
-            `appointments/${appointmentId}/workingPhase`,
-            `appointments/${appointmentId}/lavorazione`
-          ];
-          
-          for (const percorso of percorsiAppuntamento) {
-            try {
-              const percorsoRef = ref(rtdb, percorso);
-              const percorsoSnapshot = await get(percorsoRef);
-              
-              if (percorsoSnapshot.exists()) {
-                const percorsoData = percorsoSnapshot.val();
-                
-                // Verifica se i dati sono direttamente la checklist o contengono un campo checklist
-                if (percorsoData.checklist) {
-                  checklistData = percorsoData.checklist;
-                  console.log(`Trovata checklist nel percorso ${percorso}`);
-                  break;
-                } else if (Object.keys(percorsoData).length > 0 && 
-                          percorsoData.livelloOlioMotore !== undefined) {
-                  // Sembra che i dati siano direttamente la checklist
-                  checklistData = percorsoData;
-                  console.log(`Trovata checklist diretta nel percorso ${percorso}`);
-                  break;
-                }
-              }
-            } catch (e) {
-              console.error(`Errore nel caricamento da percorso appuntamento ${percorso}:`, e);
-            }
-          }
-        }
-        
-        // Se non abbiamo trovato dati usando l'appointmentId, proviamo con il vehicleId come fallback
-        if (!checklistData && vehicleId) {
-          console.log(`Fallback al caricamento usando vehicleId: ${vehicleId}`);
-          
-          // Proviamo prima il percorso principale
-          const vehicleRef = ref(rtdb, `vehicles/${vehicleId}`);
-          const snapshot = await get(vehicleRef);
-          
-          if (snapshot.exists()) {
-            const data = snapshot.val();
-            if (data.checklist) {
-              checklistData = data.checklist;
-              console.log(`Trovata checklist nel percorso vehicles/${vehicleId}`);
-            }
-            
-            if (data.commenti) {
-              setCommenti(data.commenti);
-            }
-          }
-          
-          // Se non troviamo i dati nel percorso principale, proviamo la sezione lavorazione
-          if (!checklistData) {
-            const lavorazioneRef = ref(rtdb, `vehicles/${vehicleId}/lavorazione`);
-            const lavorazioneSnapshot = await get(lavorazioneRef);
-            
-            if (lavorazioneSnapshot.exists()) {
-              const lavorazioneData = lavorazioneSnapshot.val();
-              if (lavorazioneData.checklist) {
-                checklistData = lavorazioneData.checklist;
-                console.log(`Trovata checklist nel percorso vehicles/${vehicleId}/lavorazione`);
-              }
-              if (lavorazioneData.commenti) {
-                setCommenti(lavorazioneData.commenti);
-              }
-            }
-          }
-          
-          // Prova percorsi alternativi se ancora nessun dato
-          if (!checklistData) {
-            const percorsiAlternativi = [
-              `vehicles/${vehicleId}/workingPhase`,
-              `vehicles/${vehicleId}/fase2`,
-              `workingPhase/${vehicleId}`,
-              `lavorazione/${vehicleId}`
-            ];
-            
-            for (const percorso of percorsiAlternativi) {
-              try {
-                const percorsoRef = ref(rtdb, percorso);
-                const percorsoSnapshot = await get(percorsoRef);
-                
-                if (percorsoSnapshot.exists()) {
-                  const percorsoData = percorsoSnapshot.val();
-                  if (percorsoData.checklist) {
-                    checklistData = percorsoData.checklist;
-                    console.log(`Trovata checklist nel percorso ${percorso}`);
-                    break;
-                  }
-                }
-              } catch (e) {
-                console.error(`Errore nel caricamento dal percorso ${percorso}:`, e);
-              }
-            }
-          }
-        }
-        
-        // Se abbiamo trovato i dati, aggiorniamo lo stato
-        if (checklistData) {
-          // Assicuriamoci che le note vuote rimangano vuote e non vengano sovrascritte
-          for (const componente in checklistData) {
-            if (checklistData[componente]?.note === undefined) {
-              checklistData[componente].note = '';
-            }
-          }
-          
-          setControlliVeicolo(checklistData);
-          setControlliLocali(checklistData);
-          console.log("Dati checklist caricati con successo");
+        // Prova a caricare da localStorage
+        const localItems = loadChecklistFromStorage(vehicleId, appointmentId);
+        if (localItems && localItems.length > 0) {
+          items = localItems;
         } else {
-          console.warn("Nessun dato di checklist trovato nei percorsi controllati");
+          // Carica gli elementi checklist da Supabase
+          if (appointmentId) {
+            console.log(`🔍 Caricamento checklist per appointmentId: ${appointmentId}`);
+            
+            // Prima rimuovi eventuali duplicati
+            try {
+              await removeDuplicateChecklistItems(appointmentId);
+            } catch (error) {
+              console.warn('⚠️ Errore nella rimozione duplicati (continuo comunque):', error);
+            }
+            
+            items = await getChecklistItemsByAppointmentId(appointmentId);
+            
+            // Se non ci sono elementi, crea dalla template
+            if (items.length === 0) {
+              console.log('🔄 Creazione checklist da template...');
+              items = await createChecklistItemsFromTemplate(appointmentId, vehicleId, true);
+            }
+          } else if (vehicleId) {
+            console.log(`🔍 Caricamento checklist per vehicleId: ${vehicleId}`);
+            // Cerca per vehicleId se non abbiamo appointmentId
+            const { data, error } = await supabase
+              .from('checklist_items')
+              .select('*')
+              .eq('vehicleId', vehicleId);
+            
+            if (error) throw error;
+            items = data || [];
+          }
         }
+
+        setChecklistItems(items);
+        
+        // Inizializza le note locali
+        const notesMap: {[key: string]: string} = {};
+        items.forEach(item => {
+          notesMap[item.id] = item.notes || '';
+        });
+        setLocalNotes(notesMap);
+        
+        // Raggruppa per categoria
+        const grouped = items.reduce((acc: ChecklistItemGroup[], item) => {
+          const existingGroup = acc.find(g => g.category === item.itemCategory);
+          if (existingGroup) {
+            existingGroup.items.push(item);
+          } else {
+            acc.push({
+              category: item.itemCategory,
+              items: [item]
+            });
+          }
+          return acc;
+        }, []);
+        
+        // Ordina le categorie secondo l'ordine desiderato
+        grouped.sort((a, b) => getCategoryOrder(a.category) - getCategoryOrder(b.category));
+        
+        setGroupedItems(grouped);
+        console.log(`✅ Caricati ${items.length} elementi checklist in ${grouped.length} categorie`);
+
       } catch (error) {
-        console.error('Errore nel caricamento della checklist:', error);
+        console.error('❌ Errore nel caricamento checklist:', error);
       } finally {
         setIsLoading(false);
       }
@@ -303,941 +393,489 @@ export default function SchedaIspezioneVeicolo({ vehicleId, appointmentId, model
     loadChecklistData();
   }, [vehicleId, appointmentId]);
 
-  // Modifica anche la funzione di salvataggio per aggiornare anche nell'appointmentId
-  const salvaModifiche = async () => {
-    setIsUpdating(true);
-    // Impostiamo immediatamente needsSaving a false per nascondere il pulsante
-    setNeedsSaving(false);
-    
-    // Debug: mostriamo i valori attuali
-    console.log("Valori locali prima del salvataggio:", JSON.stringify(controlliLocali, null, 2));
-    
-    // Prepariamo i dati da salvare con clonazione profonda per evitare riferimenti
-    const nuoviControlli: ControlliVeicolo = {};
-    
-    // Crea una nuova struttura da zero con i valori esatti degli input
-    Object.keys(controlliVeicolo).forEach((key) => {
-      const k = key as keyof ControlliVeicolo;
-      nuoviControlli[k] = {
-        stato: controlliVeicolo[k]?.stato || 'DA FARE',
-        note: '' // Inizializziamo con stringa vuota
-      };
-    });
-    
-    // Ora sovrascriviamo con i valori dai controlli locali
-    Object.keys(controlliLocali).forEach((key) => {
-      const k = key as keyof ControlliVeicolo;
-      if (controlliLocali[k]) {
-        nuoviControlli[k] = {
-          stato: controlliLocali[k]?.stato || nuoviControlli[k]?.stato || 'DA FARE',
-          note: controlliLocali[k]?.note // Manteniamo il valore esatto, anche se è stringa vuota
-        };
-      }
-    });
-    
-    // Debug: mostriamo cosa stiamo per salvare
-    console.log("Dati da salvare nel database:", JSON.stringify(nuoviControlli, null, 2));
-    
-    // Aggiorna lo stato principale
-    setControlliVeicolo(nuoviControlli);
+  // Salva checklist su localStorage ogni volta che cambia
+  useEffect(() => {
+    if (checklistItems.length > 0) {
+      saveChecklistToStorage(vehicleId, appointmentId, checklistItems);
+    }
+  }, [checklistItems, vehicleId, appointmentId]);
+
+  // Funzione per cambiare stato di un elemento tramite dropdown
+  const cambiaStatoViaDropdown = useCallback(async (itemId: string, nuovoStato: ChecklistItem['status']) => {
+    // Blocca lo scroll prima dell'aggiornamento
+    lockScroll();
     
     try {
-      // Percorsi da aggiornare
-      const percorsiDaSalvare = [];
+      setIsUpdating(true);
       
-      // Se abbiamo un appointmentId, salviamo lì
-      if (appointmentId) {
-        percorsiDaSalvare.push(
-          `appointments/${appointmentId}/checklist`
-        );
-      }
+      // Aggiorna nel database
+      await updateChecklistItem(itemId, { status: nuovoStato });
       
-      // Per i veicoli, usiamo solo il percorso standardizzato
-      if (vehicleId) {
-        percorsiDaSalvare.push(
-          `vehicles/${vehicleId}/lavorazione/checklist`
-        );
-      }
+      // Aggiorna lo stato locale
+      const updatedItems = checklistItems.map(i => 
+        i.id === itemId ? { ...i, status: nuovoStato } : i
+      );
+      setChecklistItems(updatedItems);
       
-      // Esegui l'aggiornamento solo nei percorsi standardizzati
-      for (const percorso of percorsiDaSalvare) {
-        try {
-          const percorsoRef = ref(rtdb, percorso);
-          await update(percorsoRef, {
-            checklist: nuoviControlli
+      // Aggiorna i gruppi con ordinamento
+      const grouped = updatedItems.reduce((acc: ChecklistItemGroup[], item) => {
+        const existingGroup = acc.find(g => g.category === item.itemCategory);
+        if (existingGroup) {
+          existingGroup.items.push(item);
+        } else {
+          acc.push({
+            category: item.itemCategory,
+            items: [item]
           });
-          console.log(`Dati salvati con successo in ${percorso}`);
-        } catch (e) {
-          console.error(`Errore nel salvataggio in ${percorso}:`, e);
         }
-      }
+        return acc;
+      }, []);
       
-      // Conferma salvataggio completato
-      console.log("Salvataggio completato con successo");
+      // Ordina le categorie secondo l'ordine desiderato
+      grouped.sort((a, b) => getCategoryOrder(a.category) - getCategoryOrder(b.category));
+      
+      setGroupedItems(grouped);
     } catch (error) {
-      console.error('Errore nel salvataggio della checklist:', error);
-      // In caso di errore, ripristiniamo needsSaving per mostrare nuovamente il pulsante
-      setNeedsSaving(true);
+      console.error('❌ Errore nell\'aggiornamento stato:', error);
     } finally {
       setIsUpdating(false);
     }
-  };
+  }, [checklistItems, lockScroll]);
 
-  // Gestione cambio stato (ora salva solo localmente senza aggiornare il database)
-  const cambiaStato = (componente: keyof ControlliVeicolo, event?: React.MouseEvent) => {
+  // Funzione per cambiare stato di un elemento (mantengo per compatibilità)
+  const cambiaStato = useCallback(async (itemId: string, event?: React.MouseEvent) => {
     if (event) {
       event.preventDefault();
       event.stopPropagation();
+      // Previeni anche il comportamento di scroll del focus
+      const target = event.target as HTMLElement;
+      target.blur();
     }
+    // Salva la posizione di scroll corrente IMMEDIATAMENTE
+    const currentScrollTop = modalContentRef.current?.scrollTop || 0;
+    console.log('🔄 Scroll position prima dell\'aggiornamento:', currentScrollTop);
     
-    // Salva posizione scroll corrente
-    memorizzaPosizione();
+    const item = checklistItems.find(i => i.id === itemId);
+    if (!item) return;
     
-    const statoAttuale = controlliLocali[componente]?.stato || controlliVeicolo[componente]?.stato || 'DA FARE';
-    let nuovoStato: 'CONTROLLATO' | 'NON CONTROLLATO' | 'DA FARE';
-    
-    if (statoAttuale === 'CONTROLLATO') {
-      nuovoStato = 'NON CONTROLLATO';
-    } else if (statoAttuale === 'NON CONTROLLATO') {
-      nuovoStato = 'DA FARE';
-    } else {
-      nuovoStato = 'CONTROLLATO';
+    // Cicla tra gli stati
+    let nuovoStato: ChecklistItem['status'];
+    switch (item.status) {
+      case 'non_controllato':
+        nuovoStato = 'ok';
+        break;
+      case 'ok':
+        nuovoStato = 'da_sostituire';
+        break;
+      case 'da_sostituire':
+        nuovoStato = 'sostituito';
+        break;
+      case 'sostituito':
+        nuovoStato = 'attenzione';
+        break;
+      case 'attenzione':
+        nuovoStato = 'non_controllato';
+        break;
+      default:
+        nuovoStato = 'ok';
     }
-    
-    // Preserviamo la nota esistente durante il cambio di stato
-    const notaEsistente = controlliLocali[componente]?.note !== undefined 
-      ? controlliLocali[componente].note 
-      : controlliVeicolo[componente]?.note || '';
-    
-    // Aggiorna i controlli locali, non salva nel database
-    setControlliLocali(prev => ({
-      ...prev,
-      [componente]: {
-        ...prev[componente] || {},
-        stato: nuovoStato,
-        note: notaEsistente  // Preserva la nota esistente
-      }
-    }));
-    
-    // Non aggiorniamo controlliVeicolo qui per evitare il re-render che causa la perdita di focus
-    // Impostiamo solo needsSaving per indicare che ci sono modifiche da salvare
-    setNeedsSaving(true);
-  };
 
-  // Gestione input delle note (solo a livello locale, senza salvataggio nel database)
-  const gestisciInputNote = (componente: keyof ControlliVeicolo, nuovaNota: string) => {
-    setControlliLocali(prev => {
-      // Evita aggiornamenti inutili se il valore non è cambiato
-      if (prev[componente]?.note === nuovaNota) return prev;
-      
-      return {
-        ...prev,
-        [componente]: {
-          ...prev[componente] || {},
-          note: nuovaNota
-        }
-      };
-    });
-    
-    // Imposta needsSaving solo se c'è una modifica effettiva
-    if (controlliVeicolo[componente]?.note !== nuovaNota) {
-      setNeedsSaving(true);
-    }
-  };
-  
-  // Chiudi sezione con salvataggio
-  const chiudiConSalvataggio = async () => {
-    if (needsSaving) {
-      await salvaModifiche();
-    }
-    setOpenSection(null);
-  };
-
-  const modificaCommenti = async (nuoviCommenti: string) => {
-    setCommenti(nuoviCommenti);
-    
     try {
-      // Percorsi da aggiornare
-      const percorsiDaSalvare = [
-        // Percorso principale
-        ref(rtdb, `vehicles/${vehicleId}`),
-        // Percorso lavorazione
-        ref(rtdb, `vehicles/${vehicleId}/lavorazione`),
-        // Percorsi alternativi
-        ref(rtdb, `vehicles/${vehicleId}/workingPhase`),
-        ref(rtdb, `vehicles/${vehicleId}/fase2`),
-        ref(rtdb, `workingPhase/${vehicleId}`),
-        ref(rtdb, `lavorazione/${vehicleId}`)
-      ];
+      setIsUpdating(true);
       
-      // Esegui ogni aggiornamento in una chiamata separata
-      for (const percorsoRef of percorsiDaSalvare) {
-        try {
-          const snapshot = await get(percorsoRef);
-          if (snapshot.exists()) {
-            // Aggiorna con tutti i possibili nomi dei campi per i commenti
-            await update(percorsoRef, {
-              commenti: nuoviCommenti,
-              note: nuoviCommenti,
-              noteGenerali: nuoviCommenti
-            });
-          }
-        } catch (e) {
-          console.error(`Errore nell'aggiornamento dei commenti in ${percorsoRef.key}:`, e);
-        }
-      }
-    } catch (error) {
-      console.error('Errore nel salvataggio dei commenti:', error);
-    }
-  };
-
-  const StatusIcon = ({ status }: { status: Controllo['stato'] }) => {
-    if (status === 'CONTROLLATO') {
-      return <Check className="text-green-500" size={20} />;
-    } else if (status === 'NON CONTROLLATO') {
-      return <X className="text-orange-500" size={20} />;
-    } else {
-      return <AlertTriangle className="text-gray-500" size={20} />;
-    }
-  };
-
-  const sections = [
-    { 
-      id: 'motore', 
-      title: 'Motore',
-      components: [
-        { key: 'livelloOlioMotore', label: 'Livello olio motore' },
-        { key: 'livelloRefrigerante', label: 'Livello refrigerante' },
-        { key: 'olioMotore', label: 'Olio motore' },
-        { key: 'filtroOlio', label: 'Filtro olio' },
-        { key: 'filtroAria', label: 'Filtro aria' },
-        { key: 'filtroAbitacolo', label: 'Filtro abitacolo' },
-        { key: 'cinghiaServizi', label: 'Cinghia servizi' },
-        { key: 'cinghiaDistribuzione', label: 'Cinghia distribuzione' },
-      ]
-    },
-    { 
-      id: 'sterzo', 
-      title: 'Sistema Sterzo',
-      components: [
-        { key: 'tiranteDx', label: 'Tirante Destro' },
-        { key: 'tiranteSx', label: 'Tirante Sinistro' },
-        { key: 'testinaDx', label: 'Testina Destra' },
-        { key: 'testinaSx', label: 'Testina Sinistra' },
-        { key: 'cuffiaTiranteDx', label: 'Cuffia Tirante Destra' },
-        { key: 'cuffiaTiranteSx', label: 'Cuffia Tirante Sinistra' },
-      ]
-    },
-    { 
-      id: 'freni', 
-      title: 'Sistema Freni',
-      components: [
-        { key: 'livelloOlioFreni', label: 'Livello Olio Freni' },
-        { key: 'discoAntSx', label: 'Disco Anteriore Sinistro', defaultNote: '' },
-        { key: 'discoAntDx', label: 'Disco Anteriore Destro', defaultNote: '' },
-        { key: 'discoPostSx', label: 'Disco Posteriore Sinistro', defaultNote: '' },
-        { key: 'discoPostDx', label: 'Disco Posteriore Destro', defaultNote: '' },
-        { key: 'pastiglieAntSx', label: 'Pastiglie Anteriore Sinistro' },
-        { key: 'pastiglieAntDx', label: 'Pastiglie Anteriore Destro' },
-        { key: 'pastigliePostSx', label: 'Pastiglie Posteriore Sinistro' },
-        { key: 'pastigliePostDx', label: 'Pastiglie Posteriore Destro' },
-        { key: 'tubiFrenoAnt', label: 'Tubi Freno Anteriore' },
-        { key: 'tubiFrenoPost', label: 'Tubi Freno Posteriore' },
-        { key: 'sistemaVacuum', label: 'Sistema Vacuum' },
-      ]
-    },
-    { 
-      id: 'sospensione', 
-      title: 'Sospensione Anteriore',
-      components: [
-        { key: 'ammortizzatoreAnterioreS', label: 'Ammortizzatore Anteriore Sinistro' },
-        { key: 'ammortizzatoreAnterioreD', label: 'Ammortizzatore Anteriore Destro' },
-        { key: 'paraPolvere', label: 'Para Polvere' },
-        { key: 'cuffiaStelo', label: 'Cuffia Stelo' },
-        { key: 'mollaElicoidaleAnterioreS', label: 'Molla Elicoidale Anteriore Sinistro' },
-        { key: 'mollaElicoidaleAnterioreD', label: 'Molla Elicoidale Anteriore Destro' },
-        { key: 'tiranteAmmortizzatoreSospesoS', label: 'Tirante Ammortizzatore Sospeso Sinistro' },
-        { key: 'tiranteAmmortizzatoreSospesoD', label: 'Tirante Ammortizzatore Sospeso Destro' },
-        { key: 'braccioInferioreS', label: 'Braccio Inferiore Sinistro' },
-        { key: 'braccioInferioreD', label: 'Braccio Inferiore Destro' },
-        { key: 'barraStabilizzatriceAnte', label: 'Barra Stabilizzatrice Anteriore' },
-        { key: 'gomminiBarraStabilizzatrice', label: 'Gommini Barra Stabilizzatrice' },
-      ]
-    },
-    { 
-      id: 'pneumatici', 
-      title: 'Pneumatici',
-      components: [
-        { key: 'battistradaAnt', label: 'Battistrada Anteriore', defaultNote: '' },
-        { key: 'battistradaPost', label: 'Battistrada Posteriore', defaultNote: '' },
-        { key: 'controlloPressione', label: 'Controllo Pressione' },
-      ]
-    },
-  ];
-
-  // Aggiungiamo una funzione per caricare e aggiornare dinamicamente i componenti della checklist
-  const [dynamicSections, setDynamicSections] = useState(sections);
-
-  // Carica tutti i parametri dal database e li organizza nelle sezioni
-  useEffect(() => {
-    const loadDynamicParameters = async () => {
-      try {
-        console.log("Caricamento parametri dinamici...");
-        const parametersRef = ref(rtdb, 'parameters');
-        const parametersSnapshot = await get(parametersRef);
-        
-        if (parametersSnapshot.exists()) {
-          const parametersData = parametersSnapshot.val();
-          
-          // Creiamo una copia delle sezioni su cui lavorare
-          const updatedSections = [...sections];
-          
-          // Mappa per verificare i parametri già inclusi nelle sezioni predefinite
-          const existingParameters = new Set();
-          updatedSections.forEach(section => {
-            section.components.forEach(comp => {
-              existingParameters.add(comp.key);
-            });
+      // Aggiorna nel database
+      await updateChecklistItem(itemId, { status: nuovoStato });
+      
+      // Aggiorna lo stato locale
+      const updatedItems = checklistItems.map(i => 
+        i.id === itemId ? { ...i, status: nuovoStato } : i
+      );
+      setChecklistItems(updatedItems);
+      
+      // Aggiorna i gruppi con ordinamento
+      const grouped = updatedItems.reduce((acc: ChecklistItemGroup[], item) => {
+        const existingGroup = acc.find(g => g.category === item.itemCategory);
+        if (existingGroup) {
+          existingGroup.items.push(item);
+        } else {
+          acc.push({
+            category: item.itemCategory,
+            items: [item]
           });
-          
-          // Aggiungiamo i parametri dal database alle rispettive sezioni
-          Object.entries(parametersData).forEach(([parameterId, paramData]: [string, any]) => {
-            // Se il parametro è già incluso nelle sezioni predefinite, lo saltiamo
-            if (existingParameters.has(parameterId)) {
-              return;
-            }
-            
-            // Troviamo la sezione corrispondente o ne creiamo una nuova
-            const sectionTitle = paramData.section || 'Altro';
-            let sectionIndex = updatedSections.findIndex(s => s.title === sectionTitle);
-            
-            if (sectionIndex === -1) {
-              // Se la sezione non esiste, la creiamo
-              updatedSections.push({
-                id: sectionTitle.toLowerCase().replace(/\s+/g, ''),
-                title: sectionTitle,
-                components: []
-              });
-              sectionIndex = updatedSections.length - 1;
-            }
-            
-            // Aggiungiamo il parametro alla sezione
-            console.log(`Aggiunto parametro dinamico: ${paramData.name} (${parameterId}) alla sezione ${sectionTitle}`);
-            updatedSections[sectionIndex].components.push({
-              key: parameterId,
-              label: paramData.name
-            });
-          });
-          
-          // Aggiorniamo lo stato con le nuove sezioni
-          setDynamicSections(updatedSections);
         }
-      } catch (error) {
-        console.error("Errore nel caricamento dei parametri dinamici:", error);
-      }
-    };
-    
-    loadDynamicParameters();
-  }, [vehicleId, appointmentId]); // Riesegui quando cambia il veicolo o l'appuntamento
-
-  const Modal = ({ isOpen, onClose, title, children }: { isOpen: boolean; onClose: () => void; title: string; children: React.ReactNode }) => {
-    if (!isOpen) return null;
-    return (
-      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-        <div className="bg-background rounded-lg w-full max-w-4xl max-h-[80vh] overflow-hidden shadow-lg border border-border">
-          <div className="flex justify-between items-center p-4 bg-muted/90 border-b border-border">
-            <h2 className="text-xl font-bold text-orange-500">{title}</h2>
-            <div className="flex items-center gap-2">
-              {needsSaving && (
-                <button 
-                  onClick={salvaModifiche} 
-                  className="bg-primary hover:bg-primary/90 text-white px-3 py-1 rounded flex items-center gap-1 text-sm"
-                  disabled={isUpdating}
-                >
-                  {isUpdating ? (
-                    <>
-                      <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-1"></div>
-                      Salvataggio...
-                    </>
-                  ) : (
-                    <>
-                      <Save size={16} /> Salva
-                    </>
-                  )}
-                </button>
-              )}
-              <button 
-                onClick={chiudiConSalvataggio} 
-                className="text-orange-500 hover:text-orange-400 transition-colors"
-                disabled={isUpdating}
-              >
-                <X size={24} />
-              </button>
-            </div>
-          </div>
-          <div 
-            ref={modalContentRef} 
-            className="p-0 overflow-y-auto max-h-[calc(80vh-70px)] scrollbar-hide"
-            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-          >
-            {children}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // Componenti nella tabella del popup
-  const TableComponent = ({ 
-    label, 
-    keyName, 
-    defaultNote 
-  }: { 
-    label: string; 
-    keyName: keyof ControlliVeicolo; 
-    defaultNote?: string 
-  }) => {
-    // Stato locale per il valore dell'input
-    const [inputValue, setInputValue] = useState<string>('');
-    
-    // Stato locale per lo stato del componente
-    const [showStatus, setShowStatus] = useState<'CONTROLLATO' | 'NON CONTROLLATO' | 'DA FARE'>(
-      (controlliLocali[keyName]?.stato || controlliVeicolo[keyName]?.stato || 'DA FARE') as 'CONTROLLATO' | 'NON CONTROLLATO' | 'DA FARE'
-    );
-    
-    // Imposta il valore iniziale all'avvio e quando cambiano i valori esterni
-    useEffect(() => {
-      const initialValue = controlliLocali[keyName]?.note !== undefined 
-        ? controlliLocali[keyName].note 
-        : controlliVeicolo[keyName]?.note !== undefined 
-          ? controlliVeicolo[keyName].note 
-          : defaultNote || '';
-          
-      setInputValue(initialValue);
-    }, [controlliLocali[keyName]?.note, controlliVeicolo[keyName]?.note, keyName, defaultNote]);
-    
-    // Aggiorna lo stato visualizzato quando cambiano i controlli locali
-    useEffect(() => {
-      setShowStatus((controlliLocali[keyName]?.stato || controlliVeicolo[keyName]?.stato || 'DA FARE') as 'CONTROLLATO' | 'NON CONTROLLATO' | 'DA FARE');
-    }, [controlliLocali[keyName]?.stato, controlliVeicolo[keyName]?.stato, keyName]);
-    
-    // Gestisce il cambio del valore dell'input
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      setInputValue(e.target.value);
-    };
-    
-    // Salva le note solo quando l'utente perde il focus
-    const handleBlur = () => {
-      // Aggiorna solo se il valore è cambiato
-      if (controlliLocali[keyName]?.note !== inputValue) {
-        setControlliLocali(prev => ({
-          ...prev,
-          [keyName]: {
-            ...prev[keyName] || {},
-            stato: prev[keyName]?.stato || controlliVeicolo[keyName]?.stato || 'DA FARE',
-            note: inputValue
-          }
-        }));
-        
-        // Imposta needsSaving se il valore è cambiato rispetto al database
-        if (controlliVeicolo[keyName]?.note !== inputValue) {
-          setNeedsSaving(true);
-        }
-      }
-    };
-    
-    return (
-      <div className="py-4 border-b border-border flex items-center">
-        <div className="font-medium w-1/3">{label}</div>
-        <div className="w-24 text-center">
-          <button 
-            onClick={(e) => cambiaStato(keyName, e)} 
-            className="p-2 rounded-full hover:bg-accent transition-colors"
-          >
-            <StatusIcon status={showStatus} />
-          </button>
-        </div>
-        <div className="flex-1">
-          <input 
-            type="text" 
-            value={inputValue}
-            onChange={handleInputChange}
-            onBlur={handleBlur}
-            className="w-full p-2 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-            placeholder="Aggiungi note..."
-            onFocus={memorizzaPosizione}
-            autoComplete="off"
-            autoCorrect="off"
-            spellCheck="false"
-          />
-        </div>
-      </div>
-    );
-  };
-
-  // Stato locale per modifiche alla scheda principale
-  const [notaProvaStrada, setNotaProvaStrada] = useState<string>('');
-  useEffect(() => {
-    setNotaProvaStrada(controlliVeicolo.provaSuStrada?.note || '');
-  }, [controlliVeicolo.provaSuStrada?.note]);
-
-  // Componente StatusIcon migliorato per la Prova su Strada
-  const ProvaSuStradaStatusIcon = () => {
-    const [statusIcon, setStatusIcon] = useState<'CONTROLLATO' | 'NON CONTROLLATO' | 'DA FARE'>(
-      (controlliLocali.provaSuStrada?.stato || controlliVeicolo.provaSuStrada?.stato || 'CONTROLLATO') as 'CONTROLLATO' | 'NON CONTROLLATO' | 'DA FARE'
-    );
-    
-    useEffect(() => {
-      setStatusIcon((controlliLocali.provaSuStrada?.stato || controlliVeicolo.provaSuStrada?.stato || 'CONTROLLATO') as 'CONTROLLATO' | 'NON CONTROLLATO' | 'DA FARE');
-    }, [controlliLocali.provaSuStrada?.stato, controlliVeicolo.provaSuStrada?.stato]);
-    
-    return <StatusIcon status={statusIcon} />;
-  };
-
-  // Funzione per gestire il cambiamento della nota prova su strada
-  const handleNotaProvaSuStradaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setNotaProvaStrada(e.target.value);
-    // Impostiamo needsSaving se il valore è cambiato rispetto al database
-    if (controlliVeicolo.provaSuStrada?.note !== e.target.value) {
-      setNeedsSaving(true);
-    }
-  };
-  
-  // Salva la nota della prova su strada quando l'input perde focus
-  const handleNotaProvaSuStradaBlur = () => {
-    if (controlliVeicolo.provaSuStrada?.note !== notaProvaStrada) {
-      // Aggiorniamo i controlli locali
-      setControlliLocali(prev => ({
-        ...prev,
-        provaSuStrada: {
-          ...prev.provaSuStrada || {},
-          stato: prev.provaSuStrada?.stato || controlliVeicolo.provaSuStrada?.stato || 'CONTROLLATO',
-          note: notaProvaStrada
-        }
-      }));
+        return acc;
+      }, []);
       
-      // Salviamo nel database
-      salvaNotaProvaStrada(notaProvaStrada);
-    }
-  };
-  
-  // Salva la nota della prova su strada
-  const salvaNotaProvaStrada = async (nuovaNota: string) => {
-    if (nuovaNota === controlliVeicolo.provaSuStrada?.note) return;
-    
-    setIsUpdating(true);
-    
-    const nuoviControlli = {
-      ...controlliVeicolo,
-      provaSuStrada: {
-        ...controlliVeicolo.provaSuStrada || { stato: 'CONTROLLATO' },
-        note: nuovaNota
-      }
-    };
-    
-    setControlliVeicolo(nuoviControlli);
-    
-    try {
-      // Prima, verifica in quali posizioni sono salvati i dati della checklist
-      const percorsiDaSalvare = [];
+      // Ordina le categorie secondo l'ordine desiderato
+      grouped.sort((a, b) => getCategoryOrder(a.category) - getCategoryOrder(b.category));
       
-      // Percorso principale
-      const vehicleRef = ref(rtdb, `vehicles/${vehicleId}`);
-      const snapshot = await get(vehicleRef);
-      let vehicleData = snapshot.exists() ? snapshot.val() : {};
-      percorsiDaSalvare.push({
-        ref: vehicleRef,
-        data: vehicleData
+      setGroupedItems(grouped);
+
+      // Ripristina la posizione di scroll dopo l'aggiornamento
+      requestAnimationFrame(() => {
+        if (modalContentRef.current) {
+          modalContentRef.current.scrollTop = currentScrollTop;
+        }
       });
       
-      // Percorso lavorazione
-      const lavorazioneRef = ref(rtdb, `vehicles/${vehicleId}/lavorazione`);
-      const lavorazioneSnapshot = await get(lavorazioneRef);
-      if (lavorazioneSnapshot.exists()) {
-        percorsiDaSalvare.push({
-          ref: lavorazioneRef,
-          data: lavorazioneSnapshot.val()
-        });
-      }
-      
-      // Percorsi alternativi
-      const percorsiAlternativi = [
-        `vehicles/${vehicleId}/workingPhase`,
-        `vehicles/${vehicleId}/fase2`,
-        `workingPhase/${vehicleId}`,
-        `lavorazione/${vehicleId}`
-      ];
-      
-      for (const percorso of percorsiAlternativi) {
-        try {
-          const percorsoRef = ref(rtdb, percorso);
-          const percorsoSnapshot = await get(percorsoRef);
-          
-          if (percorsoSnapshot.exists()) {
-            percorsiDaSalvare.push({
-              ref: percorsoRef,
-              data: percorsoSnapshot.val()
-            });
-          }
-        } catch (e) {
-          console.error(`Errore nell'accesso al percorso ${percorso}:`, e);
-        }
-      }
-      
-      // Ora esegui l'aggiornamento in tutti i percorsi trovati
-      for (const { ref: percorsoRef, data: percorsoData } of percorsiDaSalvare) {
-        try {
-          // Verifica se questo percorso utilizza checklist, checklistLavorazione o altra struttura
-          const updateData: Record<string, any> = {};
-          
-          if ('checklist' in percorsoData) {
-            updateData.checklist = nuoviControlli;
-          }
-          
-          if ('checklistLavorazione' in percorsoData) {
-            updateData.checklistLavorazione = nuoviControlli;
-          }
-          
-          if ('checks' in percorsoData) {
-            updateData.checks = nuoviControlli;
-          }
-          
-          if (Object.keys(updateData).length === 0) {
-            // Se non abbiamo trovato una struttura conosciuta, proviamo ad aggiornare direttamente
-            await update(percorsoRef, {
-              checklist: nuoviControlli
-            });
-          } else {
-            // Altrimenti aggiorniamo le strutture esistenti
-            await update(percorsoRef, updateData);
-          }
-        } catch (e) {
-          console.error(`Errore nell'aggiornamento del percorso ${percorsoRef.key}:`, e);
-        }
-      }
     } catch (error) {
-      console.error('Errore nel salvataggio della nota prova su strada:', error);
+      console.error('❌ Errore nell\'aggiornamento stato:', error);
     } finally {
       setIsUpdating(false);
     }
-  };
+  }, [checklistItems]);
 
-  // Salva i parametri nel database
-  const salvaParametri = async () => {
-    try {
-      // Percorsi da aggiornare
-      const percorsiDaSalvare = [];
-      
-      // Se abbiamo un appointmentId, salviamo solo in quella tabella
-      if (appointmentId) {
-        percorsiDaSalvare.push(
-          `appointments/${appointmentId}/checklist`
-        );
-      }
-      
-      // Per i veicoli, usiamo solo il percorso standardizzato
-      if (vehicleId) {
-        percorsiDaSalvare.push(
-          `vehicles/${vehicleId}/lavorazione/parametriChecklist`
-        );
-      }
-      
-      // Esegui l'aggiornamento nei percorsi standardizzati
-      for (const percorso of percorsiDaSalvare) {
-        try {
-          const percorsoRef = ref(rtdb, percorso);
-          await update(percorsoRef, {
-            parametriChecklist: parametri
-          });
-          console.log(`Parametri salvati con successo in ${percorso}`);
-        } catch (e) {
-          console.error(`Errore nel salvataggio dei parametri in ${percorso}:`, e);
-        }
-      }
-    } catch (error) {
-      console.error('Errore nel salvataggio dei parametri:', error);
+  // Componente per l'icona dello stato
+  const StatusIcon = ({ status }: { status: ChecklistItem['status'] }) => {
+    switch (status) {
+      case 'ok':
+        return <CheckCircle className="w-5 h-5 text-green-400" />;
+      case 'da_sostituire':
+        return <XCircle className="w-5 h-5 text-red-400" />;
+      case 'sostituito':
+        return <Check className="w-5 h-5 text-blue-400" />;
+      case 'attenzione':
+        return <AlertCircle className="w-5 h-5 text-yellow-400" />;
+      default:
+        return <Circle className="w-5 h-5 text-gray-400" />;
     }
   };
 
-  // Carica i parametri dal database
-  useEffect(() => {
-    const loadParametriData = async () => {
-      try {
-        // Utilizziamo prima l'appointmentId se disponibile (prioritario)
-        if (appointmentId) {
-          // Prova a caricare dai percorsi relativi all'appuntamento
-          const percorsiAppuntamento = [
-            `appointments/${appointmentId}`,
-            `appointments/${appointmentId}/checklist`
-          ];
-          
-          for (const percorso of percorsiAppuntamento) {
-            try {
-              const percorsoRef = ref(rtdb, percorso);
-              const percorsoSnapshot = await get(percorsoRef);
-              
-              if (percorsoSnapshot.exists()) {
-                const percorsoData = percorsoSnapshot.val();
-                
-                if (percorsoData.parametriChecklist) {
-                  setParametri(percorsoData.parametriChecklist);
-                  console.log(`Trovati parametri nel percorso ${percorso}`);
-                  return; // Termina se abbiamo trovato parametri
-                }
-              }
-            } catch (e) {
-              console.error(`Errore nel caricamento parametri da percorso ${percorso}:`, e);
-            }
-          }
-        }
-        
-        // Se non abbiamo parametri dall'appointmentId, proviamo con il vehicleId
-        if (vehicleId) {
-          const percorsiVeicolo = [
-            `vehicles/${vehicleId}`,
-            `vehicles/${vehicleId}/lavorazione`,
-            `vehicles/${vehicleId}/workingPhase`,
-            `vehicles/${vehicleId}/fase2`,
-            `workingPhase/${vehicleId}`,
-            `lavorazione/${vehicleId}`
-          ];
-          
-          for (const percorso of percorsiVeicolo) {
-            try {
-              const percorsoRef = ref(rtdb, percorso);
-              const percorsoSnapshot = await get(percorsoRef);
-              
-              if (percorsoSnapshot.exists()) {
-                const percorsoData = percorsoSnapshot.val();
-                
-                if (percorsoData.parametriChecklist) {
-                  setParametri(percorsoData.parametriChecklist);
-                  console.log(`Trovati parametri nel percorso ${percorso}`);
-                  return; // Termina se abbiamo trovato parametri
-                }
-              }
-            } catch (e) {
-              console.error(`Errore nel caricamento parametri da percorso ${percorso}:`, e);
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Errore nel caricamento dei parametri:', error);
-      }
-    };
-
-    // Carica i parametri solo se non sono stati forniti come prop
-    if (!parametriIniziali || Object.keys(parametriIniziali).length === 0) {
-      loadParametriData();
-    }
-  }, [vehicleId, appointmentId, parametriIniziali]);
-  
-  // Aggiorna il metodo di aggiunta/rimozione parametri per salvare nel database
-  const aggiungiParametro = () => {
-    if (nuovoParametroChiave.trim() === '') return;
-    
-    const nuoviParametri = {
-      ...parametri,
-      [nuovoParametroChiave]: nuovoParametroValore
-    };
-    
-    setParametri(nuoviParametri);
-    setNuovoParametroChiave('');
-    setNuovoParametroValore('');
-    
-    // Salva i parametri nel database
-    setTimeout(() => {
-      salvaParametri();
-    }, 100);
-  };
-  
-  const rimuoviParametro = (chiave: string) => {
-    const nuoviParametri = {...parametri};
-    delete nuoviParametri[chiave];
-    setParametri(nuoviParametri);
-    
-    // Salva i parametri nel database
-    setTimeout(() => {
-      salvaParametri();
-    }, 100);
-  };
-
-  const ParametriDialog = () => {
-    if (!parametriDialog) return null;
-    
+  // Componente per una singola categoria ottimizzato con React.memo
+  const CategorySection = React.memo(({ group }: { group: ChecklistItemGroup }) => {
     return (
-      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-        <div className="bg-background rounded-lg w-full max-w-md overflow-hidden shadow-lg border border-border">
-          <div className="flex justify-between items-center p-4 bg-muted/90 border-b border-border">
-            <h2 className="text-xl font-bold text-orange-500">Gestione Parametri</h2>
-            <button 
-              onClick={() => setParametriDialog(false)} 
-              className="text-orange-500 hover:text-orange-400 transition-colors"
-            >
-              <X size={24} />
-            </button>
+      <div className="bg-gray-900 rounded-lg border-2 border-orange-500 shadow-md hover:shadow-lg transition-shadow">
+        {/* Header della categoria */}
+        <div className="bg-gradient-to-r from-orange-600 to-orange-700 p-4 rounded-t-lg border-b border-orange-500">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="text-white">
+                {getCategoryIcon(group.category)}
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">{group.category}</h3>
+                <p className="text-sm text-orange-100">
+                  {getCategoryDescription(group.category)}
+                </p>
+              </div>
+            </div>
           </div>
-          <div className="p-4 max-h-[60vh] overflow-y-auto">
-            <div className="flex gap-2 mb-4">
-              <input
-                type="text"
-                value={nuovoParametroChiave}
-                onChange={(e) => setNuovoParametroChiave(e.target.value)}
-                placeholder="Nome parametro"
-                className="p-2 flex-1 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-              />
-              <input
-                type="text"
-                value={nuovoParametroValore}
-                onChange={(e) => setNuovoParametroValore(e.target.value)}
-                placeholder="Valore"
-                className="p-2 flex-1 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-              />
-              <button
-                onClick={aggiungiParametro}
-                className="bg-primary hover:bg-primary/90 text-white px-3 py-1 rounded"
-              >
-                Aggiungi
-              </button>
-            </div>
-            
-            <div className="space-y-2">
-              {Object.entries(parametri).map(([chiave, valore]) => (
-                <div key={chiave} className="flex justify-between items-center p-2 bg-muted/50 rounded">
-                  <div>
-                    <span className="font-medium">{chiave}:</span> {valore}
+        </div>
+
+        {/* Lista elementi in formato compatto */}
+        <div className="p-4">
+          <div className="grid grid-cols-1 gap-2">
+            {group.items.map((item, index) => {
+              const statusStyle = getStatusStyle(item.status);
+              return (
+                <div 
+                  key={item.id}
+                  className={`flex items-center justify-between p-3 rounded-lg border-2 transition-all duration-200 ${statusStyle.bg} ${statusStyle.text}`}
+                >
+                  {/* Nome elemento */}
+                  <div className="flex items-center space-x-3 flex-1">
+                    <span className="text-xs text-orange-400 font-mono w-6 font-bold">
+                      {String(index + 1).padStart(2, '0')}.
+                    </span>
+                    <span className="font-medium text-sm text-white">{item.itemName}</span>
                   </div>
-                  <button
-                    onClick={() => rimuoviParametro(chiave)}
-                    className="text-red-500 hover:text-red-400"
-                  >
-                    <X size={18} />
-                  </button>
+
+                  {/* Dropdown stato */}
+                  <div className="flex items-center space-x-3">
+                    <div className="flex items-center space-x-2">
+                      <StatusIcon status={item.status} />
+                      <select
+                        value={item.status}
+                        onChange={(e) => cambiaStatoViaDropdown(item.id, e.target.value as ChecklistItem['status'])}
+                        className={`text-xs px-2 py-1.5 rounded-md border-2 transition-all duration-200 font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-800 text-white border-orange-500 hover:border-orange-400`}
+                      >
+                        <option value="non_controllato" className="bg-gray-800 text-white">
+                          Non Controllato
+                        </option>
+                        <option value="ok" className="bg-gray-800 text-green-400">
+                          OK
+                        </option>
+                        <option value="da_sostituire" className="bg-gray-800 text-red-400">
+                          Da Sostituire
+                        </option>
+                        <option value="sostituito" className="bg-gray-800 text-blue-400">
+                          Sostituito
+                        </option>
+                        <option value="attenzione" className="bg-gray-800 text-yellow-400">
+                          Attenzione
+                        </option>
+                      </select>
+                    </div>
+                    
+                    {/* Pulsante note */}
+                    <button
+                      onClick={() => openNoteModal(item)}
+                      className={`p-1.5 rounded-md border-2 transition-all duration-200 ${
+                        item.notes 
+                          ? 'bg-orange-600 border-orange-500 text-white hover:bg-orange-700' 
+                          : 'bg-gray-800 border-orange-500 text-orange-400 hover:bg-gray-700'
+                      }`}
+                      title={item.notes ? 'Modifica nota' : 'Aggiungi nota'}
+                    >
+                      <Clipboard className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
-              ))}
-              {Object.keys(parametri).length === 0 && (
-                <div className="text-center text-muted-foreground italic">Nessun parametro</div>
-              )}
+              );
+            })}
+          </div>
+
+          {/* Sezione note per la categoria (se necessario) */}
+          {group.items.some(item => item.notes) && (
+            <div className="mt-4 pt-4 border-t border-orange-500">
+              <h4 className="text-sm font-semibold text-orange-400 mb-2">Note:</h4>
+              <div className="space-y-2">
+                {group.items.filter(item => item.notes).map((item) => (
+                  <div key={`note-${item.id}`} className="bg-gray-800 border border-orange-500 p-2 rounded text-xs">
+                    <span className="font-medium text-orange-400">{item.itemName}:</span> 
+                    <span className="text-white ml-1">{item.notes}</span>
+                  </div>
+                ))}
+              </div>
             </div>
+          )}
+        </div>
+      </div>
+    );
+  });
+
+  // Funzione per aprire il modal delle note
+  const openNoteModal = (item: ChecklistItem) => {
+    setSelectedItemForNote(item);
+    setNoteText(item.notes || '');
+    setNoteModalOpen(true);
+  };
+
+  // Funzione per salvare le note
+  const saveNote = async () => {
+    if (!selectedItemForNote) return;
+    
+    try {
+      await updateChecklistItem(selectedItemForNote.id, { notes: noteText });
+      
+      // Aggiorna lo stato locale
+      const updatedItems = checklistItems.map(i => 
+        i.id === selectedItemForNote.id ? { ...i, notes: noteText } : i
+      );
+      setChecklistItems(updatedItems);
+      
+      // Aggiorna i gruppi
+      const grouped = updatedItems.reduce((acc: ChecklistItemGroup[], item) => {
+        const existingGroup = acc.find(g => g.category === item.itemCategory);
+        if (existingGroup) {
+          existingGroup.items.push(item);
+        } else {
+          acc.push({
+            category: item.itemCategory,
+            items: [item]
+          });
+        }
+        return acc;
+      }, []);
+      
+      // Ordina le categorie secondo l'ordine desiderato
+      grouped.sort((a, b) => getCategoryOrder(a.category) - getCategoryOrder(b.category));
+      
+      setGroupedItems(grouped);
+      setNoteModalOpen(false);
+      setSelectedItemForNote(null);
+      
+    } catch (error) {
+      console.error('❌ Errore nel salvataggio nota:', error);
+    }
+  };
+
+  // Componente per il colore di sfondo e testo dello stato
+  const getStatusStyle = (status: ChecklistItem['status']) => {
+    switch (status) {
+      case 'ok':
+        return {
+          bg: 'bg-gray-800 hover:bg-gray-700 border-green-500',
+          text: 'text-white',
+          button: 'bg-green-600 hover:bg-green-700 border-green-500 text-white'
+        };
+      case 'da_sostituire':
+        return {
+          bg: 'bg-gray-800 hover:bg-gray-700 border-red-500',
+          text: 'text-white',
+          button: 'bg-red-600 hover:bg-red-700 border-red-500 text-white'
+        };
+      case 'sostituito':
+        return {
+          bg: 'bg-gray-800 hover:bg-gray-700 border-blue-500',
+          text: 'text-white',
+          button: 'bg-blue-600 hover:bg-blue-700 border-blue-500 text-white'
+        };
+      case 'attenzione':
+        return {
+          bg: 'bg-gray-800 hover:bg-gray-700 border-yellow-500',
+          text: 'text-white',
+          button: 'bg-yellow-600 hover:bg-yellow-700 border-yellow-500 text-white'
+        };
+      default:
+        return {
+          bg: 'bg-gray-800 hover:bg-gray-700 border-gray-600',
+          text: 'text-white',
+          button: 'bg-gray-600 hover:bg-gray-700 border-gray-500 text-white'
+        };
+    }
+  };
+
+  // Funzione per ottenere il testo dello stato
+  const getStatusText = (status: ChecklistItem['status']) => {
+    switch (status) {
+      case 'ok':
+        return 'OK';
+      case 'da_sostituire':
+        return 'Da Sostituire';
+      case 'sostituito':
+        return 'Sostituito';
+      case 'attenzione':
+        return 'Attenzione';
+      default:
+        return 'Non Controllato';
+    }
+  };
+
+  // Cleanup del timeout quando il componente viene smontato
+  useEffect(() => {
+    return () => {
+      if (scrollLockTimeoutRef.current) {
+        clearTimeout(scrollLockTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-gray-900 border-2 border-orange-500 rounded-lg p-8 shadow-xl">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-4 border-orange-500 mx-auto mb-4"></div>
+            <p className="text-white text-lg font-medium">Caricamento checklist...</p>
+            <p className="text-orange-400 text-sm mt-2">Preparazione controlli veicolo</p>
           </div>
         </div>
       </div>
     );
-  };
+  }
+
+  const totalCompleted = checklistItems.filter(i => i.status === 'ok').length;
+  const totalItems = checklistItems.length;
 
   return (
-    <div className="bg-background text-foreground py-4 px-6">
-      {/* Five Blocks Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4 mb-6 mx-2">
-        {dynamicSections.map((section) => (
-          <div key={section.id} 
-            className="bg-black border border-border rounded-lg shadow-sm hover:shadow-md transition-shadow"
-          >
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 checklist-no-scroll">
+      <style>{customNoScrollStyle}</style>
+      <div className="bg-gray-900 border-2 border-orange-500 rounded-xl shadow-2xl w-full max-w-[95vw] h-[95vh] flex flex-col">
+        {/* Header compatto */}
+        <div className="p-4 border-b-2 border-orange-500 bg-gradient-to-r from-orange-600 to-orange-700">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="bg-white p-2 rounded-lg">
+                <Clipboard className="w-6 h-6 text-orange-600" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">
+                  Checklist Controlli Veicolo
+                </h2>
+              </div>
+            </div>
+            <div className="flex items-center space-x-4">
+              <button 
+                onClick={onClose}
+                className="text-white hover:text-orange-200 transition-colors p-2 rounded-lg hover:bg-white/10"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Content in griglia */}
+        <div 
+          ref={modalContentRef}
+          className="flex-1 overflow-y-auto p-4 bg-black"
+        >
+          {groupedItems.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="bg-gray-900 border-2 border-orange-500 rounded-lg p-8 shadow-lg max-w-md mx-auto">
+                <Clipboard className="w-16 h-16 text-orange-400 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-white mb-2">Nessun elemento trovato</h3>
+                <p className="text-orange-300">
+                  Non sono stati trovati elementi della checklist per questo veicolo.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+              {groupedItems.map((group) => (
+                <CategorySection key={group.category} group={group} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Footer compatto */}
+        <div className="p-4 border-t-2 border-orange-500 bg-gray-900">
+          <div className="flex justify-center">
             <button 
-              className="w-full h-24 flex flex-col items-center justify-center p-2 text-center focus:outline-none" 
-              onClick={() => setOpenSection(section.id)}
+              onClick={onClose}
+              className="px-8 py-3 bg-gradient-to-r from-orange-600 to-orange-700 text-white rounded-lg hover:from-orange-700 hover:to-orange-800 transition-all duration-200 font-medium shadow-lg hover:shadow-xl border border-orange-500"
             >
-              <h3 className="text-base font-medium text-orange-500">{section.title}</h3>
+              Chiudi Checklist
             </button>
           </div>
-        ))}
+        </div>
       </div>
 
-      {/* Modals for Five Blocks */}
-      {dynamicSections.map((section) => (
-        <Modal 
-          key={section.id}
-          isOpen={openSection === section.id} 
-          onClose={chiudiConSalvataggio} 
-          title={section.title}
-        >
-          <div className="p-4">
-            {section.components.map(({ key, label, defaultNote }) => (
-              <TableComponent 
-                key={key} 
-                label={label} 
-                keyName={key as keyof ControlliVeicolo} 
-                defaultNote={defaultNote} 
-              />
-            ))}
-          </div>
-        </Modal>
-      ))}
-
-      {/* Spazio tra i blocchi e la sezione successiva */}
-      <div className="mt-10"></div>
-
-      {/* Prova su Strada e Note/Commenti nella stessa riga */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mx-2">
-        {/* Prova su Strada */}
-        <Card className="border border-border">
-          <CardHeader className="py-3 px-4 border-b border-border">
-            <CardTitle className="text-lg font-medium text-orange-500">Prova su Strada</CardTitle>
-          </CardHeader>
-          <CardContent className="p-4">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-accent/50">
-                    <TableHead className="font-medium w-1/3 py-4">Componente</TableHead>
-                    <TableHead className="text-center w-24 py-4">Stato</TableHead>
-                    <TableHead className="py-4">Note</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow className="hover:bg-accent/50">
-                    <TableCell className="font-medium py-4">Prova su Strada</TableCell>
-                    <TableCell className="text-center py-4">
-                      <button 
-                        onClick={(e) => cambiaStato('provaSuStrada', e)} 
-                        className="p-2 rounded-full hover:bg-accent transition-colors"
-                      >
-                        <ProvaSuStradaStatusIcon />
-                      </button>
-                    </TableCell>
-                    <TableCell className="py-4">
-                      <div className="flex gap-2">
-                        <input 
-                          type="text" 
-                          value={notaProvaStrada}
-                          onChange={handleNotaProvaSuStradaChange}
-                          onBlur={handleNotaProvaSuStradaBlur}
-                          className="w-full p-2 bg-background border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-                          placeholder="Aggiungi note sulla prova su strada..."
-                          autoComplete="off"
-                          autoCorrect="off"
-                          spellCheck="false"
-                          onFocus={memorizzaPosizione}
-                        />
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
+      {/* Modal per le note */}
+      {noteModalOpen && selectedItemForNote && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-gray-900 border-2 border-orange-500 rounded-lg shadow-xl w-full max-w-md mx-4">
+            <div className="p-4 border-b border-orange-500 bg-gradient-to-r from-orange-600 to-orange-700">
+              <h3 className="text-lg font-semibold text-white">
+                Note per: {selectedItemForNote.itemName}
+              </h3>
+              <p className="text-sm text-orange-100 mt-1">
+                Categoria: {selectedItemForNote.itemCategory}
+              </p>
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Problemi e Commenti */}
-        <Card className="print:page-break-before border border-border" id="commenti-sezione">
-          <CardHeader className="py-3 px-4 border-b border-border">
-            <CardTitle className="text-lg font-medium text-orange-500">
-              <div className="flex items-center gap-2">
-                <Clipboard size={18} />
-                Note e Commenti
-              </div>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4">
-            <Textarea
-              value={commenti}
-              onChange={(e) => modificaCommenti(e.target.value)}
-              className="resize-y min-h-[120px] max-h-[250px]"
-              placeholder="Inserisci commenti o problemi rilevati durante l'ispezione..."
-            />
-          </CardContent>
-        </Card>
-      </div>
+            
+            <div className="p-4">
+              <Textarea
+                value={noteText}
+                onChange={(e) => setNoteText(e.target.value)}
+                placeholder="Inserisci note per questo controllo..."
+                className="min-h-[120px] resize-none bg-gray-800 border-orange-500 text-white placeholder-orange-300 focus:border-orange-400 focus:ring-orange-400"
+                autoFocus
+              />
+            </div>
+            
+            <div className="p-4 border-t border-orange-500 flex justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setNoteModalOpen(false);
+                  setSelectedItemForNote(null);
+                }}
+                className="px-4 py-2 text-orange-400 border border-orange-500 rounded-lg hover:bg-gray-800 transition-colors"
+              >
+                Annulla
+              </button>
+              <button
+                onClick={saveNote}
+                className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors border border-orange-500"
+              >
+                Salva Nota
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
-}
+} 

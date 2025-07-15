@@ -10,7 +10,7 @@ import {
   createServiceType, 
   updateServiceType, 
   deleteServiceType 
-} from "@shared/firebase";
+} from "@shared/supabase";
 
 import {
   Table,

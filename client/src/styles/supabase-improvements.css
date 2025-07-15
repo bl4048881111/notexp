@@ -1,0 +1,319 @@
+/* Miglioramenti per l'interfaccia di Supabase */
+
+/* Miglioramento contrasti generali */
+.sb-grid-table-container {
+  background-color: #1a1a1a !important;
+}
+
+/* Celle della tabella */
+.sb-grid-table-container .sb-grid-table tbody tr td {
+  background-color: #2a2a2a !important;
+  color: #ffffff !important;
+  border-color: #404040 !important;
+}
+
+/* Header della tabella */
+.sb-grid-table-container .sb-grid-table thead tr th {
+  background-color: #333333 !important;
+  color: #ffffff !important;
+  border-color: #404040 !important;
+  font-weight: 600 !important;
+}
+
+/* Righe alternate */
+.sb-grid-table-container .sb-grid-table tbody tr:nth-child(even) td {
+  background-color: #252525 !important;
+}
+
+/* Righe al hover */
+.sb-grid-table-container .sb-grid-table tbody tr:hover td {
+  background-color: #3a3a3a !important;
+}
+
+/* Testo selezionato */
+.sb-grid-table-container .sb-grid-table tbody tr.selected td {
+  background-color: #4a4a4a !important;
+  color: #ffffff !important;
+}
+
+/* Input fields */
+.sb-grid-table-container input[type="text"],
+.sb-grid-table-container input[type="email"],
+.sb-grid-table-container input[type="password"],
+.sb-grid-table-container textarea,
+.sb-grid-table-container select {
+  background-color: #2a2a2a !important;
+  color: #ffffff !important;
+  border: 1px solid #404040 !important;
+}
+
+/* Input focus */
+.sb-grid-table-container input:focus,
+.sb-grid-table-container textarea:focus,
+.sb-grid-table-container select:focus {
+  background-color: #333333 !important;
+  border-color: #ff6b35 !important;
+  box-shadow: 0 0 0 2px rgba(255, 107, 53, 0.2) !important;
+}
+
+/* Bottoni */
+.sb-grid-table-container button {
+  background-color: #ff6b35 !important;
+  color: #ffffff !important;
+  border: none !important;
+  font-weight: 500 !important;
+}
+
+.sb-grid-table-container button:hover {
+  background-color: #e55a2b !important;
+}
+
+/* Bottoni secondari */
+.sb-grid-table-container button.secondary {
+  background-color: #404040 !important;
+  color: #ffffff !important;
+}
+
+.sb-grid-table-container button.secondary:hover {
+  background-color: #505050 !important;
+}
+
+/* Sidebar */
+.sb-sidebar {
+  background-color: #1a1a1a !important;
+  border-right: 1px solid #404040 !important;
+}
+
+.sb-sidebar .sb-sidebar-item {
+  color: #ffffff !important;
+}
+
+.sb-sidebar .sb-sidebar-item:hover {
+  background-color: #2a2a2a !important;
+}
+
+.sb-sidebar .sb-sidebar-item.active {
+  background-color: #ff6b35 !important;
+  color: #ffffff !important;
+}
+
+/* Header principale */
+.sb-header {
+  background-color: #1a1a1a !important;
+  border-bottom: 1px solid #404040 !important;
+}
+
+.sb-header .sb-header-title {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+/* Pannelli informativi */
+.sb-panel {
+  background-color: #2a2a2a !important;
+  border: 1px solid #404040 !important;
+  color: #ffffff !important;
+}
+
+.sb-panel .sb-panel-header {
+  background-color: #333333 !important;
+  color: #ffffff !important;
+  border-bottom: 1px solid #404040 !important;
+}
+
+/* Modali */
+.sb-modal {
+  background-color: #2a2a2a !important;
+  border: 1px solid #404040 !important;
+}
+
+.sb-modal .sb-modal-header {
+  background-color: #333333 !important;
+  color: #ffffff !important;
+  border-bottom: 1px solid #404040 !important;
+}
+
+.sb-modal .sb-modal-content {
+  color: #ffffff !important;
+}
+
+/* Dropdown e select */
+.sb-dropdown {
+  background-color: #2a2a2a !important;
+  border: 1px solid #404040 !important;
+}
+
+.sb-dropdown .sb-dropdown-item {
+  color: #ffffff !important;
+}
+
+.sb-dropdown .sb-dropdown-item:hover {
+  background-color: #3a3a3a !important;
+}
+
+/* Tabs */
+.sb-tabs .sb-tab {
+  color: #cccccc !important;
+  border-bottom: 2px solid transparent !important;
+}
+
+.sb-tabs .sb-tab.active {
+  color: #ff6b35 !important;
+  border-bottom-color: #ff6b35 !important;
+}
+
+.sb-tabs .sb-tab:hover {
+  color: #ffffff !important;
+}
+
+/* Messaggi di errore */
+.sb-error {
+  background-color: #4a1a1a !important;
+  color: #ff6b6b !important;
+  border: 1px solid #8b0000 !important;
+}
+
+/* Messaggi di successo */
+.sb-success {
+  background-color: #1a4a1a !important;
+  color: #6bff6b !important;
+  border: 1px solid #008b00 !important;
+}
+
+/* Messaggi di warning */
+.sb-warning {
+  background-color: #4a4a1a !important;
+  color: #ffff6b !important;
+  border: 1px solid #8b8b00 !important;
+}
+
+/* Scrollbar personalizzata */
+.sb-grid-table-container ::-webkit-scrollbar {
+  width: 8px !important;
+  height: 8px !important;
+}
+
+.sb-grid-table-container ::-webkit-scrollbar-track {
+  background: #1a1a1a !important;
+}
+
+.sb-grid-table-container ::-webkit-scrollbar-thumb {
+  background: #404040 !important;
+  border-radius: 4px !important;
+}
+
+.sb-grid-table-container ::-webkit-scrollbar-thumb:hover {
+  background: #505050 !important;
+}
+
+/* Miglioramenti specifici per i metadati */
+.sb-metadata-section {
+  background-color: #2a2a2a !important;
+  border: 1px solid #404040 !important;
+  border-radius: 6px !important;
+  padding: 16px !important;
+  margin: 8px 0 !important;
+}
+
+.sb-metadata-section h3 {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  margin-bottom: 12px !important;
+}
+
+.sb-metadata-section .sb-metadata-item {
+  color: #cccccc !important;
+  margin: 4px 0 !important;
+}
+
+.sb-metadata-section .sb-metadata-label {
+  color: #ff6b35 !important;
+  font-weight: 500 !important;
+}
+
+/* Miglioramenti per i badge e tag */
+.sb-badge {
+  background-color: #ff6b35 !important;
+  color: #ffffff !important;
+  padding: 2px 8px !important;
+  border-radius: 12px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+}
+
+.sb-badge.high {
+  background-color: #ff4444 !important;
+}
+
+.sb-badge.medium {
+  background-color: #ffaa44 !important;
+}
+
+.sb-badge.low {
+  background-color: #44ff44 !important;
+  color: #000000 !important;
+}
+
+/* Miglioramenti per i dettagli operazione */
+.sb-operation-details {
+  background-color: #2a2a2a !important;
+  border: 1px solid #404040 !important;
+  border-radius: 6px !important;
+  padding: 16px !important;
+}
+
+.sb-operation-details .sb-operation-title {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  font-size: 18px !important;
+  margin-bottom: 16px !important;
+}
+
+.sb-operation-details .sb-operation-content {
+  color: #cccccc !important;
+  line-height: 1.5 !important;
+}
+
+/* Forza il contrasto per tutti gli elementi di testo */
+* {
+  text-shadow: none !important;
+}
+
+/* Assicura che il testo sia sempre leggibile */
+.sb-grid-table-container * {
+  color: inherit !important;
+}
+
+/* Miglioramenti per i link */
+.sb-grid-table-container a {
+  color: #ff6b35 !important;
+  text-decoration: underline !important;
+}
+
+.sb-grid-table-container a:hover {
+  color: #e55a2b !important;
+}
+
+/* Miglioramenti per i checkbox e radio */
+.sb-grid-table-container input[type="checkbox"],
+.sb-grid-table-container input[type="radio"] {
+  accent-color: #ff6b35 !important;
+}
+
+/* Miglioramenti per le icone */
+.sb-grid-table-container .sb-icon {
+  filter: brightness(1.5) !important;
+}
+
+/* Assicura che tutti i testi siano visibili */
+.sb-grid-table-container .sb-text-muted {
+  color: #cccccc !important;
+}
+
+.sb-grid-table-container .sb-text-primary {
+  color: #ff6b35 !important;
+}
+
+.sb-grid-table-container .sb-text-secondary {
+  color: #ffffff !important;
+} 

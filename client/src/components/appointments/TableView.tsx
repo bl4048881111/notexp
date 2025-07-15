@@ -1,9 +1,9 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
-import { Edit, Trash, CheckCircle, Wrench, FileText, Package, XCircle, Calendar, Info, User } from "lucide-react";
+import { Edit, Trash, CheckCircle, Wrench, FileText, Package, XCircle, Calendar, Info, User, X } from "lucide-react";
 import { Appointment, Quote, Client } from "@shared/schema";
-import { deleteAppointment, updateAppointment, getQuotesByClientId, getClientById } from "@shared/firebase";
+import { deleteAppointment, updateAppointment, getQuotesByClientId, getClientById } from "@shared/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -69,7 +69,41 @@ export default function TableView({
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [clientDetails, setClientDetails] = useState<Client | null>(null);
   const [isLoadingClient, setIsLoadingClient] = useState(false);
+  const [clientsData, setClientsData] = useState<Record<string, Client>>({});
   const { toast } = useToast();
+  
+  // Funzione per caricare i dati del cliente se non già presenti
+  const loadClientData = useCallback(async (clientId: string) => {
+    if (!clientId || clientsData[clientId]) return clientsData[clientId];
+    
+    try {
+      const client = await getClientById(clientId);
+      if (client) {
+        setClientsData(prev => ({ ...prev, [clientId]: client }));
+        return client;
+      }
+    } catch (error) {
+      console.error("Errore nel caricamento dati cliente:", error);
+    }
+    return null;
+  }, [clientsData]);
+  
+  // Precarica i dati dei clienti quando gli appuntamenti cambiano
+  useEffect(() => {
+    const loadClientsData = async () => {
+      const clientIds = Array.from(new Set(appointments.map(app => app.clientId).filter(Boolean)));
+      
+      for (const clientId of clientIds) {
+        if (!clientsData[clientId]) {
+          loadClientData(clientId);
+        }
+      }
+    };
+    
+    if (appointments.length > 0) {
+      loadClientsData();
+    }
+  }, [appointments, clientsData, loadClientData]);
   
   // Query per ottenere preventivi del cliente
   const { data: clientQuotes = [], isLoading: isLoadingQuotes } = useQuery({
@@ -181,7 +215,7 @@ export default function TableView({
     if (appointment.clientId) {
       setIsLoadingClient(true);
       try {
-        const client = await getClientById(appointment.clientId);
+        const client = await loadClientData(appointment.clientId);
         if (client) {
           setClientDetails(client);
         }
@@ -227,130 +261,152 @@ export default function TableView({
   
   return (
     <>
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Codice</TableHead>
-              <TableHead>Data e Ora</TableHead>
-              <TableHead>Cliente</TableHead>
-              <TableHead>Veicolo</TableHead>
-              <TableHead>Stato</TableHead>
-              <TableHead>Ricambi</TableHead>
-              {!isClient && <TableHead>Azioni</TableHead>}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
+      <div className="w-full">
+        <div className="overflow-x-auto overflow-y-visible rounded-lg border border-border">
+          <Table className="min-w-full">
+            <TableHeader>
               <TableRow>
-                <TableCell colSpan={isClient ? 6 : 7}>
-                  <div className="space-y-2">
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-full" />
-                  </div>
-                </TableCell>
+                <TableHead className="min-w-[80px]">Codice</TableHead>
+                <TableHead className="min-w-[120px]">Nome</TableHead>
+                <TableHead className="min-w-[120px]">Cognome</TableHead>
+                <TableHead className="min-w-[180px]">Data e Ora</TableHead>
+                <TableHead className="min-w-[120px]">Veicolo</TableHead>
+                <TableHead className="min-w-[100px]">Stato</TableHead>
+                <TableHead className="min-w-[100px]">Ricambi</TableHead>
+                {!isClient && <TableHead className="min-w-[120px]">Azioni</TableHead>}
               </TableRow>
-            ) : sortedAppointments.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={isClient ? 6 : 7} className="text-center py-8">
-                  Nessun appuntamento trovato
-                </TableCell>
-              </TableRow>
-            ) : (
-              sortedAppointments.map((appointment) => (
-                <TableRow key={appointment.id} className="cursor-pointer hover:bg-accent/50">
-                  <TableCell className="font-medium text-primary" onClick={() => handleViewAppointment(appointment)}>
-                    {appointment.id.substring(0, 8)}
-                  </TableCell>
-                  <TableCell onClick={() => handleViewAppointment(appointment)}>
-                    <div className="font-medium">
-                      {format(new Date(appointment.date), 'EEEE d MMMM yyyy', { locale: it })}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {appointment.time} ({appointment.duration} ora{appointment.duration !== 1 ? 'e' : ''})
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={isClient ? 7 : 8}>
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-full" />
                     </div>
                   </TableCell>
-                  <TableCell onClick={() => handleViewAppointment(appointment)}>
-                    <div>{appointment.clientName}</div>
-                    <div className="text-xs text-muted-foreground">{appointment.phone}</div>
-                  </TableCell>
-                  <TableCell onClick={() => handleViewAppointment(appointment)}>
-                    <div>{appointment.plate}</div>
-                    <div className="text-xs text-muted-foreground">{appointment.model}</div>
-                  </TableCell>
-                  <TableCell onClick={() => handleViewAppointment(appointment)}>
-                    {getStatusBadge(appointment.status)}
-                  </TableCell>
-                  <TableCell onClick={() => handleViewAppointment(appointment)}>
-                    {appointment.partsOrdered ? (
-                      <Badge variant="outline" className="bg-gray-900 text-green-400 border-green-500">Ordinati</Badge>
-                    ) : (
-                      <Badge variant="outline" className="bg-gray-900 text-gray-400 border-gray-700">Non ordinati</Badge>
-                    )}
-                  </TableCell>
-                  {!isClient && (
-                    <TableCell>
-                      <div className="flex items-center space-x-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onEdit(appointment);
-                          }}
-                          title="Modifica"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteClick(appointment);
-                          }}
-                          title="Elimina"
-                        >
-                          <Trash className="h-4 w-4" />
-                        </Button>
-                        {appointment.status === "programmato" && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleStartWork(appointment);
-                            }}
-                            title="Inizia lavorazione"
-                          >
-                            <Wrench className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {appointment.status === "in_lavorazione" && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleCompleteAppointment(appointment);
-                            }}
-                            title="Segna come completato"
-                          >
-                            <CheckCircle className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  )}
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ) : sortedAppointments.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={isClient ? 7 : 8} className="text-center py-8">
+                    Nessun appuntamento trovato
+                  </TableCell>
+                </TableRow>
+              ) : (
+                sortedAppointments.map((appointment) => {
+                  const client = clientsData[appointment.clientId];
+                  
+                  // Carica i dati del cliente se non già presenti
+                  if (appointment.clientId && !client) {
+                    loadClientData(appointment.clientId);
+                  }
+                  
+                  return (
+                    <TableRow key={appointment.id} className="cursor-pointer hover:bg-accent/50">
+                      <TableCell className="font-medium text-primary min-w-[80px] px-4 py-3" onClick={() => handleViewAppointment(appointment)}>
+                        {appointment.id.substring(0, 8)}
+                      </TableCell>
+                      <TableCell className="min-w-[120px] px-4 py-3" onClick={() => handleViewAppointment(appointment)}>
+                        <div className="font-medium truncate">
+                          {client ? client.name : (appointment.clientName ? appointment.clientName.split(' ')[0] : '-')}
+                        </div>
+                      </TableCell>
+                      <TableCell className="min-w-[120px] px-4 py-3" onClick={() => handleViewAppointment(appointment)}>
+                        <div className="font-medium truncate">
+                          {client ? client.surname : (appointment.clientName ? appointment.clientName.split(' ').slice(1).join(' ') : '-')}
+                        </div>
+                      </TableCell>
+                      <TableCell className="min-w-[180px] px-4 py-3" onClick={() => handleViewAppointment(appointment)}>
+                        <div className="font-medium">
+                          {appointment.date && !isNaN(new Date(appointment.date).getTime()) 
+                            ? format(new Date(appointment.date), 'EEEE d MMMM yyyy', { locale: it })
+                            : 'Data non valida'
+                          }
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {appointment.time} ({appointment.duration} ora{appointment.duration !== 1 ? '/e' : ''})
+                        </div>
+                      </TableCell>
+                      
+                      <TableCell className="min-w-[120px] px-4 py-3" onClick={() => handleViewAppointment(appointment)}>
+                        <div className="truncate">{appointment.plate}</div>
+                        <div className="text-xs text-muted-foreground truncate">{appointment.model}</div>
+                      </TableCell>
+                      <TableCell className="min-w-[100px] px-4 py-3" onClick={() => handleViewAppointment(appointment)}>
+                        {getStatusBadge(appointment.status)}
+                      </TableCell>
+                      <TableCell className="min-w-[100px] px-4 py-3" onClick={() => handleViewAppointment(appointment)}>
+                        {appointment.partsOrdered ? (
+                          <Badge variant="outline" className="bg-gray-900 text-green-400 border-green-500">Ordinati</Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-gray-900 text-gray-400 border-gray-700">Non ordinati</Badge>
+                        )}
+                      </TableCell>
+                      {!isClient && (
+                        <TableCell className="min-w-[120px] px-4 py-3">
+                          <div className="flex items-center space-x-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onEdit(appointment);
+                              }}
+                              title="Modifica"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteClick(appointment);
+                              }}
+                              title="Elimina"
+                            >
+                              <Trash className="h-4 w-4" />
+                            </Button>
+                            {appointment.status === "programmato" && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleStartWork(appointment);
+                                }}
+                                title="Inizia lavorazione"
+                              >
+                                <Wrench className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {appointment.status === "in_lavorazione" && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCompleteAppointment(appointment);
+                                }}
+                                title="Segna come completato"
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
       
-      <div className="px-6 py-3 flex items-center justify-between border-t border-border">
+      <div className="px-4 md:px-6 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between border-t border-border bg-background/50 rounded-b-lg gap-2">
         <div className="text-sm text-muted-foreground">
           Mostrando <span className="font-medium">1-{Math.min(sortedAppointments.length, 10)}</span> di <span className="font-medium">{sortedAppointments.length}</span> appuntamenti
         </div>
@@ -360,18 +416,31 @@ export default function TableView({
       
       {/* Dialog di visualizzazione appuntamento */}
       <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
-        <DialogContent className="sm:max-w-3xl bg-background/95 backdrop-blur-sm border-orange-500/50">
-          <DialogHeader>
-            <DialogTitle className="text-xl text-orange-500 font-bold flex items-center">
-              <Calendar className="mr-2 h-5 w-5" /> Dettaglio Appuntamento
-            </DialogTitle>
-            <DialogDescription className="text-muted-foreground">
-              Informazioni complete dell'appuntamento
-            </DialogDescription>
+        <DialogContent className="sm:max-w-3xl bg-background/95 backdrop-blur-sm border-orange-500/50 max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="sticky top-0 bg-background/95 backdrop-blur-sm z-10 pb-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle className="text-xl text-orange-500 font-bold flex items-center">
+                  <Calendar className="mr-2 h-5 w-5" /> Dettaglio Appuntamento
+                </DialogTitle>
+                <DialogDescription className="text-muted-foreground">
+                  Informazioni complete dell'appuntamento
+                </DialogDescription>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-gray-400 hover:text-white h-8 w-8"
+                onClick={() => setViewDialogOpen(false)}
+                title="Chiudi"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
           </DialogHeader>
           
           {viewAppointment && (
-            <div className="space-y-5 my-2">
+            <div className="space-y-5 px-1 pb-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <Card className="bg-gray-950/50 border-gray-800 shadow-md overflow-hidden">
                   <CardHeader className="pb-2 bg-gray-900">
@@ -387,7 +456,12 @@ export default function TableView({
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-muted-foreground">Data:</span>
-                      <span className="text-sm font-medium text-white">{format(new Date(viewAppointment.date), 'dd/MM/yyyy', { locale: it })}</span>
+                      <span className="text-sm font-medium text-white">
+                        {viewAppointment.date && !isNaN(new Date(viewAppointment.date).getTime()) 
+                          ? format(new Date(viewAppointment.date), 'dd/MM/yyyy', { locale: it })
+                          : 'Data non valida'
+                        }
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-muted-foreground">Orario:</span>
@@ -458,8 +532,16 @@ export default function TableView({
                   </CardHeader>
                   <CardContent className="space-y-3 pt-4">
                     <div className="flex justify-between">
-                      <span className="text-sm text-muted-foreground">Cliente:</span>
-                      <span className="text-sm font-medium text-white">{viewAppointment.clientName || "-"}</span>
+                      <span className="text-sm text-muted-foreground">Nome:</span>
+                      <span className="text-sm font-medium text-white">
+                        {clientDetails ? clientDetails.name : (viewAppointment.clientName ? viewAppointment.clientName.split(' ')[0] : "-")}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Cognome:</span>
+                      <span className="text-sm font-medium text-white">
+                        {clientDetails ? clientDetails.surname : (viewAppointment.clientName ? viewAppointment.clientName.split(' ').slice(1).join(' ') : "-")}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-muted-foreground">Targa:</span>
@@ -535,9 +617,9 @@ export default function TableView({
               
               <Separator className="my-2 bg-gray-800" />
               
-              <DialogFooter>
+              <DialogFooter className="sticky bottom-0 bg-background/95 backdrop-blur-sm pt-4 mt-6 border-t border-gray-800">
                 {!isClient ? (
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <Button 
                       variant="outline" 
                       className="border-gray-700 hover:bg-gray-800"
@@ -581,7 +663,7 @@ export default function TableView({
                 ) : (
                   <Button 
                     variant="outline" 
-                    className="border-gray-700 hover:bg-gray-800"
+                    className="border-gray-700 hover:bg-gray-800 w-full sm:w-auto"
                     onClick={() => setViewDialogOpen(false)}
                   >
                     Chiudi

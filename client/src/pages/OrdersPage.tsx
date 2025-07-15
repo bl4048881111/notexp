@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
-import { FileDown, Search, RefreshCw, FileText, FileCheck } from "lucide-react";
+import { FileDown, Search, RefreshCw, FileText, FileCheck, Copy } from "lucide-react";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import * as XLSX from 'xlsx';
@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Card } from "@/components/ui/card";
 
-import { getAllQuotes, getAllAppointments } from "@shared/firebase";
+import { getAllQuotes, getAllAppointments } from "@shared/supabase";
 import { raggruppaPerTipoRicambio } from "@/utils/ricambi";
 
 export default function OrdersPage() {
@@ -44,10 +44,10 @@ export default function OrdersPage() {
   
   // Verifico se abbiamo dati validi
   useEffect(() => {
-    console.log("Dati disponibili:", {
-      ordini: orders.length,
-      appuntamenti: appointments.length
-    });
+    // console.log("Dati disponibili:", {
+    //   ordini: orders.length,
+    //   appuntamenti: appointments.length
+    // });
   }, [orders, appointments]);
   
   // Utilizzo la funzione raggruppaPerTipoRicambio per ottenere i ricambi raggruppati con lo stato
@@ -58,22 +58,30 @@ export default function OrdersPage() {
   
   // Estrai tutte le parti di tutti gli ordini
   // Filtra per mostrare SOLO i ricambi da ordinare (partsOrdered = false)
-  const partsToOrder = Object.values(ricambiRaggruppati)
-    .flat()
-    .filter(part => part.partsOrdered === false);
+  const allParts = Object.values(ricambiRaggruppati).flat();
+  const partsToOrder = allParts.filter(part => part.partsOrdered === false);
   
   // Log dei ricambi filtrati per debugging
   useEffect(() => {
-    console.log("DEBUG - Ricambi:", {
-      totale: partsToOrder.length,
-      esempio: partsToOrder.length > 0 ? partsToOrder[0] : null
-    });
-  }, [partsToOrder]);
+    // console.log("DEBUG - Analisi ricambi:", {
+    //   totaleRicambi: allParts.length,
+    //   ricambiDaOrdinare: partsToOrder.length,
+    //   ricambiGiaOrdinati: allParts.filter(part => part.partsOrdered === true).length,
+    //   esempioDaOrdinare: partsToOrder.length > 0 ? partsToOrder[0] : null,
+    //   esempioGiaOrdinato: allParts.find(part => part.partsOrdered === true) || null,
+    //   tuttiIRicambi: allParts.map(part => ({
+    //     code: part.code,
+    //     clientName: part.clientName,
+    //     partsOrdered: part.partsOrdered,
+    //     appointmentId: part.appointmentId
+    //   }))
+    // });
+  }, [allParts, partsToOrder]);
   
   // Funzione per aggiornare i dati
   const refreshData = async () => {
     try {
-      console.log("Forzatura aggiornamento dati...");
+      // console.log("Forzatura aggiornamento dati...");
       
       // Invalida la cache per forzare un nuovo caricamento
       await queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
@@ -84,16 +92,13 @@ export default function OrdersPage() {
       
       // Aggiorna la pagina per essere sicuri che tutto venga ricreato
       setTimeout(() => {
-        console.log("Ricaricamento completo della funzione di raggruppamento...");
+        // console.log("Ricaricamento completo della funzione di raggruppamento...");
         // Questo forza un re-render completo del componente
         setSearch(s => s + " ");
         setTimeout(() => setSearch(s => s.trim()), 100);
       }, 500);
       
-      toast({
-        title: "Dati aggiornati",
-        description: "I dati degli ordini sono stati aggiornati con successo",
-      });
+      // Aggiornamento silenzioso - nessun toast
     } catch (error) {
       toast({
         title: "Errore di aggiornamento",
@@ -107,13 +112,63 @@ export default function OrdersPage() {
   useEffect(() => {
     // Imposta un intervallo per aggiornare automaticamente i dati
     const interval = setInterval(() => {
-      console.log("Aggiornamento automatico degli ordini...");
+      // console.log("Aggiornamento automatico degli ordini...");
       refreshData();
     }, 10 * 1000); // Ogni 10 secondi
     
     // Pulisci l'intervallo quando il componente viene smontato
     return () => clearInterval(interval);
   }, []);
+
+  // Funzione per copiare i dati formattati
+  const handleCopyFormattedData = async () => {
+    try {
+      // Raggruppa i ricambi per cliente e targa
+      const groupedData: { [key: string]: typeof partsToOrder } = {};
+      
+      partsToOrder.forEach(part => {
+        const clientName = (part.clientName || 'Cliente sconosciuto').trim();
+        const plate = (part.plate || 'Targa sconosciuta').trim();
+        const key = `${clientName} - ${plate}`;
+        if (!groupedData[key]) {
+          groupedData[key] = [];
+        }
+        groupedData[key].push(part);
+      });
+      
+      // Crea il testo formattato
+      let formattedText = '';
+      
+      Object.entries(groupedData).forEach(([clientePlate, parts], index) => {
+        if (index > 0) formattedText += '\n\n';
+        
+        // Intestazione cliente e targa
+        formattedText += `${clientePlate}\n`;
+        formattedText += '─'.repeat(clientePlate.length) + '\n';
+        
+        // Elenco codici e quantità
+        parts.forEach(part => {
+          const code = (part.code || 'N/A').trim();
+          const quantity = (part.quantity || 'N/A').toString().trim();
+          formattedText += `${code} - Qta: ${quantity}\n`;
+        });
+      });
+      
+      // Copia negli appunti
+      await navigator.clipboard.writeText(formattedText);
+      
+      toast({
+        title: "Dati copiati",
+        description: "La lista ordini è stata copiata negli appunti",
+      });
+    } catch (error) {
+      toast({
+        title: "Errore di copia",
+        description: "Si è verificato un errore durante la copia dei dati",
+        variant: "destructive",
+      });
+    }
+  };
 
   // Funzione per esportare le parti in Excel
   const handleExportOrders = async () => {
@@ -163,6 +218,16 @@ export default function OrdersPage() {
           </Button>
           
           <Button 
+            variant="outline" 
+            className="w-full sm:w-auto" 
+            onClick={handleCopyFormattedData}
+            disabled={partsToOrder.length === 0}
+          >
+            <Copy className="mr-2 h-4 w-4" />
+            Copia Lista
+          </Button>
+          
+          <Button 
             variant="secondary" 
             size="icon" 
             onClick={refreshData} 
@@ -184,7 +249,7 @@ export default function OrdersPage() {
           onChange={(e) => setSearch(e.target.value)}
         />
       </div>
-      
+
       {/* Tabella degli ordini da effettuare */}
       <Card>
         {isLoading ? (
